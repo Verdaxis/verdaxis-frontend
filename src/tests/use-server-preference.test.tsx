@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => ({
   put: vi.fn<(namespace: string, value: unknown) => Promise<void>>(),
   auth: {
     isAuthenticated: true,
-    user: { id: 'user-1' },
+    // The hook branches on an authenticated user; the unauthenticated test sets this to null.
+    user: { id: 'user-1' } as { id: string } | null,
   },
 }));
 

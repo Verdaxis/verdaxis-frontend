@@ -30,7 +30,7 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-async function mountApp() {
+async function mountApp(container: HTMLElement) {
   let initialPublicPage: PreparedPublicPage | undefined;
   try {
     initialPublicPage = await preparePublicRoute(window.location.pathname);
@@ -38,7 +38,7 @@ async function mountApp() {
     console.error('[bootstrap] Failed to preload the public route.', error);
   }
 
-  const root = ReactDOM.createRoot(rootElement);
+  const root = ReactDOM.createRoot(container);
   root.render(
     <React.StrictMode>
       <App initialPublicPage={initialPublicPage} />
@@ -46,4 +46,4 @@ async function mountApp() {
   );
 }
 
-void mountApp();
+void mountApp(rootElement);

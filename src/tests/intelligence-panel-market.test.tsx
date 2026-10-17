@@ -28,7 +28,7 @@ const products: Product[] = [
   market_product: marketProduct as Product['market_product'],
   name,
   fuel_type: marketProduct === 'UCOME_B100' ? 'FAME' : 'ALCOHOL',
-  fuel_grade: marketProduct === 'UCOME_B100' ? 'UCOME' : null,
+  fuel_grade: marketProduct === 'UCOME_B100' ? 'UCOME' : '',
   unit: 'MT',
   min_lot_size: 100,
   is_active: true,

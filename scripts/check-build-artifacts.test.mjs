@@ -11,7 +11,6 @@ const STAGING = 'https://api-staging.verdaxis.exchange/api';
 const VENDORS = [
   'vendor-mapbox',
   'vendor-leaflet',
-  'vendor-lightweight-charts',
   'vendor-recharts',
 ];
 

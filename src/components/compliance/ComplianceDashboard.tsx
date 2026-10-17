@@ -21,6 +21,7 @@ import {
     CartesianGrid,
     Tooltip as RechartsTooltip,
     Cell,
+    type TooltipPayloadEntry,
 } from 'recharts';
 import { api } from '../../services/api';
 import { useTranslation } from 'react-i18next';
@@ -430,11 +431,12 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                         color: '#fff',
                                         fontSize: '12px',
                                     }}
-                                    formatter={(value: number, name: string, props: any) => {
-                                        const item = props.payload;
+                                    formatter={(value: number | undefined, _name: string | undefined, entry: TooltipPayloadEntry<number, string>): [string, string] => {
+                                        // The bar data always carries a numeric intensity; keep the label stable if it does not.
+                                        const intensity = Number(value ?? 0).toFixed(1);
                                         return [
-                                            `${value.toFixed(1)} gCO2eq/MJ`,
-                                            item.fullName,
+                                            `${intensity} gCO2eq/MJ`,
+                                            entry.payload.fullName,
                                         ];
                                     }}
                                     labelFormatter={() => ''}

@@ -47,6 +47,7 @@ These commands reproduce the staging branch CI gates. They do not require a depl
 
 ```bash
 npm test
+npm run check:openapi
 npm run typecheck
 npm run i18n:check
 npm run build:staging
@@ -55,7 +56,20 @@ npm run build:prod
 npm run build:check
 ```
 
+`npm run typecheck` runs the TypeScript 7 native checker (`tsgo`, about 8 s). `npm run typecheck:tsc` runs the TypeScript 5.8 checker (about 38 s); run it roughly weekly as a cross-check until TypeScript 7 ships stable.
+
 `npm run verify` is a production-build convenience command. It does not replace the explicit two-build sequence above.
+
+## Vendored OpenAPI contract
+
+The frontend never edits `openapi.json`. It is a verbatim copy of the backend's committed contract, and `openapi.source.json` records the backend repository, the full commit SHA, the path, and the sha256 digest of the copy. Update both files together from one backend commit:
+
+```bash
+git -C <verdaxis-backend> show <sha>:openapi.json > openapi.json
+shasum -a 256 openapi.json   # write this digest into openapi.source.json
+```
+
+Set `sha` in `openapi.source.json` to that same backend commit. `npm run check:openapi` fails when the digest does not match, or when either file is missing or malformed. Step 5 will generate the frontend API types from this spec.
 
 ## Live and external checks
 
@@ -79,6 +93,6 @@ Do not submit orders, trades, or customer forms during a read-only smoke unless 
 | Staging FAME/catalog | `src/types/fame*.ts`, `src/services/fame*.ts`, `src/components/fame/`, `src/components/rfq/`, `src/components/supplier/` | `src/tests/b100-order-api.test.ts`, `src/tests/marketplace-b100-take.test.tsx`, FAME unit/component tests |
 | Build artifact | `vite.config.ts`, `scripts/check-build-artifacts.mjs`, `scripts/deploy.sh` | both target builds and `npm run build:check` |
 
-`openapi.json` is a generated backend contract snapshot. `.codesight/` is a historical generated navigation aid. Verify both against current source before relying on them. Product language is in [the market glossary](docs/market-glossary.md); UI rules are in [the design system](docs/design-system.md).
+`openapi.json` is a vendored backend contract snapshot; see [Vendored OpenAPI contract](#vendored-openapi-contract) for how to update it. `.codesight/` is a historical generated navigation aid. Verify both against current source before relying on them. Product language is in [the market glossary](docs/market-glossary.md); UI rules are in [the design system](docs/design-system.md).
 
 The [dated dependency follow-up](docs/plans/2026-10-03-reliability-followups.md) records the audit scope and limits as of 2026-10-03; use fresh audit output for current status.

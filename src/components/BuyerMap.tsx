@@ -666,7 +666,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     if (!e.features?.length) return;
                     const translate = translateRef.current;
                     const f = e.features[0];
+                    // Mapbox types feature properties as nullable; rendered features always carry them.
                     const props = f.properties;
+                    if (!props) return;
                     const coords = (f.geometry as any).coordinates.slice();
                     const pricePart = props.referencePrice
                         ? ' <span style="color:#94A3B8">' + escapeHtml(props.referenceProduct) + '</span> <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + Number(props.referencePrice).toFixed(0) + '</span>'
@@ -692,6 +694,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     if (!e.features?.length) return;
                     const translate = translateRef.current;
                     const f = e.features[0];
+                    // A feature without properties behaves like an unknown port, which already returns below.
+                    if (!f.properties) return;
                     const portId = f.properties.id;
                     const port = portsRef.current.find(item => item.id === portId);
                     if (!port) return;
@@ -941,6 +945,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                                 if (!e.features?.length) return;
                                 const translate = translateRef.current;
                                 const p = e.features[0].properties;
+                                if (!p) return;
                                 const coords = (e.features[0].geometry as any).coordinates.slice();
                                 const ciiColor = ['A','B'].includes(p.ciiGrade) ? '#10B981' : p.ciiGrade === 'C' ? '#F59E0B' : '#EF4444';
                                 const vesselType = translate(`buyerMap.vesselTypes.${translationKey(p.vesselType || '')}`, { defaultValue: translate('buyerMap.vesselTypes.other') });

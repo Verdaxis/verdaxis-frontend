@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNamespace } from '../../hooks/useNamespace';
 import type { FameContractTerms, FameOfferTerms } from '../../types/fameRfq';
-import type { SupplierOfferFuelTerms } from '../../types/fameSupplierOffer';
+import type { SupplierOfferFuelTerms, SupplierOfferPublicFuelTerms } from '../../types/fameSupplierOffer';
 import { ChoiceField, FormSection, TextAreaField, TextField, fieldText, gridClass, optionalNumber, singaporeDate } from './FameFormFields';
 
 export const QUALITY_PROPERTIES = [
@@ -109,7 +109,12 @@ export function validateFameDeclaration(terms: Declaration, deliveryEnd: string,
 }
 
 interface FameDeclarationFieldsProps {
-    initial?: Partial<SupplierOfferFuelTerms> | FameOfferTerms | null;
+    /**
+     * Declaration data to prefill: a contract offer declaration, a supplier offer
+     * declaration, or the public projection of one (which keeps the private
+     * identity-bearing fields present but nullable).
+     */
+    initial?: Partial<SupplierOfferFuelTerms> | SupplierOfferPublicFuelTerms | FameOfferTerms | null;
     contract?: FameContractTerms;
     deliveryEnd?: string;
     certificateValidityHint?: string;
