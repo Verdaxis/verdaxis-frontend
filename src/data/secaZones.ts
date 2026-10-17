@@ -1,4 +1,4 @@
-import collectionJson from './eca-zones-web.json';
+import ecaZonesAssetUrl from './eca-zones-web.json?url';
 
 export type EcaDisplayStatus = 'active' | 'transition' | 'adopted';
 export type SecaZoneStatus = 'active' | 'phase-in' | 'adopted';
@@ -42,11 +42,35 @@ export interface EcaZoneFeatureCollection {
     features: EcaZoneFeature[];
 }
 
-/** Web-simplified ECA geometry generated from the versioned operational dataset. */
-export const ECA_ZONE_COLLECTION = collectionJson as unknown as EcaZoneFeatureCollection;
+/**
+ * URL of the hashed, immutably cached ECA geometry asset.
+ *
+ * The dataset is 1.1 MB of web-simplified GeoJSON. As a static import it
+ * became part of the map route's JS chunk (394 KB gzip) and the browser had to
+ * parse it before the overlay could install. As an emitted asset it streams
+ * after `style.load`, is cached by URL hash, and keeps the JS bundle small.
+ */
+export const ECA_ZONES_ASSET_URL: string = ecaZonesAssetUrl;
 
-// Compatibility name retained for existing map imports.
-export const SECA_ZONE_COLLECTION = ECA_ZONE_COLLECTION;
+let cachedCollection: EcaZoneFeatureCollection | null = null;
+
+/**
+ * Fetch the ECA zone geometry once per session.
+ *
+ * The caller decides when this is safe; `loadEcaLayers` calls it after the
+ * Mapbox style has loaded, so the overlay data arrives after first paint. A
+ * failure rejects, which the map surfaces as its overlay error, exactly as a
+ * failed overlay chunk import did before.
+ */
+export async function loadEcaZoneCollection(): Promise<EcaZoneFeatureCollection> {
+    if (cachedCollection) return cachedCollection;
+    const response = await fetch(ECA_ZONES_ASSET_URL);
+    if (!response.ok) {
+        throw new Error(`ECA zone geometry request failed with status ${response.status}`);
+    }
+    cachedCollection = (await response.json()) as EcaZoneFeatureCollection;
+    return cachedCollection;
+}
 
 export const SECA_ZONE_LAYER_IDS = [
     'seca-zones-fill',
@@ -56,6 +80,3 @@ export const SECA_ZONE_LAYER_IDS = [
 
 export const SECA_ZONE_SOURCE_ID = 'seca-zones';
 export const SECA_ZONE_LABEL_SOURCE_ID = 'seca-zone-labels';
-
-export const ECA_ZONE_BUNDLE_VERSION =
-    (ECA_ZONE_COLLECTION.metadata?.bundleVersion as string | undefined) ?? 'unknown';

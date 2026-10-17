@@ -1,6 +1,18 @@
 import { expect, it, vi } from 'vitest';
 import type { Map } from 'mapbox-gl';
 import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
+import type { EcaZoneFeatureCollection } from '../data/secaZones';
+
+const collection: EcaZoneFeatureCollection = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { id: 'baltic', shortLabel: 'Baltic', displayStatus: 'active', labelPoint: [19, 58] } as never,
+      geometry: { type: 'Polygon', coordinates: [[[10, 55], [20, 55], [20, 60], [10, 60]]] },
+    },
+  ],
+};
 
 it('places ECA overlays below vector labels and toggles all three layers', () => {
   const map = {
@@ -11,7 +23,7 @@ it('places ECA overlays below vector labels and toggles all three layers', () =>
     addLayer: vi.fn(),
     setLayoutProperty: vi.fn(),
   };
-  addEcaLayers(map as unknown as Map, { isDark: true, visible: true });
+  addEcaLayers(map as unknown as Map, { isDark: true, visible: true, collection });
   expect(map.addLayer).toHaveBeenCalledTimes(3);
   for (const [layer, before] of map.addLayer.mock.calls) {
     expect(before).toBe('place-label');

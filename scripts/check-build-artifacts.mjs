@@ -49,7 +49,7 @@ export const ROUTE_FIRST_LOAD_BUDGETS = [
   // authenticated marketplace workspace
   { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 347500 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
-  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 1251300 },
+  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 844300 },
   // authenticated command center
   { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 285300 },
   // compliance workspace

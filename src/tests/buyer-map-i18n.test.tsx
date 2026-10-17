@@ -50,9 +50,11 @@ vi.mock('../context/ThemeContext', () => ({
   useTheme: () => themeMock,
 }));
 
-vi.mock('../map/addEcaLayers', () => ({
-  addEcaLayers: vi.fn(),
-  setEcaLayersVisible: vi.fn(),
+vi.mock('../map/loadEcaLayers', () => ({
+  loadEcaLayers: vi.fn().mockResolvedValue({
+    addEcaLayers: vi.fn(),
+    setEcaLayersVisible: vi.fn(),
+  }),
 }));
 
 vi.mock('../components/map/MarketWatchTicker', () => ({
