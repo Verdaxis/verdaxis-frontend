@@ -13,6 +13,7 @@ import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
 import { buildPrimarySidebarItems } from './sidebarConfig';
 import { CookieSettingsButton } from '../CookieConsent';
+import { LOGO_MARK_SRC_SET } from '../../utils/brandImages';
 
 interface SidebarProps {
     viewMode: ViewMode;
@@ -68,6 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {!logoError ? (
                             <img
                                 src="/verdaxis-logo-mark-96.png"
+                                srcSet={LOGO_MARK_SRC_SET}
+                                sizes="32px"
                                 width={96}
                                 height={86}
                                 alt="Verdaxis"

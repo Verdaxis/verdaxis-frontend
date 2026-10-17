@@ -121,8 +121,10 @@ src/
     analytics.ts                    optional consent-gated Umami adapter
   hooks/                            workspace readiness, SSE, preferences, watchlists
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
+  utils/brandImages.ts              srcSet ladders for the WebP brand images
   utils/                            market identity, slice URLs, axis and display helpers
   assets/fonts/                     self-hosted Latin woff2 files
+  assets/brand/                     right-sized lossless WebP brand images
   build/fontPreload.ts              pure builder for the webfont preload tags
   build/preconnect.ts               pure builders for the API/Mapbox preconnect tags
   locales/{en,zh}/                  lazy translation namespaces
@@ -158,6 +160,7 @@ scripts/
 | Bio-LNG/catalog | LNG types/services/components, `Marketplace.tsx`, `OrderPlaceModal.tsx` | `lng-order-api.test.ts`, `marketplace-biolng-take.test.tsx`, `order-place-modal-biolng.test.tsx`, LNG component tests |
 | Build | `vite.config.ts`, `check-build-artifacts.mjs`, `deploy.sh` | both target builds and artifact checks |
 | Fonts | `src/index.css`, `src/assets/fonts/`, `src/build/fontPreload.ts` | `self-hosted-fonts.test.ts` |
+| Brand images | `src/assets/brand/`, `src/utils/brandImages.ts`, `scripts/optimize-brand-images.sh` | `brand-assets.test.ts` |
 
 `scripts/check-build-artifacts.mjs` also enforces per-route first-load ceilings in
 gzip bytes (`ROUTE_FIRST_LOAD_BUDGETS`) for the landing page, marketplace, the
@@ -189,6 +192,18 @@ builds the two preload tags for the above-the-fold files (Lato 400 and
 Montserrat's variable file) from the names Vite emitted, because the hashes only
 exist after the CSS is transformed; `src/tests/self-hosted-fonts.test.ts` covers
 the face set, the digests on disk and the preload builder.
+
+Brand artwork is served right-sized. `scripts/optimize-brand-images.sh` writes
+lossless 1x/2x WebP cuts into `src/assets/brand/`, `src/utils/brandImages.ts`
+imports them and exports the `srcSet` ladders and the `sizes` hints that go with
+them, and every `<img>` keeps its `public/*.png` counterpart as the `src`
+fallback and as the public URL other readers use (the social card, the favicon,
+the structured-data logo and the masters the generator starts from). Vite
+inlines neither the fonts nor the brand images (`build.assetsInlineLimit` opts
+`.woff2` and `.webp` out of the default 4 KiB threshold, and leaves every other
+asset on it), so the images stay separate hashed files under `/assets/`;
+`src/tests/brand-assets.test.ts` guards the
+pixel sizes, the descriptor-to-file match and the fallbacks.
 
 ## Run commands
 

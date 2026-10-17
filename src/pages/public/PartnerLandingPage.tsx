@@ -23,6 +23,7 @@ import { PriceTicker } from '../../components/public/PriceTicker';
 import { HeroSection } from '../../components/public/HeroSection';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import { PARTNER_LOGOS } from '../../utils/brandImages';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -295,6 +296,8 @@ export const PartnerLandingPage: React.FC = () => {
                     {p.logoUrl ? (
                       <img
                         src={p.logoUrl}
+                        srcSet={PARTNER_LOGOS[p.logoUrl]}
+                        sizes="64px"
                         width={64}
                         height={64}
                         alt={p.name}

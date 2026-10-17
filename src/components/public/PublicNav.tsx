@@ -6,6 +6,7 @@ import LanguageSelector from '../LanguageSelector';
 import { type SupportedLang } from '../../i18n';
 import { useLocalePath } from '../../hooks/useLocalePath';
 import { analytics } from '../../services/analytics';
+import { WORDMARK_SRC_SET } from '../../utils/brandImages';
 
 const BLUE = '#5DADE2';
 const DARK = '#0F172A';
@@ -143,6 +144,8 @@ export const PublicNav: React.FC = () => {
         <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <img
             src="/verdaxis-logo-words-right-384.png"
+            srcSet={WORDMARK_SRC_SET}
+            sizes="152px"
             alt="Verdaxis"
             width={384}
             height={86}

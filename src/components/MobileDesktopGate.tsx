@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Monitor } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { WORDMARK_SRC_SET } from '../utils/brandImages';
 
 interface MobileDesktopGateProps {
   children: React.ReactNode;
@@ -50,6 +51,8 @@ export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }
         <div className="mobile-desktop-gate__content">
           <img
             src="/verdaxis-logo-words-right-384.png"
+            srcSet={WORDMARK_SRC_SET}
+            sizes="180px"
             width={384}
             height={86}
             alt="Verdaxis"

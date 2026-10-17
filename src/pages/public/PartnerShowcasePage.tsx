@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { useNamespace } from '../../hooks/useNamespace';
+import { PARTNER_LOGOS } from '../../utils/brandImages';
 
 /* Independent industry resources; no affiliation or endorsement is implied. */
 
@@ -111,6 +112,8 @@ const PartnerCard: React.FC<{ partner: Partner & { role: string; description: st
               {partner.logoUrl ? (
                 <img
                   src={partner.logoUrl}
+                  srcSet={PARTNER_LOGOS[partner.logoUrl]}
+                  sizes="48px"
                   width={48}
                   height={48}
                   alt={partner.fullName}
@@ -618,6 +621,8 @@ export const PartnerShowcasePage: React.FC = () => {
                 <img
                   key={p.name}
                   src={p.logoUrl}
+                  srcSet={PARTNER_LOGOS[p.logoUrl]}
+                  sizes="56px"
                   width={56}
                   height={56}
                   alt=""
