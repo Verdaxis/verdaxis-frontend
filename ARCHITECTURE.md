@@ -122,6 +122,9 @@ src/
   hooks/                            workspace readiness, SSE, preferences, watchlists
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/                            market identity, slice URLs, axis and display helpers
+  assets/fonts/                     self-hosted Latin woff2 files
+  build/fontPreload.ts              pure builder for the webfont preload tags
+  build/preconnect.ts               pure builders for the API/Mapbox preconnect tags
   locales/{en,zh}/                  lazy translation namespaces
   pages/                            auth/onboarding and public route pages
   tests/                            Vitest and React Testing Library checks
@@ -154,6 +157,7 @@ scripts/
 | FAME/catalog | FAME types/services/components and `Marketplace.tsx` | `b100-order-api.test.ts`, `marketplace-b100-take.test.tsx`, FAME component tests |
 | Bio-LNG/catalog | LNG types/services/components, `Marketplace.tsx`, `OrderPlaceModal.tsx` | `lng-order-api.test.ts`, `marketplace-biolng-take.test.tsx`, `order-place-modal-biolng.test.tsx`, LNG component tests |
 | Build | `vite.config.ts`, `check-build-artifacts.mjs`, `deploy.sh` | both target builds and artifact checks |
+| Fonts | `src/index.css`, `src/assets/fonts/`, `src/build/fontPreload.ts` | `self-hosted-fonts.test.ts` |
 
 `scripts/check-build-artifacts.mjs` also enforces per-route first-load ceilings in
 gzip bytes (`ROUTE_FIRST_LOAD_BUDGETS`) for the landing page, marketplace, the
@@ -170,6 +174,21 @@ first load lowers its ceiling with it.
 `https://api.mapbox.com`; `src/build/preconnect.ts` holds the pure tag builders
 and `src/tests/api-preconnect.test.ts` covers them. Only these tags are added
 to the shell and to every prerendered page.
+
+The shell self-hosts its webfonts. `src/index.css` declares the eight faces the
+site uses (JetBrains Mono 400/600, Lato 300/400/700, Montserrat 500/600/700) as
+`@font-face` rules with Google's own Latin `unicode-range` and
+`font-display: swap`, pointing at `src/assets/fonts/*.woff2`;
+`scripts/fetch-self-hosted-fonts.sh` re-downloads those five files and checks
+their digests, so a re-run cannot silently swap the shipped glyphs. The shell
+no longer requests anything from `fonts.googleapis.com`: the two preconnects and
+the stylesheet link are gone. The one Google Fonts request left in the app is
+`PartnerShowcasePage.tsx`'s `@import` of DM Serif Display for its own headings;
+that predates this step and is not self-hosted yet. `src/build/fontPreload.ts`
+builds the two preload tags for the above-the-fold files (Lato 400 and
+Montserrat's variable file) from the names Vite emitted, because the hashes only
+exist after the CSS is transformed; `src/tests/self-hosted-fonts.test.ts` covers
+the face set, the digests on disk and the preload builder.
 
 ## Run commands
 
@@ -242,6 +261,15 @@ screens run before the journeys so they capture exactly the seeded state.
 `--screenshots compare` (the default) fails above a 0.002 pixel-difference
 ratio; `npm run smoke:journeys:record` refreshes the committed baselines in
 `scripts/journeys/baselines/`.
+
+The harness stubs the webfonts as well as Mapbox. The committed baselines were
+captured with no webfont loaded, so `browser_harness.py` answers an empty
+`font/woff2` body for `fonts.googleapis.com` and `fonts.gstatic.com` and for
+same-origin `/assets/*.woff2`, the paths the self-hosted fonts are served from.
+Without the same-origin rule the fonts would load, text metrics would change and
+every screenshot would fail; with it a font never decodes and each page keeps
+the fallback the baseline recorded. Add a new webfont origin here when one
+appears, and never re-record the baselines to absorb a font change.
 
 The order journeys drive the real order modal. The catalog boundary converts the
 wire decimal string into a number (`parseWireDecimal`), so `min_lot_size` is

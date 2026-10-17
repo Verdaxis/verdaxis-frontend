@@ -8,6 +8,7 @@ import {
     resolveRouteMetadata,
 } from './src/routeMetadata';
 import { buildPreconnectTags } from './src/build/preconnect';
+import { buildFontPreloadTags, injectFontPreloads } from './src/build/fontPreload';
 
 export const RELEASE_API_URLS = {
     production: 'https://api.verdaxis.exchange/api',
@@ -24,6 +25,28 @@ export function apiPreconnectPlugin(apiUrl: string | undefined): Plugin {
         name: 'verdaxis-api-preconnect',
         transformIndexHtml(html) {
             return { html, tags: buildPreconnectTags(apiUrl) };
+        },
+    };
+}
+
+/**
+ * Preload the two above-the-fold webfont files. The hashed file names only
+ * exist once the bundle is generated, so the links are injected into the
+ * emitted shell here rather than written in `index.html`. This runs as a
+ * `post` plugin before `staticRouteMetadataPlugin`, which copies the finished
+ * shell into every prerendered page, so those pages inherit the links too.
+ */
+export function fontPreloadPlugin(): Plugin {
+    return {
+        name: 'verdaxis-font-preload',
+        apply: 'build',
+        enforce: 'post',
+        generateBundle(_options, bundle) {
+            const entry = bundle['index.html'];
+            if (!entry || entry.type !== 'asset' || typeof entry.source !== 'string') {
+                throw new Error('Vite did not emit index.html');
+            }
+            entry.source = injectFontPreloads(entry.source, Object.keys(bundle));
         },
     };
 }
@@ -153,11 +176,17 @@ export default defineConfig(({ command, mode }) => {
           },
         },
       },
-      plugins: [react(), apiPreconnectPlugin(process.env.VITE_API_URL ?? env.VITE_API_URL), staticRouteMetadataPlugin(mode)],
+      plugins: [react(), apiPreconnectPlugin(process.env.VITE_API_URL ?? env.VITE_API_URL), fontPreloadPlugin(), staticRouteMetadataPlugin(mode)],
       // SECURITY: No API keys in define{} — all AI calls go through backend /api/ai/chat
       build: {
         // SECURITY: Disable source maps in production to prevent source code exposure
         sourcemap: false,
+        // Fonts and brand images must keep their content hash and the
+        // `/assets/*` immutable cache header rather than becoming inline data
+        // URIs, which would also add their bytes to a route chunk. Every other
+        // asset keeps Vite's default 4 KiB inlining: Leaflet's marker images
+        // come from its vendored stylesheet and are not ours to re-request.
+        assetsInlineLimit: (filePath) => (/(?:woff2|webp)$/.test(filePath) ? false : undefined),
         rollupOptions: {
           output: {
             manualChunks: {
