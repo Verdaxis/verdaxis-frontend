@@ -638,3 +638,9 @@
 - **Trigger:** I first attributed an order-prefill test failure to async catalog timing, but the fixture's requested B100 product was present and correctly selected.
 - **Rule:** Before changing waits after a UI test failure, compare the requested identifier with the complete fixture and trace the rendered branch and its display formatter. Use a truly absent value for unresolved-prefill tests, and assert canonical labels instead of arbitrary fixture names.
 - **Why:** A valid fixture can make the product behavior correct while the test expectation is false; labeling it a timing race hides the actual cause.
+
+### Reuse The Pinned Journey Backend Tree; It Survives Lane Resets
+- **Date:** 2026-10-17
+- **Trigger:** A fresh frontend lane had no `work/journeys-backend`, and the journey gate needs a clean checkout of the pinned backend release with its venv.
+- **Rule:** Do not rebuild it. A `work/journeys-backend` clone survives the lane wrapper's `git clean -fd` (git clean does not delete a nested repository), but it belongs to the lane that created it. Find it under `/home/verdaxis-test/runs/<lane>/work/journeys-backend` and pass it explicitly: `VERDAXIS_BACKEND_TREE=<path> npm run smoke:journeys`, or `--backend <path>` to `scripts/journeys/run_journeys.py`. Note that `~/.verdaxis-journeys/dist` is shared by every lane, so a build in one lane replaces another lane's cached bundle.
+- **Why:** Reusing the pinned tree avoids a long backend build and keeps every lane on the same backend SHA, so a screenshot difference cannot come from a different backend.
