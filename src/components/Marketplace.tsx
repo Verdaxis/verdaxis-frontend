@@ -1,5 +1,5 @@
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
-import { wireDecimalText } from '../api/decimals';
+import { formatQuantity, formatUsd } from '../utils/numberFormat';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -1258,7 +1258,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             case 'volume':
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-slate-700 dark:text-slate-200 text-xs">
-                        {wireDecimalText(order.remaining_quantity_mt)}
+                        {formatQuantity(order.remaining_quantity_mt)}
                     </td>
                 );
             case 'price': {
@@ -1855,10 +1855,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                         ${order.price_per_mt_usd.toLocaleString(locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {order.quantity_mt.toLocaleString(locale)}
+                                                        {formatQuantity(order.quantity_mt, locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {order.remaining_quantity_mt.toLocaleString(locale)}
+                                                        {formatQuantity(order.remaining_quantity_mt, locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
                                                         {formatDeliveryWindow(order, locale)}
@@ -2012,11 +2012,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             </div>
                                             <div>
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{wireDecimalText(tradeResult.quantity_mt)} MT</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{formatQuantity(tradeResult.quantity_mt, locale)} MT</div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
-                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${wireDecimalText(tradeResult.price_per_mt_usd)}/MT</div>
+                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${formatUsd(tradeResult.price_per_mt_usd)}/MT</div>
                                             </div>
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
@@ -2138,7 +2138,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.price')}</span>
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                                ${wireDecimalText(selectedOrder.price_per_mt_usd)} / MT
+                                                ${formatUsd(selectedOrder.price_per_mt_usd)} / MT
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center">
@@ -2167,7 +2167,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
                                         </div>
                                         <p className="text-xs text-slate-400 mt-1 text-right">
-                                            {t('marketplace.modal.maxAvailable')} {wireDecimalText(selectedOrder.remaining_quantity_mt)} MT
+                                            {t('marketplace.modal.maxAvailable')} {formatQuantity(selectedOrder.remaining_quantity_mt, locale)} MT
                                             {Number.isFinite(tradeQuantity) && tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
                                                 <span className="ml-2 text-emerald-500 font-bold">
                                                     {t('marketplace.modal.total')} ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
@@ -2178,7 +2178,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     {getBiofuelSpecification(selectedOrder.market_product) && <div className="text-sm text-slate-600 dark:text-slate-300">
                                         <p>{t(`${selectedOrder.market_product?.toLowerCase()}.contract`)}</p>
                                         <p>{selectedOrder.specification_standard}</p>
-                                        <p>{selectedOrder.carbon_intensity_gco2_mj ?? t('common.notAvailable')} gCO₂e/MJ · {selectedOrder.carbon_intensity_method}</p>
+                                        <p>{formatQuantity(selectedOrder.carbon_intensity_gco2_mj, locale) || t('common.notAvailable')} gCO₂e/MJ · {selectedOrder.carbon_intensity_method}</p>
                                     </div>}
                                     {selectedOrder.market_product === 'UCOME_B100' && <div className="space-y-4">
                                         {selectedOrder.fame_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>

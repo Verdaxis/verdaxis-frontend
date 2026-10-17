@@ -89,11 +89,11 @@ describe('TradeNotifier', () => {
 
     expect(addToastMock).toHaveBeenCalledWith(expect.objectContaining({
       title: '交易已确认',
-      message: '500.00 MT 已按 $740.00/MT 确认',
+      message: '500 MT 已按 $740.00/MT 确认',
     }));
     expect(addNotificationMock).toHaveBeenCalledWith(expect.objectContaining({
       title: '交易已确认',
-      message: '500.00 MT 已按 $740.00/MT 确认',
+      message: '500 MT 已按 $740.00/MT 确认',
     }));
   });
 

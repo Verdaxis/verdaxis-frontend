@@ -13,6 +13,7 @@ import type {
     WireTradeTapeEntry,
 } from '../api/contract';
 import {
+    mapWirePage,
     toAggregatedOrderbook,
     toForwardCurvePoint,
     toInventoryItem,
@@ -25,7 +26,8 @@ import {
     toTradeStreamPayload,
     toTradeTapeEntry,
 } from '../api/mappers';
-import { parseWireDecimal, requireWireDecimal, wireDecimalText } from '../api/decimals';
+import { parseWireDecimal, requireWireDecimal } from '../api/decimals';
+import { formatQuantity, formatUsd } from '../utils/numberFormat';
 
 /**
  * The spellings one number may arrive in. Tracker decision 67 lets the backend
@@ -34,6 +36,11 @@ import { parseWireDecimal, requireWireDecimal, wireDecimalText } from '../api/de
  */
 const SPELLINGS = ['650', '650.0', '650.00', '6.5E+2', ' 650.00 '];
 const VALUE = 650;
+
+// The wire's decimal columns are unscaled `Numeric()`, so the same value also
+// arrives as "1109", "1.109E+3" and 30-digit strings (recorded responses R17,
+// R16). Decision 71: a display uses the shared formatters, never the spelling.
+const UNSCALED_SPELLINGS = ['1109', '1109.00', '1.109E+3', '1000.000000000000000000000000000000'];
 
 /**
  * A wire fixture written with the fields a test reads. The cast keeps the
@@ -350,6 +357,40 @@ const RECORDS: Record<string, any> = {
     toInventoryItem: WIRE_INVENTORY,
 };
 
+describe('wire decimal mappers: unscaled Numeric columns parse to their values', () => {
+    it('reads the spellings the recorded responses actually send', () => {
+        // The columns are unscaled `Numeric()`, so `decimal_places=2` is only an
+        // upper limit: "1109" (R17-asks) and a 30-digit string (R16-bids) are
+        // both live spellings, not hypothetical ones.
+        expect(requireWireDecimal('1109')).toBe(1109);
+        expect(requireWireDecimal(UNSCALED_SPELLINGS[1])).toBe(1109);
+        expect(requireWireDecimal(UNSCALED_SPELLINGS[2])).toBe(1109);
+        expect(requireWireDecimal(UNSCALED_SPELLINGS[3])).toBe(1000);
+    });
+});
+
+describe('mapWirePage: no wire record passes through unmapped', () => {
+    const mapped = (record: any) => ({ id: record.id, quantity_mt: 500 });
+
+    it('maps the items of a well-formed page', () => {
+        expect(mapWirePage({ items: [{ id: 'a', quantity_mt: '500.00' }], total: 1, skip: 0, limit: 20 }, mapped))
+            .toEqual({ items: [{ id: 'a', quantity_mt: 500 }], total: 1, skip: 0, limit: 20 });
+    });
+
+    it('returns an empty items array for a body without one', () => {
+        // A malformed page cannot carry wire records, so nothing passes
+        // through: the caller's `page.items` read stays safe and wire-free.
+        expect(mapWirePage({ total: 0 }, mapped)).toEqual({ total: 0, items: [] });
+        expect(mapWirePage({}, mapped)).toEqual({ items: [] });
+    });
+
+    it('returns an empty page for a null or scalar body', () => {
+        expect(mapWirePage(null, mapped)).toEqual({ items: [] });
+        expect(mapWirePage(undefined, mapped)).toEqual({ items: [] });
+        expect(mapWirePage('error text', mapped)).toEqual({ items: [] });
+    });
+});
+
 describe('wire decimal mappers: the spelling of a decimal changes nothing', () => {
     for (const mapper of MAPPERS) {
         it(`${mapper.name} maps every spelling of one value to the same app field`, () => {
@@ -429,30 +470,91 @@ describe('wire decimal mappers: absent, empty and malformed values', () => {
 });
 
 describe('wire decimal displays: every spelling renders the same text', () => {
-    it('spells a converted decimal exactly as the wire spelled it', () => {
-        // Every raw-string display listed in the drift record now formats the
-        // number with `wireDecimalText`; the wire spells a 2-decimal column the
-        // same way, so the screen text is unchanged.
-        for (const spelling of SPELLINGS) {
-            const value = parseWireDecimal(spelling);
-            expect(wireDecimalText(value), spelling).toBe('650.00');
+    /**
+     * Each entry is one of the eight raw-string displays from the drift
+     * record: the formatter it now uses, a wire value and the text it must
+     * show. The value is parsed from every spelling of it in turn, so a
+     * display that followed the wire's spelling would fail.
+     */
+    const DISPLAYS: Array<{
+        display: string;
+        format: (value: number) => string;
+        spellings: string[];
+        expected: string;
+    }> = [
+        {
+            display: 'Marketplace listings volume column (quantity format)',
+            format: formatQuantity,
+            spellings: ['1109', '1109.0', '1109.00', '1.109E+3'],
+            expected: '1,109',
+        },
+        {
+            display: 'Marketplace take-result card quantity (quantity format)',
+            format: formatQuantity,
+            spellings: ['200', '200.0', '200.00', '2E+2', ' 200.00 '],
+            expected: '200',
+        },
+        {
+            display: 'Marketplace take-result card price (money format)',
+            format: formatUsd,
+            spellings: ['1109', '1109.00', '1.109E+3', ' 1109 '],
+            expected: '1,109.00',
+        },
+        {
+            display: 'Marketplace take-modal summary price (money format)',
+            format: formatUsd,
+            spellings: ['915', '915.0', '915.00', '9.15E+2'],
+            expected: '915.00',
+        },
+        {
+            display: 'Marketplace take-modal maximum available (quantity format)',
+            format: formatQuantity,
+            spellings: ['1000', '1000.00', '1000.000000000000000000000000000000', '1E+3'],
+            expected: '1,000',
+        },
+        {
+            display: 'Marketplace take-modal carbon intensity (quantity format)',
+            format: formatQuantity,
+            spellings: ['18.4', '18.40', '1.84E+1'],
+            expected: '18.4',
+        },
+        {
+            display: 'OrderPlaceModal auto-matched quantity and price',
+            format: formatQuantity,
+            spellings: ['1109', '1109.00', '1.109E+3'],
+            expected: '1,109',
+        },
+        {
+            display: 'TradeNotifier toast quantity, price and delivered total',
+            format: formatQuantity,
+            spellings: ['200', '200.00', '2.0E+2'],
+            expected: '200',
+        },
+    ];
+
+    it.each(DISPLAYS)('$display ignores how the wire spells the number', ({ format, spellings, expected }) => {
+        for (const spelling of spellings) {
+            expect(format(requireWireDecimal(spelling)), spelling).toBe(expected);
         }
     });
 
-    it('keeps two decimals, no grouping and a leading minus, as the wire does', () => {
-        expect(wireDecimalText(1000)).toBe('1000.00');
-        expect(wireDecimalText(1002140)).toBe('1002140.00');
-        expect(wireDecimalText(-5.5)).toBe('-5.50');
-        expect(wireDecimalText(0)).toBe('0.00');
-        // Absent or unusable renders as an absent field did: nothing.
-        expect(wireDecimalText(null)).toBe('');
-        expect(wireDecimalText(undefined)).toBe('');
-        expect(wireDecimalText(NaN)).toBe('');
+    it('formats money and quantity through the shared formatters, not the spelling', () => {
+        // Money: the listing price column's format (grouped, exactly 2 decimals).
+        expect(formatUsd(1109)).toBe('1,109.00');
+        expect(formatUsd(1000)).toBe('1,000.00');
+        expect(formatUsd(200)).toBe('200.00');
+        expect(formatUsd(-5.5)).toBe('-5.50');
+        // Quantities and carbon intensity: the My Orders table's format.
+        expect(formatQuantity(1000)).toBe('1,000');
+        expect(formatQuantity(200.5)).toBe('200.5');
+        expect(formatQuantity(18.4)).toBe('18.4');
+        // Absent or unusable renders as empty text; the placeholder a caller
+        // shows instead is applied at the call site.
+        expect(formatUsd(null)).toBe('');
+        expect(formatQuantity(NaN)).toBe('');
     });
 
     it('renders a locale-formatted decimal identically from every spelling', () => {
-        // The money and quantity columns use `toLocaleString` on the converted
-        // number, which depends on the number only.
         const rendered = SPELLINGS.map(spelling => parseWireDecimal(spelling)?.toLocaleString('en'));
         expect(new Set(rendered).size).toBe(1);
         expect(rendered[0]).toBe('650');

@@ -38,17 +38,3 @@ export function requireWireDecimal(value: unknown): number {
     return parseWireDecimal(value) ?? NaN;
 }
 
-/**
- * The text the wire itself spells for this decimal — for example `"200.00"`.
- *
- * A display that used to render the raw wire string renders this instead, so
- * its text is unchanged for the values the backend sends today. Two decimals is
- * the scale of the order, trade and price columns. An absent or unusable value
- * renders as the empty string, as an absent field did before.
- */
-export function wireDecimalText(
-    value: number | null | undefined,
-    digits = 2,
-): string {
-    return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '';
-}
