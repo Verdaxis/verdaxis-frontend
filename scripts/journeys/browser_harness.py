@@ -3,7 +3,9 @@
 Two rules matter for every run:
 
 * Determinism. Mapbox tiles, styles, fonts, and Google Fonts are stubbed (or
-  routed to transparent PNGs) so no run needs a token or the network. SSE
+  routed to transparent PNGs) so no run needs a token or the network. That
+  includes the app's own webfonts: the committed screenshot baselines were
+  captured with no webfont loaded, so `/assets/*.woff2` is stubbed too. SSE
   stream bodies cannot pass through Playwright's route proxy, so ``/stream/``
   is aborted exactly like ``phase0_gate_browser.py`` does.
 * Real backend. API calls are forwarded to the disposable backend origin the
@@ -123,6 +125,14 @@ class Harness:
             self._forward(route, parsed)
             return
         if request.url.startswith(self.base + '/'):
+            # Webfonts are stubbed exactly like the Google Fonts hosts below,
+            # for the reason the module docstring gives: the committed
+            # screenshot baselines were captured without any webfont loaded.
+            # The app serves its own fonts from this origin (refactor step 3b),
+            # so the stub has to follow them here.
+            if path.endswith('.woff2'):
+                route.fulfill(status=200, content_type='font/woff2', body=b'')
+                return
             # Same-origin bundle assets move on to the static server. The map's
             # ECA overlay chunk arrives this way, so it is recorded as evidence.
             if 'eca' in path.lower():

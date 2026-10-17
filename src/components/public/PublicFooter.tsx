@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocalePath } from '../../hooks/useLocalePath';
 import { useNamespace } from '../../hooks/useNamespace';
 import { CookieSettingsButton } from '../CookieConsent';
+import { WORDMARK_SRC_SET } from '../../utils/brandImages';
 
 const DARK = '#0F172A';
 const BLUE = '#5DADE2';
@@ -97,6 +98,8 @@ export const PublicFooter: React.FC = () => {
           <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 16 }}>
             <img
               src="/verdaxis-logo-words-right-384.png"
+              srcSet={WORDMARK_SRC_SET}
+              sizes="154px"
               alt="Verdaxis"
               width={384}
               height={86}

@@ -6,6 +6,7 @@ ffmpeg_bin=${FFMPEG_BIN:-ffmpeg}
 python_bin=${PYTHON_BIN:-python3}
 social_font=${SOCIAL_FONT:-/usr/share/fonts/truetype/lato/Lato-Regular.ttf}
 curl_bin=${CURL_BIN:-curl}
+cwebp_bin=${CWEBP_BIN:-cwebp}
 
 "$ffmpeg_bin" -hide_banner -loglevel error -y \
   -i "$repo_root/public/verdaxis-logo-words-right.png" \
@@ -51,6 +52,46 @@ download_partner_logo \
   'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF' \
   '9ab6450ea166614a1464de1d9ca30c2aca2e0a2ff2d0a57ddcbe82a6a4a1194b' \
   'partner-gena-128.png'
+
+# --- Right-sized WebP for `srcSet` (refactor step 3b) ------------------------
+# The components render the wordmark 152 CSS px wide, the square mark 32 and
+# the partner logos between 48 and 64, so each place gets a lossless WebP at 1x
+# and 2x of that width. These files are what `src/utils/brandImages.ts` imports;
+# the PNGs above stay as the `<img src>` fallback and as the public URLs other
+# readers use (social card, favicon, structured data, e-mail).
+#
+# Lossless because the artwork is flat text and shapes: 1x/2x of a flat logo
+# compresses to a few kilobytes, and a lossy re-encode of small white text
+# would ring against the header background. Needs `cwebp` (libwebp-tools); the
+# local ffmpeg build has no libwebp encoder, which is why this is a separate
+# binary rather than another ffmpeg call.
+build_brand_webp() {
+  local source=$1
+  local width=$2
+  local height=$3
+  local name=$4
+
+  "$cwebp_bin" -quiet -lossless -z 9 -resize "$width" "$height" \
+    "$repo_root/public/$source" -o "$repo_root/src/assets/brand/$name.webp"
+}
+
+mkdir -p "$repo_root/src/assets/brand"
+
+# The wordmark masters are shown at three widths: the 152 px navigation and
+# footer, the 180 px mobile gate and the 214 px invitation header.
+build_brand_webp 'verdaxis-logo-words-right.png' 152 34 'logo-wordmark-152'
+build_brand_webp 'verdaxis-logo-words-right.png' 304 68 'logo-wordmark-304'
+build_brand_webp 'verdaxis-logo-words-right.png' 428 96 'logo-wordmark-428'
+
+# The square mark fills the sidebar's 32 px logo tile.
+build_brand_webp 'verdaxis-logo-no-words.png' 32 29 'logo-mark-32'
+build_brand_webp 'verdaxis-logo-no-words.png' 64 57 'logo-mark-64'
+
+# Partner logos, 1x and 2x of the 64 px tile the three call sites draw them in.
+build_brand_webp 'partner-platts-128.png' 64 36 'partner-platts-64'
+build_brand_webp 'partner-platts-128.png' 128 72 'partner-platts-128'
+build_brand_webp 'partner-gena-128.png' 64 23 'partner-gena-64'
+build_brand_webp 'partner-gena-128.png' 128 46 'partner-gena-128'
 
 "$python_bin" - "$repo_root" "$social_font" <<'PY'
 from pathlib import Path

@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import i18n from '../i18n';
 import { API_URL } from '../services/config';
+import { WORDMARK_SRC_SET } from '../utils/brandImages';
 import { formatLocalizedAuthError, localizedAuthError } from './authApiError';
 import type { TFunction } from 'i18next';
 
@@ -166,6 +167,8 @@ const AcceptInvitationPage: React.FC = () => {
         <header className="mb-7 flex justify-center">
           <img
             src="/verdaxis-logo-words-right-384.png"
+            srcSet={WORDMARK_SRC_SET}
+            sizes="214px"
             width={384}
             height={86}
             alt="Verdaxis"
