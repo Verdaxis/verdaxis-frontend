@@ -361,7 +361,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const cancellationRequestRef = useRef<{
         orderId: string;
         reason: string;
-        etag?: string;
+        etag?: string | null;
         idempotencyKey: string;
         authGeneration: number;
         supportContextId: string | null;

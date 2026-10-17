@@ -1,4 +1,4 @@
-import type { WireOrder, WireTrade, WireMarketSourceKind } from './api/contract';
+import type { WireOrder, WireOwnedOrder, WireTrade, WireMarketSourceKind } from './api/contract';
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
@@ -270,9 +270,12 @@ export interface TradeCreateInput {
     idempotency_key?: string;
 }
 
-export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count' | 'source_kind' | 'scope' | 'demo_status' | 'version' | 'terms_digest' | 'product_id' | 'product_name' | 'fuel_grade' | 'is_crossed' | 'certification_declared' | 'is_demo_listing' | 'msds_available'> {
+type OwnedOrderFields = Pick<WireOwnedOrder, 'organization_id' | 'updated_at' | 'trade_count' | 'creation_method' | 'etag' | 'vessel_id'>;
+
+// Compatibility view: existing public consumers still accept owner metadata.
+// Only `/orderbook/my` guarantees these fields (see `OwnedOrderBookOrder`).
+export interface OrderBookOrder extends Partial<OwnedOrderFields>, Pick<WireOrder, 'unknown_count' | 'source_kind' | 'scope' | 'demo_status' | 'version' | 'terms_digest' | 'product_id' | 'product_name' | 'fuel_grade' | 'is_crossed' | 'certification_declared' | 'is_demo_listing' | 'msds_available'> {
     id: string;
-    organization_id?: string; // Only in "my" view
     side: OrderSide;
     // Product/DeliveryPoint FK fields (new model)
     delivery_point_id?: string;
@@ -282,7 +285,6 @@ export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count' | 'sourc
     fuel_type: string;
     region: string;
     port_id?: string;
-    vessel_id?: string;
     quantity_mt: number;
     remaining_quantity_mt: number;
     price_per_mt_usd: number;
@@ -308,11 +310,9 @@ export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count' | 'sourc
     status: OrderBookStatus;
     expires_at?: string;
     created_at: string;
-    updated_at?: string;
-    trade_count?: number; // Only in "my" view
-    creation_method?: string;
-    etag?: string;
 }
+
+export type OwnedOrderBookOrder = OrderBookOrder & OwnedOrderFields;
 
 export interface OrderBookSnapshot {
     market_product: MarketProduct;

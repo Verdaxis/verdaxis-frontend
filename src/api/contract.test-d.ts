@@ -126,35 +126,6 @@ expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
 expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
 expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
-// ─── DRIFT-4: owner-view fields folded into the public interface ───
-// `OrderResponse` carries no ownership fields; `OrderMyResponse` adds them as
-// required. The frontend has one interface with all of them optional, so code
-// cannot tell which view it holds.
-
-expectTypeOf<HasProperty<WireOrder, 'organization_id'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<WireOrder, 'trade_count'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<WireOrder, 'etag'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<WireOrder, 'updated_at'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<WireOrder, 'vessel_id'>>().toEqualTypeOf<false>();
-
-expectTypeOf<HasProperty<WireOwnedOrder, 'organization_id'>>().toEqualTypeOf<true>();
-expectTypeOf<HasProperty<WireOwnedOrder, 'trade_count'>>().toEqualTypeOf<true>();
-expectTypeOf<HasProperty<WireOwnedOrder, 'etag'>>().toEqualTypeOf<true>();
-expectTypeOf<HasProperty<WireOwnedOrder, 'updated_at'>>().toEqualTypeOf<true>();
-expectTypeOf<HasProperty<WireOwnedOrder, 'vessel_id'>>().toEqualTypeOf<true>();
-
-expectTypeOf<WireOwnedOrder['organization_id']>().toEqualTypeOf<string>();
-expectTypeOf<WireOwnedOrder['trade_count']>().toEqualTypeOf<number>();
-expectTypeOf<WireOwnedOrder['updated_at']>().toEqualTypeOf<string>();
-expectTypeOf<WireOwnedOrder['etag']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<WireOwnedOrder['vessel_id']>().toEqualTypeOf<string | null | undefined>();
-
-expectTypeOf<OrderBookOrder['organization_id']>().toEqualTypeOf<string | undefined>();
-expectTypeOf<OrderBookOrder['trade_count']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<OrderBookOrder['updated_at']>().toEqualTypeOf<string | undefined>();
-expectTypeOf<OrderBookOrder['etag']>().toEqualTypeOf<string | undefined>();
-expectTypeOf<OrderBookOrder['vessel_id']>().toEqualTypeOf<string | undefined>();
-
 // ─── DRIFT-5: the `User` profile ───────────────────────────────────
 // `email_verified` is not on `UserResponse` at all; `/auth/me` can never set it.
 // `referral_code` is on the wire and missing from the frontend type.
@@ -254,6 +225,11 @@ expectTypeOf<Notification['data']>().toEqualTypeOf<any>();
 
 // ─── Shapes that already agree ─────────────────────────────────────
 // Pinned so a change to either side is noticed here too.
+
+type OwnerKeys = 'organization_id' | 'updated_at' | 'trade_count' | 'creation_method' | 'etag' | 'vessel_id';
+expectTypeOf<Pick<import('../types').OwnedOrderBookOrder, OwnerKeys>>().toEqualTypeOf<Pick<WireOwnedOrder, OwnerKeys>>();
+expectTypeOf<Pick<OrderBookOrder, OwnerKeys>>().toEqualTypeOf<Partial<Pick<WireOwnedOrder, OwnerKeys>>>();
+expectTypeOf<Extract<keyof WireOrder, OwnerKeys>>().toEqualTypeOf<never>();
 
 type OrderProvenance = 'source_kind' | 'scope' | 'demo_status' | 'version' | 'terms_digest' | 'product_id' | 'product_name' | 'fuel_grade' | 'is_crossed' | 'certification_declared' | 'is_demo_listing' | 'msds_available';
 expectTypeOf<Pick<OrderBookOrder, OrderProvenance>>().toEqualTypeOf<Pick<WireOrder, OrderProvenance>>();

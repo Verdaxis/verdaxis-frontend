@@ -37,11 +37,11 @@ tracker decision 67, which lets the backend respell a decimal).
 | DRIFT-1 | Decimals typed `number`, sent as JSON strings | 11 (resolved) | 5b |
 | DRIFT-2 | Required `unknown_count` derived from the wire | 2 (resolved) | 5c |
 | DRIFT-3 | Provenance and order metadata derived from the wire | 8 (resolved) | 5c |
-| DRIFT-4 | Owner-view fields folded into the public interface | 5 | 5c |
+| DRIFT-4 | Owner metadata derived; public compatibility retained | 5 (resolved) | 5c |
 | DRIFT-5 | The `User` profile | 8 | 5c |
 | DRIFT-6 | Availability windows: display labels against canonical codes | 3 | 5c |
 | DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **25** | |
+| | **Open** | **20** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -295,39 +295,16 @@ using the new provenance for labels or analytics needs a founder decision.
 
 ---
 
-## DRIFT-4 — Owner-view fields folded into the public interface
+## DRIFT-4 — resolved in step 5c
 
-`OrderResponse` (public) carries no ownership fields. `OrderMyResponse` (owner)
-adds `organization_id` and `updated_at` as required, plus `trade_count`,
-`creation_method`, `etag` and `vessel_id`. The frontend has one
-`OrderBookOrder` interface with all of them optional, so a component cannot tell
-which view it holds.
+Owner metadata derives from `WireOwnedOrder`, including nullable `etag` and
+`vessel_id`. `OwnedOrderBookOrder` requires the owner fields, and `/orderbook/my`
+now declares that result. The existing mapper remains the only shaping boundary.
 
-| Entry | Hand-written | Wire (owner view) | Wire (public) | Declared at |
-|---|---|---|---|---|
-| 4.1 `organization_id` | `string \| undefined` | required `string` | absent | `src/types.ts:283` |
-| 4.2 `trade_count` | `number \| undefined` | required `number` | absent | `src/types.ts:327` |
-| 4.3 `etag` | `string \| undefined` | `string \| null \| undefined` | absent | `src/types.ts:329` |
-| 4.4 `updated_at` | `string \| undefined` | required `string` | absent | `src/types.ts:326` |
-| 4.5 `vessel_id` | `string \| undefined` | `string \| null \| undefined` | absent | `src/types.ts:296` |
-
-Consumers:
-
-- `src/components/Marketplace.tsx:316-318,865-866` — the "My Listings" tab stores
-  `/orderbook/my` results as `OrderBookOrder[]`, which is the fold in practice.
-- `src/components/Marketplace.tsx:931,940,954` — the assisted-workspace cancel
-  path requires `etag` and `creation_method` on the order it is cancelling; the
-  public wire shape has neither.
-- `src/components/Marketplace.tsx:1268` — `order.updated_at` as
-  `contextUpdatedAt`.
-- `src/components/Marketplace.tsx:1872` — `creation_method` gates the cancel
-  action.
-- `organization_id` has **no** reader on an order: every
-  `user.organization_id` use (`src/components/CommandCenter.tsx:70`,
-  `src/components/MyTrades.tsx:76,89,154,159,160`,
-  `src/components/TradeNotifier.tsx:77`, `src/components/DataAnalytics.tsx:100`,
-  `src/components/Marketplace.tsx:368,392,876,1007,1638,1640`) reads the auth
-  profile, not the order.
+Founder decision: fully separate public and owner consumers. Until approved,
+`OrderBookOrder` retains a documented optional compatibility view of those fields.
+The public price cell's `updated_at` read and assisted-cancel guards stay unchanged.
+No UI, request, mapper output or branch changes.
 
 ---
 
