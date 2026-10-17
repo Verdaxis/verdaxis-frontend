@@ -105,6 +105,13 @@ def capture(browser, base, api, shot, api_tokens=None):
                 page.wait_for_timeout(600)
                 page.locator('[data-tour="marketplace-tab-orderbook"]').click()
                 page.wait_for_selector('[data-tour="orderbook-panel"]', timeout=30000)
+            if shot.get('users_filter'):
+                # The admin Users tab opens on the PENDING filter, which is empty
+                # in the fixture (all three seeded actors are APPROVED). Pick the
+                # named status chip so the table holds real rows, then wait for a
+                # settled row: the row set is fixed, so the shot is stable.
+                page.get_by_role('button', name=shot['users_filter'], exact=True).first.click()
+                page.wait_for_selector('table tbody tr', timeout=30000)
         # Let React settle, then take the shot with animations disabled.
         page.wait_for_timeout(shot.get('settle', 2500))
         if shot.get('hide_decorative_canvas'):
@@ -134,7 +141,7 @@ def spec():
         {'name': 'trades-supplier-dark', 'kind': 'app', 'path': '/app/trades', 'actor': 'supplier', 'theme': 'dark'},
         {'name': 'map-buyer-dark', 'kind': 'app', 'path': '/app/map', 'actor': 'buyer', 'theme': 'dark', 'settle': 4000},
         {'name': 'map-buyer-light', 'kind': 'app', 'path': '/app/map', 'actor': 'buyer', 'theme': 'light', 'settle': 4000},
-        {'name': 'admin-users-dark', 'kind': 'app', 'path': '/app/admin', 'actor': 'admin', 'theme': 'dark', 'settle': 3500},
+        {'name': 'admin-users-dark', 'kind': 'app', 'path': '/app/admin/users', 'actor': 'admin', 'theme': 'dark', 'settle': 3500, 'users_filter': 'All'},
     ]
 
 
