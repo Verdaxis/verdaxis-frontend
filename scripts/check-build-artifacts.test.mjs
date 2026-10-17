@@ -8,6 +8,7 @@ import { gzipSync } from 'node:zlib';
 import {
   assertRouteFirstLoadBudgets,
   checkBuildArtifacts,
+  chunkStem,
   measureRouteFirstLoadGzip,
   ROUTE_FIRST_LOAD_BUDGETS,
 } from './check-build-artifacts.mjs';
@@ -40,7 +41,7 @@ const ROUTE_CHUNKS = [
 const EMPTY_CHUNK = 'export {};';
 const entrySource = (apiSource) => `export const api = ${JSON.stringify(apiSource)};`;
 
-function fixture(apiSource, { nested = false, chunks = {} } = {}) {
+function fixture(apiSource, { nested = false, chunks = {}, extraFiles = {} } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'verdaxis-artifact-'));
   const assets = path.join(root, 'assets');
   const scripts = nested ? path.join(assets, 'nested') : assets;
@@ -52,6 +53,8 @@ function fixture(apiSource, { nested = false, chunks = {} } = {}) {
   for (const [name, source] of Object.entries(chunks)) {
     if (!ROUTE_CHUNKS.includes(name)) writeFileSync(path.join(assets, `${name}-test.js`), source);
   }
+  // Exact emitted names, for fixtures that need a real Vite hash.
+  for (const [name, source] of Object.entries(extraFiles)) writeFileSync(path.join(assets, name), source);
   return root;
 }
 
@@ -196,6 +199,37 @@ test('the committed route budgets cover the five documented routes', () => {
     ROUTE_FIRST_LOAD_BUDGETS.map((budget) => budget.name),
     ['landing', 'marketplace', 'intelligence-map', 'command-center', 'compliance'],
   );
+});
+
+// --- stylesheet attribution -------------------------------------------------
+
+test('chunkStem strips the content hash whether or not the hash has a dash', () => {
+  // Rollup hashes are eight URL-safe base64 characters, so `-` can appear in
+  // them: cutting at the last dash would make the stem depend on the hash.
+  assert.equal(chunkStem('demoMarketQuotes-BZzGtonh.js'), 'demoMarketQuotes');
+  assert.equal(chunkStem('demoMarketQuotes-tzhq-NZF.js'), 'demoMarketQuotes');
+  assert.equal(chunkStem('BuyerMap-BXRKC_x8.css'), 'BuyerMap');
+  assert.equal(chunkStem('lato-latin-400-normal-911dda87.woff2'), 'lato-latin-400-normal');
+});
+
+test('a route stylesheet is attributed by its chunk name, not by its hash', () => {
+  const gz = (assetsDirectory, name) =>
+    gzipSync(readFileSync(path.join(assetsDirectory, name)), { level: 9 }).length;
+  const cases = [
+    // The chunk hash has no dash, the stylesheet hash has one.
+    { js: 'demoMarketQuotes-BZzGtonh.js', css: 'demoMarketQuotes-tzhq-NZF.css' },
+    // And the reverse, because the two hashes are independent.
+    { js: 'demoMarketQuotes-tzhq-NZF.js', css: 'demoMarketQuotes-BZzGtonh.css' },
+  ];
+  for (const { js, css } of cases) {
+    const root = fixture(PROD, { extraFiles: { [js]: 'export const a = 1;', [css]: '.a{color:red}' } });
+    const assetsDirectory = path.join(path.resolve(root), 'assets');
+    assert.equal(
+      measure(root, ['demoMarketQuotes-']),
+      gz(assetsDirectory, 'index-test.js') + gz(assetsDirectory, js) + gz(assetsDirectory, css),
+      `${js} + ${css}`,
+    );
+  }
 });
 
 // --- entry-chunk exclusions ------------------------------------------------

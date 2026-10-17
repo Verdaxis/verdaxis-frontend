@@ -49,20 +49,26 @@ const LOCAL_API_PATTERNS = [
 //
 // Step 3b (self-hosted webfonts and right-sized WebP brand images) re-measured
 // all five on 2026-10-17 against the same `pk.measurement-only` build the
-// ceilings came from. No route's first load improved, so no ceiling moves down:
-// the eight `@font-face` rules add about 600 gzip bytes to the shell
-// stylesheet, which every route pays (landing 342,482 -> 343,091, marketplace
-// 304,210 -> 304,828, command-center 243,210 -> 243,822, compliance
-// 228,887 -> 229,502). intelligence-map reports 791,229 -> 786,067, but that
-// 5,162-byte drop is an attribution artifact and not a payload change: the base
-// build counted `BuyerMap-BXRKC_x8.css` (5,790 gzip bytes) in the route's first
-// load and this build does not, although the emitted bundle still references
-// that stylesheet for the map route. `chunkStem` strips the last dash segment
-// only, so a content hash that itself carries a dash shifts which chunk a
-// stylesheet is attributed to — the base build has `demoMarketQuotes-tzhq-NZF.js`
-// where this build has `demoMarketQuotes-BZzGtonh.js`. Measured file by file,
-// this route's real delta is the same +628 gzip bytes as its neighbours.
-// Making that attribution hash-independent belongs to a follow-up.
+// ceilings came from. The step 3b follow-up re-measured them once more after
+// adding the five `latin-ext` faces — about 213 gzip bytes of the shell
+// stylesheet, which every route pays — and after making stylesheet attribution
+// hash-independent. Corrected values, each against its base at 11861821:
+//
+//   landing          342,482 -> 343,308   ceiling 349,400   unchanged
+//   marketplace      304,210 -> 305,028   ceiling 310,300   unchanged
+//   intelligence-map 791,229 -> 792,060   ceiling 807,100   unchanged
+//   command-center   243,210 -> 244,043   ceiling 248,100   unchanged
+//   compliance       228,887 -> 229,729   ceiling 233,500   unchanged
+//
+// Every route moved by +818 to +842 gzip bytes, and no corrected value reaches
+// its ceiling, so no ceiling moves. intelligence-map is worth naming: the step
+// 3b re-measure reported 786,067 for it, because that build's
+// `BuyerMap-BlOuG-bP.js` carries a dash in its content hash and the old
+// `chunkStem` cut at the last dash, leaving `BuyerMap-BlOuG`, which cannot
+// match the route's own `BuyerMap-*.css` stem. The route therefore dropped its
+// stylesheet from the total, while the base build — whose map chunk hash has no
+// dash — counted it. With the fix this route counts it again, which is the
+// +831 gzip bytes above and not a payload change.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
   { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
@@ -102,8 +108,19 @@ function resolveChunkName(files, reference) {
   return files.find((file) => file === reference || file.startsWith(`${stem}-`)) ?? null;
 }
 
-function chunkStem(fileName) {
-  return fileName.replace(/\.[^.]*$/, '').replace(/-[^-]*$/, '');
+/**
+ * Rollup names every emitted file `<name>-<hash>.<ext>` (Vite keeps the default
+ * `entryFileNames`/`chunkFileNames`/`assetFileNames`). The hash is eight
+ * characters from the URL-safe base64 alphabet (`A-Z a-z 0-9 - _`), so a hash
+ * can contain a dash — `demoMarketQuotes-tzhq-NZF.js`. Cutting at the last dash
+ * would then leave a different stem for the same chunk depending on its hash,
+ * which misattributes the chunk's stylesheet to the route that owns another
+ * chunk. Remove exactly one trailing hash segment instead.
+ */
+const HASH_SEGMENT = /-[A-Za-z0-9_-]{8}$/;
+
+export function chunkStem(fileName) {
+  return fileName.replace(/\.[^.]*$/, '').replace(HASH_SEGMENT, '');
 }
 
 function parseShellHtml(source) {
