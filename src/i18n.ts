@@ -2,6 +2,9 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
+import commonEn from './locales/en/common.json';
+import commonZh from './locales/zh/common.json';
+
 export const SUPPORTED_LANGS = ['en', 'zh'] as const;
 export type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
@@ -27,10 +30,10 @@ i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    // No eager resources: every namespace, `common` included, is a per-language
-    // lazy chunk. The boot path awaits `common` before the first render, so no
-    // untranslated key can appear; see `loadNamespace` and `src/index.tsx`.
-    resources: {},
+    resources: {
+      en: { common: commonEn },
+      zh: { common: commonZh },
+    },
     fallbackLng: 'en',
     supportedLngs: SUPPORTED_LANGS,
     nonExplicitSupportedLngs: true,
@@ -50,7 +53,6 @@ i18n.on('languageChanged', applyDocumentLanguage);
 
 const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
   en: {
-    common: () => import('./locales/en/common.json'),
     public: () => import('./locales/en/public.json'),
     auth: () => import('./locales/en/auth.json'),
     trading: () => import('./locales/en/trading.json'),
@@ -64,7 +66,6 @@ const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
     tutorial: () => import('./locales/en/tutorial.json'),
   },
   zh: {
-    common: () => import('./locales/zh/common.json'),
     public: () => import('./locales/zh/public.json'),
     auth: () => import('./locales/zh/auth.json'),
     trading: () => import('./locales/zh/trading.json'),
@@ -92,16 +93,6 @@ export async function loadNamespace(ns: string): Promise<void> {
       console.error(`[i18n] Failed to load ${lang}/${ns} translations.`);
     }
   }
-}
-
-/**
- * The boot path's locale load: `common` is the default namespace and is a lazy
- * per-language chunk, so the app must await it before the first render. A
- * missing bundle would show raw keys in the shell, the header, and every
- * component that calls `useTranslation()` with no argument.
- */
-export async function prepareBootLocale(): Promise<void> {
-  await loadNamespace('common');
 }
 
 export default i18n;

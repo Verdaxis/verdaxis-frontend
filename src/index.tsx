@@ -2,7 +2,7 @@ window.__BUILD_VERSION__ = '1774900383';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import i18n, { loadNamespace, prepareBootLocale } from './i18n';
+import i18n, { loadNamespace } from './i18n';
 import { getPublicPageLoader, type PreparedPublicPage } from './publicPageLoaders';
 import { isKnownPublicPath } from './routeMetadata';
 import './index.css';
@@ -33,7 +33,6 @@ if (!rootElement) {
 async function mountApp(container: HTMLElement) {
   let initialPublicPage: PreparedPublicPage | undefined;
   try {
-    await prepareBootLocale();
     initialPublicPage = await preparePublicRoute(window.location.pathname);
   } catch (error) {
     console.error('[bootstrap] Failed to preload the public route.', error);

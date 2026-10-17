@@ -101,10 +101,7 @@ function PublicRouteTree() {
 
 export async function renderPublicRoute(pathname: string): Promise<string> {
   const language: PublicLanguage = pathname.split('/')[1] === 'zh' ? 'zh' : 'en';
-  // `common` is the default namespace and is lazy like the rest, so it must be
-  // awaited here too — the prerendered shell renders header and footer copy
-  // from it.
-  await Promise.all([loadNamespace('common'), loadNamespace('public'), loadNamespace('education')]);
+  await Promise.all([loadNamespace('public'), loadNamespace('education')]);
   await i18n.changeLanguage(language);
 
   return renderToString(

@@ -4,7 +4,6 @@ import { loadNamespace } from '../i18n';
 
 beforeAll(async () => {
   await Promise.all([
-    'common',
     'public',
     'auth',
     'trading',
