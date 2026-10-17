@@ -60,8 +60,14 @@ enters the app:
 - `src/api/decimals.ts` holds the one conversion. `parseWireDecimal(value)`
   returns a finite number or `null`; `requireWireDecimal(value)` returns the same
   number or `NaN`, which is what the `Number(...)` it replaces produced for a
-  malformed or absent field; `wireDecimalText(value)` renders the text the wire
-  itself would spell, for the displays that used to show the raw string.
+  malformed or absent field.
+- `src/utils/numberFormat.ts` holds the display formatters a converted value
+  renders with: `formatUsd` for money and unit prices (the listing price
+  column's grouped, exactly-two-decimals format) and `formatQuantity` for
+  quantities and measurements (the My Orders table's locale format). Tracker
+  decision 71 chose these — the formats the main screens already use — after
+  the review found the wire's decimal columns are unscaled `Numeric()`, so a
+  number can never give back the wire's spelling.
 - `src/api/mappers.ts` holds one mapper per wire shape, typed from the generated
   wire type in `src/api/contract.ts` to the app type in `src/types.ts`. Every
   mapper is applied at an entry point below, so no component sees a wire string.
@@ -80,7 +86,7 @@ miss:
 
 | Method | Endpoint | Mapper |
 |---|---|---|
-| `ports.list` | GET `/ports` | `mapPortResponse` |
+| `ports.list` | GET `/ports` | `mapPortResponse` (no decimal boundary: `PortResponse.intelligence` is JSON numbers) |
 | `inventory.list` | GET `/inventory` | `toInventoryItems` |
 | `inventory.add` | POST `/inventory` | `toInventoryItem` |
 | `catalog.products` | GET `/catalog/products` | `toProducts` |
@@ -170,9 +176,10 @@ boundary already produced, so every input keeps its result:
   `quantity` helpers in `src/components/ForwardCurveWorkspace.tsx` now take
   `number | null | undefined` and keep every guard; the depth-level spread
   subtracts two numbers.
-- Ports and inventory: `mapPortResponse` and the inventory mapper. The port
-  intelligence prices are JSON numbers on the wire (`PortResponse.intelligence`
-  is `number | null`), so those three coercions were already no-ops.
+- Ports and inventory: the inventory mapper, plus `mapPortResponse` for the
+  ports. The port intelligence prices are JSON numbers on the wire, so the port
+  mapper crosses no decimal boundary and its three former coercions were
+  already no-ops.
 - FAME and LNG: `src/services/fameRfq.ts`, `src/services/fameSupplierOffer.ts`
   and the two terms adapters. `optionalRfqNumber`, the module's own optional
   reader, is now `parseWireDecimal` under the name that reads better there, so
@@ -191,33 +198,36 @@ guards it), and the `Number(...)` on the four port-intelligence fields above.
 
 ### Displays of the raw wire string
 
-Seven places rendered a wire string as text. Each now renders
-`wireDecimalText(value)` from `src/api/decimals.ts`, which spells the converted
-number with two decimals, no grouping and no locale — exactly as the wire does:
+Eight places rendered a wire string as text (the PM review found the eighth).
+Each now renders a converted value through one of the two shared formatters in
+`src/utils/numberFormat.ts` (tracker decision 71: the formats the main screens
+already use, not the wire's spelling — the columns are unscaled `Numeric()`, so
+the wire itself sends "1109" and "1000.000000000000000000000000000000"):
 
-| Display | Today's text | Now |
+| Display | Formatter | Was the raw wire text |
 |---|---|---|
-| `Marketplace.tsx` listings volume column (`remaining_quantity_mt`) | `200.00` | `200.00` |
-| `Marketplace.tsx` take-result card quantity | `200.00` | `200.00` |
-| `Marketplace.tsx` take-result card price | `915.00` | `915.00` |
-| `Marketplace.tsx` take-modal summary price | `915.00` | `915.00` |
-| `Marketplace.tsx` take-modal maximum available quantity | `200.00` | `200.00` |
-| `OrderPlaceModal.tsx` auto-matched panel quantity and price | `100.00`, `600.00` | the same |
-| `TradeNotifier.tsx` toast quantity, price and delivered total | `200.00`, `915.00`, `183000.00` | the same |
+| `Marketplace.tsx` listings volume column (`remaining_quantity_mt`) | `formatQuantity` | `200.00` |
+| `Marketplace.tsx` take-result card quantity | `formatQuantity` | `200.00` |
+| `Marketplace.tsx` take-result card price | `formatUsd` | `915.00` |
+| `Marketplace.tsx` take-modal summary price | `formatUsd` | `915.00` |
+| `Marketplace.tsx` take-modal maximum available quantity | `formatQuantity` | `200.00` |
+| `Marketplace.tsx` take-modal carbon intensity readback | `formatQuantity` (fallback `common.notAvailable`) | `18.40` |
+| `OrderPlaceModal.tsx` auto-matched panel quantity and price | `formatQuantity` / `formatUsd` | `100.00`, `600.00` |
+| `TradeNotifier.tsx` toast quantity, price and delivered total | `formatQuantity` / `formatUsd` | `200.00`, `915.00`, `183000.00` |
 
-The two decimals are the wire's own scale, learned from the backend: order create
-validates `decimal_places=2` (`app/schemas/orderbook.py`), the trade columns are
-`Decimal` sums of those values, delivery amounts are quantized to
-`MONEY_QUANTUM = Decimal("0.01")` (`app/routers/trades.py`), and the recorded
-responses spell every one of these fields with two decimals — for example
-`quantity_mt: "100.00"`, `price_per_mt_usd: "600.00"`,
-`premium_discount_per_mt_usd: "0.00"`, `wtt_ghg_gco2e_mj: "12.30"`,
-`total_usd: "60000.0000"` (a trade-tape column the app does not display).
+An earlier draft of this step used a `wireDecimalText` helper that spelled the
+number the way the wire did. That was wrong: `decimal_places=2` in
+`app/schemas/orderbook.py` is an upper limit on unscaled `Numeric()` columns,
+and the recorded responses already send `"price_per_mt_usd":"1109"` (R17-asks)
+and `"1000.000000000000000000000000000000"` (R16-bids). A number cannot give
+back the wire's spelling, and decision 67 needs every display independent of
+it, so the helper is deleted and the shared formatters own the text.
 
 Every other decimal display already formatted a *number* — `toLocaleString`,
 `toFixed`, the `formatPrice` / `formatQty` helpers in `OrderBook.tsx`,
-`BenchmarkPriceBlock`, `preciseCurrency` in `ForwardCurveWorkspace.tsx` — so it
-was spelling-independent before this step and is unchanged after it.
+`BenchmarkPriceBlock` (now through `formatUsd`), `preciseCurrency` in
+`ForwardCurveWorkspace.tsx` — so it was spelling-independent before this step
+and is unchanged after it.
 
 One consequence worth stating: `OrderPlaceModal.tsx` compares
 `matchResult.trades[0].price_per_mt_usd !== orderSnapshot?.pricePerMtUsd` to
