@@ -54,9 +54,9 @@ import type {
 } from '../types/marketSupport';
 
 /**
- * The port intelligence prices are JSON numbers on the wire, not decimals; the
- * mapper reads them through the same boundary anyway, so a future change of
- * spelling cannot reach a component (DRIFT-1's "API mapping" row).
+ * The port intelligence prices arrive as JSON numbers (`PortResponse.intelligence`
+ * is `number | null`), so this mapper needs no decimal boundary; it only lifts
+ * the intelligence block into the app's `Port` shape.
  */
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -938,7 +938,7 @@ export const api = {
             searchParams.append('limit', '100');
             const path = `/orderbook/asks?${searchParams.toString()}`;
             const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
-            return mapOrderbookTermsResponse(res.items ?? res);
+            return toOrderBookOrders(mapOrderbookTermsResponse(res.items ?? res));
         },
         // Paginated: returns { items, total, skip, limit }
         listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {

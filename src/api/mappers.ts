@@ -123,12 +123,22 @@ export const mapWireRecords = <T>(value: unknown, map: (record: any) => T): T[] 
     return [];
 };
 
-/** Keep a paginated envelope (`total`, `skip`, `limit`) and map its `items`. */
+/**
+ * Keep a paginated envelope (`total`, `skip`, `limit`) and map its `items`.
+ *
+ * A body without an `items` array cannot carry wire records, so it maps to an
+ * empty `items` array rather than passing the body through: a caller that
+ * reads `page.items` unconditionally (the listing and blotter tables do) would
+ * otherwise receive wire-shaped records — or crash on a malformed page.
+ */
 export const mapWirePage = <T>(page: T, map: (record: any) => unknown): T => {
-    if (!page || typeof page !== 'object' || !Array.isArray((page as { items?: unknown }).items)) {
-        return page;
+    if (!page || typeof page !== 'object') {
+        return { items: [] } as T;
     }
-    return { ...page, items: mapWireRecords((page as unknown as { items: unknown[] }).items, map) };
+    return {
+        ...page,
+        items: mapWireRecords((page as { items?: unknown }).items, map),
+    } as T;
 };
 
 // ─── Orders ─────────────────────────────────────────────────────────
@@ -532,7 +542,6 @@ export const toForwardCurveBoard = (wire: WireForwardCurveBoard): ForwardCurveBo
 const toForwardCurveLatestSignal = (wire: WireForwardCurveLatestSignal): ForwardCurveLatestSignal => ({
     ...wire,
     primary_value: parseWireDecimal(wire.primary_value),
-    source_kind: wire.primary_source_kind as unknown as ForwardCurveLatestSignal['primary_source_kind'],
     demo_status: wire.demo_status as ForwardCurveLatestSignal['demo_status'],
     market_product: wire.market_product as ForwardCurveLatestSignal['market_product'],
 } as ForwardCurveLatestSignal);
