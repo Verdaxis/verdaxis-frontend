@@ -42,7 +42,10 @@ const LOCAL_API_PATTERNS = [
 // filenames), and the transitive static import chain of those chunks. It is the
 // measurement the 2026-10-17 frontend audit uses in section 11. Each ceiling is
 // the value measured on 2026-10-17 plus 2 %, so any regression fails the build;
-// a commit that lowers a route's first load lowers the ceiling with it.
+// a commit that lowers a route's first load lowers the ceiling with it. The
+// step 3a follow-up re-measured all five after reverting the lazy `common`
+// namespace, which restores the eager bundle in the entry chunk; the ceilings
+// below are those measurements plus 2 %.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
   { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
