@@ -18,6 +18,8 @@
     "build:check": "npm run build:check:prod",
     "smoke:navigation:setup": "python3 -m pip install -r scripts/requirements-navigation-smoke.txt && python3 -m playwright install chromium",
     "smoke:navigation": "python3 scripts/smoke_navigation.py",
+    "smoke:journeys": "python3 scripts/journeys/run_journeys.py --backend \"${VERDAXIS_BACKEND_TREE:-work/journeys-backend}\"",
+    "smoke:journeys:record": "python3 scripts/journeys/run_journeys.py --backend \"${VERDAXIS_BACKEND_TREE:-work/journeys-backend}\" --screenshots record",
     "smoke:live": "node scripts/smoke-live.mjs",
     "verify": "npm run check:openapi && npm run test && npm run i18n:check && npm run build:prod && npm run build:check && npm run typecheck",
     "build:check:prod": "node scripts/check-build-artifacts.mjs --target production --root dist",

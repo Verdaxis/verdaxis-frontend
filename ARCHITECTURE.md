@@ -126,6 +126,14 @@ scripts/
   deploy.sh                         target-aware static build helper
   smoke-live.mjs                    external production/staging read checks
   smoke_navigation.py               local or deployed browser navigation
+  journeys/                         refactor safety net (npm run smoke:journeys)
+    run_journeys.py                 disposable backend + bundle + browser gate
+    journeys.py                     the eleven journeys and their evidence
+    browser_harness.py              API forwarding, Mapbox/font stubs, cookies
+    screenshots.py                  same-look capture (record/compare)
+    png_diff.py                     tolerance comparison; test_png_diff.py tests it
+    seed.py, seed_orders.py         disposable fixtures (actors, ports, orders)
+    baselines/                      committed screenshot set + manifest
 .github/workflows/
   frontend-ci.yml                   tests, types, i18n, both builds
 ```
@@ -187,3 +195,39 @@ backend with loopback-only synthetic vault availability controls. A proxy respon
 is changed to 504 only after the real upload commits, then retained rows are checked.
 The PM accepted only the old ETS display exception; see `docs/phase0/progress-task8.md`
 for current results and any other failed old-bundle checks.
+
+## Refactor journey net (2026-10-17)
+
+`npm run smoke:journeys` is the safety net every refactor step must pass (the
+2026-10-17 refactor design, D10). One command builds the production bundle,
+starts a disposable PostgreSQL and the pinned backend release
+`56d7577085af99411a6f9c3e34e64ad929d09954` on ephemeral loopback ports with
+egress guarded to its database, seeds synthetic fixtures only, and drives the
+bundle in a real Chromium from the official Playwright image. Run it on the
+test host (`verdaxis-prod-test`); nothing here runs on a developer Mac.
+
+Eleven journeys: login success and wrong password; marketplace browse,
+product/port filter, pagination, order book tab, my-orders tab and a
+deep-linked slice `/app/m/b30/singapore/spot`; placing a BID and an ASK;
+take -> confirm -> deliver -> pay across buyer and supplier sessions;
+notifications list and mark read; the intelligence map with ports and the ECA
+overlay; the public landing and one public content page. Mapbox styles, tiles
+and glyphs are stubbed, so no run needs a token or the public network.
+
+The same-look gate captures nine screens at 1440x1000 (landing, how-it-works,
+marketplace light/dark, order book, trade blotter, map light/dark with tiles
+stubbed to a solid colour, one admin screen) with animations disabled, the
+wall clock frozen, the theme pinned and the cookie banner pre-dismissed. The
+screens run before the journeys so they capture exactly the seeded state.
+`--screenshots compare` (the default) fails above a 0.002 pixel-difference
+ratio; `npm run smoke:journeys:record` refreshes the committed baselines in
+`scripts/journeys/baselines/`.
+
+Two product findings the net already holds: `OrderPlaceModal` cannot submit
+any BID/ASK against the live backend in this build (the catalog `min_lot_size`
+arrives as the decimal string `"200.00"`, so `hasValidCatalogMinimum` is false
+for every product and the review button never enables), and the take modal
+prefills its quantity from the same string field and renders it blank. Both
+are consequences of the decimal-string boundary the audit documents (4.7);
+the journeys record the blockers on screen and cover the order flows through
+the same client API until the decimal boundary lands.

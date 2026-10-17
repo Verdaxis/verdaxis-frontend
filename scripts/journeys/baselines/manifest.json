@@ -1,0 +1,64 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "tolerance": 0.002,
+  "generated": "2026-10-17T02:00:48Z",
+  "results": [
+    {
+      "name": "public-landing-light",
+      "recorded": true,
+      "bytes": 241336,
+      "path": "/run/baselines/public-landing-light.png"
+    },
+    {
+      "name": "public-how-it-works-light",
+      "recorded": true,
+      "bytes": 209819,
+      "path": "/run/baselines/public-how-it-works-light.png"
+    },
+    {
+      "name": "marketplace-buyer-dark",
+      "recorded": true,
+      "bytes": 129667,
+      "path": "/run/baselines/marketplace-buyer-dark.png"
+    },
+    {
+      "name": "marketplace-buyer-light",
+      "recorded": true,
+      "bytes": 128085,
+      "path": "/run/baselines/marketplace-buyer-light.png"
+    },
+    {
+      "name": "orderbook-buyer-dark",
+      "recorded": true,
+      "bytes": 158851,
+      "path": "/run/baselines/orderbook-buyer-dark.png"
+    },
+    {
+      "name": "trades-supplier-dark",
+      "recorded": true,
+      "bytes": 83096,
+      "path": "/run/baselines/trades-supplier-dark.png"
+    },
+    {
+      "name": "map-buyer-dark",
+      "recorded": true,
+      "bytes": 183701,
+      "path": "/run/baselines/map-buyer-dark.png"
+    },
+    {
+      "name": "map-buyer-light",
+      "recorded": true,
+      "bytes": 181235,
+      "path": "/run/baselines/map-buyer-light.png"
+    },
+    {
+      "name": "admin-users-dark",
+      "recorded": true,
+      "bytes": 131742,
+      "path": "/run/baselines/admin-users-dark.png"
+    }
+  ]
+}
