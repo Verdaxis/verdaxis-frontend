@@ -80,19 +80,24 @@ const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
   },
 };
 
-export async function loadNamespace(ns: string): Promise<void> {
-  for (const lang of SUPPORTED_LANGS) {
-    const loader = lazyNamespaces[lang]?.[ns];
-    if (!loader) continue;
+async function loadLanguageNamespace(ns: string, lang: SupportedLang): Promise<void> {
+  const loader = lazyNamespaces[lang]?.[ns];
+  if (!loader || i18n.hasResourceBundle(lang, ns)) return;
 
-    try {
-      if (i18n.hasResourceBundle(lang, ns)) continue;
-      const mod = await loader();
-      i18n.addResourceBundle(lang, ns, mod.default || mod, true, true);
-    } catch {
-      console.error(`[i18n] Failed to load ${lang}/${ns} translations.`);
-    }
+  try {
+    const mod = await loader();
+    i18n.addResourceBundle(lang, ns, mod.default || mod, true, true);
+  } catch {
+    console.error(`[i18n] Failed to load ${lang}/${ns} translations.`);
   }
+}
+
+export async function loadNamespace(ns: string): Promise<void> {
+  // The languages are independent resources, so start both loaders together.
+  // Awaiting them one after the other cost an extra serial round trip on every
+  // public page boot. Each helper catches its own failure, so a failed language
+  // cannot stop the other.
+  await Promise.all(SUPPORTED_LANGS.map((lang) => loadLanguageNamespace(ns, lang)));
 }
 
 export default i18n;
