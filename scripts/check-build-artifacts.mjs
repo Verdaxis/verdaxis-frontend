@@ -46,6 +46,23 @@ const LOCAL_API_PATTERNS = [
 // step 3a follow-up re-measured all five after reverting the lazy `common`
 // namespace, which restores the eager bundle in the entry chunk; the ceilings
 // below are those measurements plus 2 %.
+//
+// Step 3b (self-hosted webfonts and right-sized WebP brand images) re-measured
+// all five on 2026-10-17 against the same `pk.measurement-only` build the
+// ceilings came from. No route's first load improved, so no ceiling moves down:
+// the eight `@font-face` rules add about 600 gzip bytes to the shell
+// stylesheet, which every route pays (landing 342,482 -> 343,091, marketplace
+// 304,210 -> 304,828, command-center 243,210 -> 243,822, compliance
+// 228,887 -> 229,502). intelligence-map reports 791,229 -> 786,067, but that
+// 5,162-byte drop is an attribution artifact and not a payload change: the base
+// build counted `BuyerMap-BXRKC_x8.css` (5,790 gzip bytes) in the route's first
+// load and this build does not, although the emitted bundle still references
+// that stylesheet for the map route. `chunkStem` strips the last dash segment
+// only, so a content hash that itself carries a dash shifts which chunk a
+// stylesheet is attributed to — the base build has `demoMarketQuotes-tzhq-NZF.js`
+// where this build has `demoMarketQuotes-BZzGtonh.js`. Measured file by file,
+// this route's real delta is the same +628 gzip bytes as its neighbours.
+// Making that attribution hash-independent belongs to a follow-up.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
   { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
