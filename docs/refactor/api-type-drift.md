@@ -35,13 +35,13 @@ tracker decision 67, which lets the backend respell a decimal).
 | Id | Difference | Entries | Step |
 |---|---|---|---|
 | DRIFT-1 | Decimals typed `number`, sent as JSON strings | 11 (resolved) | 5b |
-| DRIFT-2 | `unknown_count` on the wire, absent from the app | 2 | 5c |
+| DRIFT-2 | Required `unknown_count` derived from the wire | 2 (resolved) | 5c |
 | DRIFT-3 | Provenance fields missing or wrongly optional | 8 | 5c |
 | DRIFT-4 | Owner-view fields folded into the public interface | 5 | 5c |
 | DRIFT-5 | The `User` profile | 8 | 5c |
 | DRIFT-6 | Availability windows: display labels against canonical codes | 3 | 5c |
 | DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **35** | |
+| | **Open** | **33** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -273,21 +273,11 @@ screen changes.
 
 ---
 
-## DRIFT-2 — `unknown_count` on the wire, absent from the app
+## DRIFT-2 — resolved in step 5c
 
-The wire always sends `unknown_count` on orders and trades. Neither
-`OrderBookOrder` nor `Trade` declares it, so no component can show how much of a
-market picture is unattributable. No consumer reads it: nothing in `src/` mentions
-the field.
-
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 2.1 `OrderBookOrder` | absent | `number` | `src/types.ts:279-330` |
-| 2.2 `Trade` | absent | `number` | `src/types.ts:344-381` |
-
-Consumers: none. Step 5b decides whether the UI should surface it (the market
-provenance vocabulary elsewhere in the app already counts real/demo/unknown
-elsewhere, for example `ForwardCurveBoardDepthLevel.unknown_order_count`).
+Orders and trades now derive the required `unknown_count` from their wire types.
+The existing mapper spreads already retain the field. No request, screen or
+branch changes. Founder decision: whether and where to display this count.
 
 ---
 

@@ -1,3 +1,4 @@
+import type { WireOrder, WireTrade } from './api/contract';
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
@@ -276,7 +277,7 @@ export interface TradeCreateInput {
     idempotency_key?: string;
 }
 
-export interface OrderBookOrder {
+export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count'> {
     id: string;
     terms_digest?: string;
     version?: number;
@@ -341,7 +342,7 @@ export interface OrderBookSnapshot {
     asks: OrderBookOrder[];
 }
 
-export interface Trade {
+export interface Trade extends Pick<WireTrade, 'unknown_count'> {
     id: string;
     bid_order_id?: string;
     ask_order_id?: string;

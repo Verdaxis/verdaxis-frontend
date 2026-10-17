@@ -126,16 +126,6 @@ expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
 expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
 expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
-// ─── DRIFT-2: `unknown_count` is on the wire, absent from the app ───
-
-expectTypeOf<HasProperty<WireOrder, 'unknown_count'>>().toEqualTypeOf<true>();
-expectTypeOf<WireOrder['unknown_count']>().toEqualTypeOf<number>();
-expectTypeOf<HasProperty<OrderBookOrder, 'unknown_count'>>().toEqualTypeOf<false>();
-
-expectTypeOf<HasProperty<WireTrade, 'unknown_count'>>().toEqualTypeOf<true>();
-expectTypeOf<WireTrade['unknown_count']>().toEqualTypeOf<number>();
-expectTypeOf<HasProperty<Trade, 'unknown_count'>>().toEqualTypeOf<false>();
-
 // ─── DRIFT-3: provenance fields missing or wrongly optional ────────
 
 expectTypeOf<WireOrder['source_kind']>().toEqualTypeOf<WireMarketSourceKind>();
@@ -323,6 +313,9 @@ expectTypeOf<Notification['data']>().toEqualTypeOf<any>();
 
 // ─── Shapes that already agree ─────────────────────────────────────
 // Pinned so a change to either side is noticed here too.
+
+expectTypeOf<OrderBookOrder['unknown_count']>().toEqualTypeOf<WireOrder['unknown_count']>();
+expectTypeOf<Trade['unknown_count']>().toEqualTypeOf<WireTrade['unknown_count']>();
 
 expectTypeOf<PaginatedResult<unknown>>().toEqualTypeOf<{ items: unknown[]; total: number; skip: number; limit: number }>();
 expectTypeOf<WireNotification['is_read']>().toEqualTypeOf<boolean>();
