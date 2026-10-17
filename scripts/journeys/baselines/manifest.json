@@ -4,18 +4,18 @@
     "height": 1000
   },
   "tolerance": 0.002,
-  "generated": "2026-10-17T01:37:47Z",
+  "generated": "2026-10-17T02:00:48Z",
   "results": [
     {
       "name": "public-landing-light",
       "recorded": true,
-      "bytes": 368561,
+      "bytes": 241336,
       "path": "/run/baselines/public-landing-light.png"
     },
     {
       "name": "public-how-it-works-light",
       "recorded": true,
-      "bytes": 209817,
+      "bytes": 209819,
       "path": "/run/baselines/public-how-it-works-light.png"
     },
     {
@@ -57,7 +57,7 @@
     {
       "name": "admin-users-dark",
       "recorded": true,
-      "bytes": 130886,
+      "bytes": 131742,
       "path": "/run/baselines/admin-users-dark.png"
     }
   ]

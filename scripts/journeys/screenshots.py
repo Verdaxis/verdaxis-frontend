@@ -107,6 +107,15 @@ def capture(browser, base, api, shot, api_tokens=None):
                 page.wait_for_selector('[data-tour="orderbook-panel"]', timeout=30000)
         # Let React settle, then take the shot with animations disabled.
         page.wait_for_timeout(shot.get('settle', 2500))
+        if shot.get('hide_decorative_canvas'):
+            # The landing hero's DataOcean canvas seeds its particle field from
+            # Math.random() on every mount, so its pixels can never be stable
+            # across loads (reduced motion only freezes the frame it drew). It
+            # is decorative (aria-hidden) and is hidden for the baseline only;
+            # a refactor that changes the surrounding layout still fails here.
+            page.add_style_tag(
+                content='canvas[aria-hidden="true"] { visibility: hidden !important; }')
+            page.wait_for_timeout(300)
         png = page.screenshot(full_page=shot.get('full_page', False), animations='disabled')
         return png
     finally:
@@ -116,7 +125,8 @@ def capture(browser, base, api, shot, api_tokens=None):
 def spec():
     """The committed screen set: name, route, actor, theme."""
     return [
-        {'name': 'public-landing-light', 'kind': 'public', 'path': '/en/', 'theme': 'light'},
+        {'name': 'public-landing-light', 'kind': 'public', 'path': '/en/', 'theme': 'light',
+         'hide_decorative_canvas': True},
         {'name': 'public-how-it-works-light', 'kind': 'public', 'path': '/en/how-it-works', 'theme': 'light'},
         {'name': 'marketplace-buyer-dark', 'kind': 'app', 'path': '/app/marketplace', 'actor': 'buyer', 'theme': 'dark'},
         {'name': 'marketplace-buyer-light', 'kind': 'app', 'path': '/app/marketplace', 'actor': 'buyer', 'theme': 'light'},

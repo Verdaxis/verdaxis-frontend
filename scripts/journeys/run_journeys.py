@@ -252,6 +252,14 @@ results = []
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=True)
     try:
+        # Screenshots run first, against exactly the seeded state: the journeys
+        # place orders and trade afterwards, and the order book, marketplace and
+        # blotter screens would otherwise capture run-specific rows and every
+        # compare would drift.
+        if {mode!r} != 'off':
+            shots = screenshots.run(browser, {base!r}, {api_origin!r}, mode={mode!r})
+            results.extend([{{'name': 'screenshot:' + item['name'], **item}}
+                            for item in shots])
         selected = steps()
         if {only!r}:
             wanted = set({only!r}.split(','))
@@ -281,18 +289,16 @@ with sync_playwright() as playwright:
             results.append(entry)
             mark = 'PASS' if passed else 'FAIL'
             print(f'  [{{mark}}] {{step.name}} {{detail or error}}', flush=True)
-        if {mode!r} != 'off':
-            shots = screenshots.run(browser, {base!r}, {api_origin!r}, mode={mode!r})
-            results.extend([{{'name': 'screenshot:' + item['name'], **item}}
-                            for item in shots])
     finally:
         browser.close()
 print('JOURNEYS_JSON:' + json.dumps(results))
 """
     script_path = run / 'browser_phase.py'
     script_path.write_text(script)
+    # Compare reads the committed set from the mounted repository; record
+    # writes to the mounted run directory outside the checkout.
     baseline_dir = ('/run/baselines' if mode == 'record'
-                    else f'/work/{SCRIPTS.relative_to(ROOT)}/journeys/baselines')
+                    else f'{container_scripts}/journeys/baselines')
     baselines = SCRIPTS / 'journeys' / 'baselines'
     baselines.mkdir(exist_ok=True)
     deps = ensure_browser_deps(log_dir)
