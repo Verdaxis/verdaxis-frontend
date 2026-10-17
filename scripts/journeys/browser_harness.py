@@ -60,7 +60,8 @@ class JourneyFailure(Exception):
 class Harness:
     """One browser context with API forwarding and external stubs installed."""
 
-    def __init__(self, browser, base, api_origin, viewport=None, tile_color=(11, 18, 32)):
+    def __init__(self, browser, base, api_origin, viewport=None, tile_color=(11, 18, 32),
+                 reduced_motion=None):
         # api_origin is the bundle's VITE_API_URL origin, for example
         # 'http://127.0.0.1:54321' or 'https://api.verdaxis.exchange'.
         self.base = base
@@ -70,12 +71,19 @@ class Harness:
         self.console = []
         self.failed_requests = []
         self.tile_color = tile_color
-        self.context = browser.new_context(
-            service_workers='block',
-            viewport=viewport or {'width': 1440, 'height': 1000},
+        options = {
+            'service_workers': 'block',
+            'viewport': viewport or {'width': 1440, 'height': 1000},
             # Fixed clock inputs are per-page; the context itself stays generic.
-            device_scale_factor=1,
-        )
+            'device_scale_factor': 1,
+        }
+        if reduced_motion is not None:
+            # Screenshot baselines run with the reduced-motion user setting:
+            # GSAP and Lenis animate the public landing continuously, and every
+            # public component honors the media query, so this is the
+            # deterministic state for a same-look capture.
+            options['reduced_motion'] = reduced_motion
+        self.context = browser.new_context(**options)
         self.context.add_init_script("""
             Object.defineProperty(HTMLElement.prototype, 'animate', {
                 value: () => ({ finished: Promise.resolve(), cancel() {}, finish() {} }),

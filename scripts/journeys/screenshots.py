@@ -49,7 +49,8 @@ class ScreenshotHarness(Harness):
 
     def __init__(self, browser, base, api, theme='dark'):
         tile = (11, 18, 32) if theme == 'dark' else (222, 228, 236)
-        super().__init__(browser, base, api, viewport=VIEWPORT, tile_color=tile)
+        super().__init__(browser, base, api, viewport=VIEWPORT, tile_color=tile,
+                         reduced_motion='reduce')
         self.theme = theme
         self.context.add_init_script(FREEZE_CLOCK)
         # Pre-dismiss the cookie banner and fix the theme before React mounts,

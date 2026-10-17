@@ -291,6 +291,8 @@ print('JOURNEYS_JSON:' + json.dumps(results))
 """
     script_path = run / 'browser_phase.py'
     script_path.write_text(script)
+    baseline_dir = ('/run/baselines' if mode == 'record'
+                    else f'/work/{SCRIPTS.relative_to(ROOT)}/journeys/baselines')
     baselines = SCRIPTS / 'journeys' / 'baselines'
     baselines.mkdir(exist_ok=True)
     deps = ensure_browser_deps(log_dir)
@@ -306,8 +308,9 @@ print('JOURNEYS_JSON:' + json.dumps(results))
              # Recording writes outside the checkout: the lane wrapper resets
              # the working tree (untracked files included) at the start of the
              # next call, so a baseline written into the checkout would be lost
-             # before it could be retrieved and committed.
-             '-e', 'JOURNEYS_BASELINES_DIR=/run/baselines',
+             # before it could be retrieved and committed. Compare reads the
+             # committed set from the mounted repository.
+             '-e', f'JOURNEYS_BASELINES_DIR={baseline_dir}',
              '-w', '/work',
              PLAYWRIGHT_IMAGE,
              'python3', '-c', script],

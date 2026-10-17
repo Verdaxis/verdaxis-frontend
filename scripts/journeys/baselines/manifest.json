@@ -4,42 +4,42 @@
     "height": 1000
   },
   "tolerance": 0.002,
-  "generated": "2026-10-17T01:04:39Z",
+  "generated": "2026-10-17T01:37:47Z",
   "results": [
     {
       "name": "public-landing-light",
       "recorded": true,
-      "bytes": 363634,
+      "bytes": 368561,
       "path": "/run/baselines/public-landing-light.png"
     },
     {
       "name": "public-how-it-works-light",
       "recorded": true,
-      "bytes": 209815,
+      "bytes": 209817,
       "path": "/run/baselines/public-how-it-works-light.png"
     },
     {
       "name": "marketplace-buyer-dark",
       "recorded": true,
-      "bytes": 129131,
+      "bytes": 129667,
       "path": "/run/baselines/marketplace-buyer-dark.png"
     },
     {
       "name": "marketplace-buyer-light",
       "recorded": true,
-      "bytes": 127607,
+      "bytes": 128085,
       "path": "/run/baselines/marketplace-buyer-light.png"
     },
     {
       "name": "orderbook-buyer-dark",
       "recorded": true,
-      "bytes": 160187,
+      "bytes": 158851,
       "path": "/run/baselines/orderbook-buyer-dark.png"
     },
     {
       "name": "trades-supplier-dark",
       "recorded": true,
-      "bytes": 93670,
+      "bytes": 83096,
       "path": "/run/baselines/trades-supplier-dark.png"
     },
     {
