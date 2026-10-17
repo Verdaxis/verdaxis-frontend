@@ -61,7 +61,9 @@ vi.mock('../hooks/useWatchlist', () => ({
         watchlist_target_id: 'slice-1',
         target_type: 'SLICE',
         event_type: 'SLICE_NEW_ORDER',
-        event_payload: { side: 'ASK', price_per_mt_usd: '1080.25' },
+        // The backend builds numeric payloads with float(), so the value
+        // arrives as a JSON number.
+        event_payload: { side: 'ASK', price_per_mt_usd: 1080.25 },
         is_read: false,
         created_at: '2026-04-13T12:00:00Z',
       },
@@ -71,7 +73,7 @@ vi.mock('../hooks/useWatchlist', () => ({
         watchlist_target_id: 'pin-1',
         target_type: 'PIN',
         event_type: 'PIN_PARTIALLY_FILLED',
-        event_payload: { new_remaining_quantity_mt: '600.50' },
+        event_payload: { new_remaining_quantity_mt: 600.5 },
         is_read: false,
         created_at: '2026-04-13T12:05:00Z',
       },

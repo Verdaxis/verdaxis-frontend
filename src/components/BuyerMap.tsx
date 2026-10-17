@@ -453,7 +453,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 market.delivery_point_name,
             );
             if (!portName) return;
-            regionMap[portName] = (regionMap[portName] || 0) + Number(market.ask_total_quantity);
+            regionMap[portName] = (regionMap[portName] || 0) + market.ask_total_quantity;
         });
 
         return Object.entries(regionMap)
@@ -476,8 +476,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             );
             if (region && (!regionMap[region] || ask.created_at > regionMap[region].date)) {
                 regionMap[region] = {
-                    price: Number(ask.price_per_mt_usd),
-                    qty: Number(ask.remaining_quantity_mt),
+                    price: ask.price_per_mt_usd,
+                    qty: ask.remaining_quantity_mt,
                     date: ask.created_at,
                     fuel: ask.fuel_type,
                 };

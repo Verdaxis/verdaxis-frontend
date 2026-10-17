@@ -62,30 +62,28 @@ const REFRESH_INTERVAL_MS = 30_000;
 
 const getForwardCurveTableWindows = () => getAvailabilityWindowOptions().map(option => option.value);
 
-const currency = (value: number | string | null | undefined) => {
-    if (value == null || value === '') return '--';
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return '--';
-    return `$${parsed.toFixed(0)}`;
+// Every curve value reaches this screen as a number: the curve boundary
+// converts each wire decimal once (see `src/api/mappers.ts`). A malformed value
+// is already NaN, so these helpers only have to test for it.
+const currency = (value: number | null | undefined) => {
+    if (value == null || !Number.isFinite(value)) return '--';
+    return `$${value.toFixed(0)}`;
 };
 
-const preciseCurrency = (value: number | string | null | undefined, locale = 'en') => {
+const preciseCurrency = (value: number | null | undefined, locale = 'en') => {
     const parsed = numericValue(value);
     if (parsed == null) return '--';
     return `$${parsed.toLocaleString(locale, { maximumFractionDigits: 2 })}`;
 };
 
-const numericValue = (value: number | string | null | undefined) => {
-    if (value == null || value === '') return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-};
+const numericValue = (value: number | null | undefined) => (
+    value != null && Number.isFinite(value) ? value : null
+);
 
-const quantity = (value: number | string | null | undefined, locale = 'en') => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) return '--';
-    if (parsed >= 1000) return `${(parsed / 1000).toFixed(1)}k MT`;
-    return `${parsed.toLocaleString(locale)} MT`;
+const quantity = (value: number | null | undefined, locale = 'en') => {
+    if (value == null || !Number.isFinite(value) || value <= 0) return '--';
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k MT`;
+    return `${value.toLocaleString(locale)} MT`;
 };
 
 const ageLabel = (value: string | null | undefined, t: TFunction) => {
@@ -270,7 +268,7 @@ const ForwardCurvePointTooltip: React.FC<{
     const tooltipRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState({ left: 0, top: 0 });
     const tone = sourceTone(cell, t);
-    const price = (input: number | string | null | undefined) => {
+    const price = (input: number | null | undefined) => {
         const parsed = numericValue(input);
         return parsed == null ? '--' : `$${parsed.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
@@ -456,7 +454,7 @@ const ForwardCurveChart: React.FC<{
         const range = Math.max(max - min, 1);
         const top = 20;
         const plotHeight = 156;
-        const yForValue = (value: number | string | null | undefined) => {
+        const yForValue = (value: number | null | undefined) => {
             const parsed = numericValue(value);
             if (parsed == null) return top + plotHeight;
             return top + ((max - parsed) / range) * plotHeight;
@@ -681,7 +679,7 @@ const SelectedPeriodSummary: React.FC<{
         );
     }
 
-    const formatPrice = (value: number | string | null | undefined) => preciseCurrency(value, locale);
+    const formatPrice = (value: number | null | undefined) => preciseCurrency(value, locale);
     const publicSource = markSourceLabel(cell.public_source_label, t);
     const cellTone = sourceTone(cell, t);
     const bestBid = slice?.depth_bids[0] ?? null;
@@ -690,7 +688,7 @@ const SelectedPeriodSummary: React.FC<{
     const askScope = quoteScope(bestAsk);
     const comparableQuotes = Boolean(bestBid && bestAsk && bidScope && bidScope === askScope);
     const spread = comparableQuotes && bestBid && bestAsk
-        ? Number(bestAsk.price_per_mt_usd) - Number(bestBid.price_per_mt_usd)
+        ? bestAsk.price_per_mt_usd - bestBid.price_per_mt_usd
         : null;
 
     const quoteCard = (

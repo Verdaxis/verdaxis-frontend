@@ -206,10 +206,10 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                                 <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                    {Number(t2.quantity_mt).toLocaleString(locale, { maximumFractionDigits: 2 })} MT
+                                    {t2.quantity_mt.toLocaleString(locale, { maximumFractionDigits: 2 })} MT
                                 </span>
                                 <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    ${Number(t2.price_per_mt_usd).toLocaleString(locale, { maximumFractionDigits: 2 })}/MT
+                                    ${t2.price_per_mt_usd.toLocaleString(locale, { maximumFractionDigits: 2 })}/MT
                                 </span>
                                 <span className="min-w-8 whitespace-nowrap text-right text-[10px] text-slate-400">
                                     {relativeTime(t2.confirmed_at, t)}

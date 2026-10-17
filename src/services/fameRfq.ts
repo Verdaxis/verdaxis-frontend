@@ -1,13 +1,12 @@
 import type { FameContractTerms, FameOfferTerms, FameQuote, FameRfq, FameRfqList } from '../types/fameRfq';
 import type { SupplierOfferSnapshot } from '../types/fameSupplierOffer';
+import { parseWireDecimal, requireWireDecimal } from '../api/decimals';
 
 // API Decimal values arrive as strings. Missing optional measurements stay
 // unknown: zero is a real CI or cold-flow declaration, never a fallback.
-export function optionalRfqNumber(value: unknown): number | null {
-    if (value === null || value === undefined || value === '') return null;
-    const number = Number(value);
-    return Number.isFinite(number) ? number : null;
-}
+// The conversion itself is the one shared boundary, under the name this module
+// reads better with.
+export const optionalRfqNumber = parseWireDecimal;
 
 function mapContractTerms(value: FameContractTerms | null): FameContractTerms | null {
     if (!value) return null;
@@ -15,8 +14,8 @@ function mapContractTerms(value: FameContractTerms | null): FameContractTerms | 
         ...value,
         max_cfpp_c: optionalRfqNumber(value.max_cfpp_c),
         max_ci_gco2e_mj: optionalRfqNumber(value.max_ci_gco2e_mj),
-        quantity_tolerance_pct: Number(value.quantity_tolerance_pct),
-        min_fill_mt: Number(value.min_fill_mt),
+        quantity_tolerance_pct: requireWireDecimal(value.quantity_tolerance_pct),
+        min_fill_mt: requireWireDecimal(value.min_fill_mt),
     };
 }
 
@@ -33,7 +32,7 @@ export function mapFameFuelMeasurements<T extends DeclaredFuelMeasurements>(valu
         ...(value.quality_evidence && {
             quality_evidence: {
                 ...value.quality_evidence,
-                results: value.quality_evidence.results.map(result => ({ ...result, value: Number(result.value) })),
+                results: value.quality_evidence.results.map(result => ({ ...result, value: requireWireDecimal(result.value) })),
             },
         }),
         ...(value.sustainability_evidence && {
@@ -51,7 +50,7 @@ function mapOfferTerms(value: FameOfferTerms | null): FameOfferTerms | null {
     if (!value) return null;
     return {
         ...mapFameFuelMeasurements(value),
-        available_quantity_mt: Number(value.available_quantity_mt),
+        available_quantity_mt: requireWireDecimal(value.available_quantity_mt),
         document_references: value.document_references ?? [],
     };
 }
@@ -63,14 +62,14 @@ function mapSourceOfferSnapshot(value: Record<string, any>): SupplierOfferSnapsh
         ...('supplier_org_id' in value && { supplierOrgId: value.supplier_org_id }),
         productId: value.product_id,
         deliveryPointId: value.delivery_point_id,
-        quantityMt: Number(value.quantity_mt),
-        minFillMt: Number(value.min_fill_mt),
-        pricePerMtUsd: Number(value.price_per_mt_usd),
+        quantityMt: requireWireDecimal(value.quantity_mt),
+        minFillMt: requireWireDecimal(value.min_fill_mt),
+        pricePerMtUsd: requireWireDecimal(value.price_per_mt_usd),
         availabilityWindow: value.availability_window,
         expiresAt: value.expires_at,
         listingTerms: {
             ...value.listing_terms,
-            quantity_tolerance_pct: Number(value.listing_terms.quantity_tolerance_pct),
+            quantity_tolerance_pct: requireWireDecimal(value.listing_terms.quantity_tolerance_pct),
             fuel_terms: mapFameFuelMeasurements(value.listing_terms.fuel_terms),
         },
     };
@@ -81,7 +80,7 @@ export function mapFameQuoteResponse(value: Record<string, any>): FameQuote {
         id: value.id,
         sellerOrgId: value.seller_org_id,
         sellerOrgName: value.seller_org_name ?? null,
-        pricePerMtUsd: Number(value.price_per_mt_usd),
+        pricePerMtUsd: requireWireDecimal(value.price_per_mt_usd),
         notes: value.notes ?? null,
         status: value.status,
         createdAt: value.created_at,
@@ -102,7 +101,7 @@ export function mapFameRfqResponse(value: Record<string, any>): FameRfq {
         productName: value.product_name ?? null,
         deliveryPointId: value.delivery_point_id ?? null,
         deliveryPointName: value.delivery_point_name ?? null,
-        quantityMt: Number(value.quantity_mt),
+        quantityMt: requireWireDecimal(value.quantity_mt),
         targetPricePerMt: optionalRfqNumber(value.target_price_per_mt),
         notes: value.notes ?? null,
         status: value.status,

@@ -33,7 +33,8 @@ vi.mock('../services/api', async importOriginal => {
     } };
 });
 
-// The wire sends every decimal as a string, including `remaining_quantity_mt`.
+// The ask as the orderbook boundary produces it: every decimal is a number
+// (see `toOrderBookOrder` in `src/api/mappers.ts`).
 const ask = {
     id: 'b30-ask',
     side: 'ASK',
@@ -45,9 +46,9 @@ const ask = {
     delivery_point_id: 'dp-sg',
     delivery_point_name: 'Singapore',
     region: 'Asia',
-    quantity_mt: '1000.00',
-    remaining_quantity_mt: '500.00',
-    price_per_mt_usd: '915.00',
+    quantity_mt: 1000,
+    remaining_quantity_mt: 500,
+    price_per_mt_usd: 915,
     availability_window: 'SPOT',
     certifications: ['ISCC EU'],
     certification_declared: true,
@@ -85,7 +86,7 @@ beforeEach(async () => {
 });
 
 describe('Marketplace take window', () => {
-    it('prefills the quantity from the wire string and submits that quantity', async () => {
+    it('prefills the quantity from the listing and submits that quantity', async () => {
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
         fireEvent.click(await screen.findByRole('button', { name: 'Lift Ask' }));
 

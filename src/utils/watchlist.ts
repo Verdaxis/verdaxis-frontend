@@ -36,16 +36,17 @@ export function formatWatchlistSliceLabel(slice: {
     ].filter(Boolean).join(' · ');
 }
 
+// The backend builds every numeric watchlist event payload with `float()`, so
+// the value is a JSON number by the time it reaches here (the same boundary the
+// snapshot fields below use). Nothing in this file coerces a wire decimal.
 function currency(value: unknown, t: TFunction, locale: string): string {
-    const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-    if (!Number.isFinite(numberValue)) return t('common.notAvailable');
-    return `$${numberValue.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (typeof value !== 'number' || !Number.isFinite(value)) return t('common.notAvailable');
+    return `$${value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function quantity(value: unknown, t: TFunction, locale: string): string {
-    const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-    if (!Number.isFinite(numberValue)) return t('common.notAvailable');
-    return `${numberValue.toLocaleString(locale)} MT`;
+    if (typeof value !== 'number' || !Number.isFinite(value)) return t('common.notAvailable');
+    return `${value.toLocaleString(locale)} MT`;
 }
 
 export function describeWatchlistEvent(event: WatchlistEvent, t: TFunction, locale = 'en'): string {

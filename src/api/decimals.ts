@@ -25,3 +25,30 @@ export function parseWireDecimal(value: unknown): number | null {
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) ? parsed : null;
 }
+
+/**
+ * A decimal the app declares as a required `number`.
+ *
+ * A value the wire cannot be read from becomes `NaN`, which is what the
+ * `Number(...)` coercion this replaces produced for a malformed or absent
+ * field. `null` and `''` also become `NaN`; the wire never sends either for a
+ * required decimal, so no caller can observe the difference.
+ */
+export function requireWireDecimal(value: unknown): number {
+    return parseWireDecimal(value) ?? NaN;
+}
+
+/**
+ * The text the wire itself spells for this decimal — for example `"200.00"`.
+ *
+ * A display that used to render the raw wire string renders this instead, so
+ * its text is unchanged for the values the backend sends today. Two decimals is
+ * the scale of the order, trade and price columns. An absent or unusable value
+ * renders as the empty string, as an absent field did before.
+ */
+export function wireDecimalText(
+    value: number | null | undefined,
+    digits = 2,
+): string {
+    return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '';
+}

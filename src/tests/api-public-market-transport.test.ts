@@ -71,11 +71,31 @@ describe('public market API transport', () => {
     });
 
     it('omits private headers and cookies from every public market read', async () => {
-        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => (
-            String(input).includes('/catalog/') || String(input).endsWith('/ports')
+        // The curve-slice body needs the fields the slice mapper reads; the
+        // other public reads accept the empty items/page body.
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+            if (String(input).includes('/curves/forward/slice')) {
+                return successfulJson({
+                    cell: {
+                        market_product: 'B30', product_name: 'B30', representative_product_id: 'product-1',
+                        product_count: 1, delivery_point_id: 'delivery-point-1', delivery_point_name: 'Singapore',
+                        region: 'Asia', availability_window: 'SPOT',
+                        primary_signal_type: 'NO_DATA', primary_source_kind: 'NO_DATA',
+                        public_source_label: 'No data', staleness_status: 'NO_DATA',
+                        is_executable: false, is_reference: false, scope: 'DELIVERY_POINT',
+                        generated_at: '2026-10-15T12:00:00Z',
+                        order_count: 0, real_order_count: 0, demo_order_count: 0, unknown_order_count: 0,
+                        volume_mt: '0',
+                    },
+                    depth_bids: [], depth_asks: [], trades: [], indications: [],
+                    physical_stems: [], evidence_points: [],
+                    generated_at: '2026-10-15T12:00:00Z', disclaimer: 'none',
+                });
+            }
+            return String(input).includes('/catalog/') || String(input).endsWith('/ports')
                 ? successfulJson([])
-                : successfulJson({ items: [] })
-        ));
+                : successfulJson({ items: [] });
+        });
 
         await api.orderbook.listBids(undefined, { force: true });
         await api.orderbook.listAsks(undefined, { force: true });

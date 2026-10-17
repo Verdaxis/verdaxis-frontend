@@ -424,7 +424,9 @@ describe('ForwardCurveWorkspace', () => {
     const lastWindow = table.columns.at(-1)!.availability_window;
     const sliceRequest = deferred<ForwardCurveSliceResponse>();
     Object.assign(table.rows[0].cells[lastWindow], {
-      primary_value: '1246.75', best_bid: '1241.25', best_ask: '1252.25', spread: '11.00', volume_mt: '9531.5',
+      // The curve boundary delivers these as numbers; the test assigns them
+      // directly to the mapped cell.
+      primary_value: 1246.75, best_bid: 1241.25, best_ask: 1252.25, spread: 11, volume_mt: 9531.5,
     });
     tableMock.mockResolvedValue(table);
     sliceMock.mockReturnValue(sliceRequest.promise);

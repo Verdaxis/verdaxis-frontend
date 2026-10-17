@@ -85,13 +85,13 @@ export const getMarketProductMapPorts = (
     return ports.filter(port => availablePointNames.has(normalizeLocation(port.name)));
 };
 
-const maxPrice = (values: Array<string | null>): number | null => values.reduce<number | null>(
-    (best, value) => value === null ? best : Math.max(best ?? Number(value), Number(value)),
+const maxPrice = (values: Array<number | null>): number | null => values.reduce<number | null>(
+    (best, value) => value === null ? best : Math.max(best ?? value, value),
     null,
 );
 
-const minPrice = (values: Array<string | null>): number | null => values.reduce<number | null>(
-    (best, value) => value === null ? best : Math.min(best ?? Number(value), Number(value)),
+const minPrice = (values: Array<number | null>): number | null => values.reduce<number | null>(
+    (best, value) => value === null ? best : Math.min(best ?? value, value),
     null,
 );
 
@@ -132,7 +132,7 @@ export const computePortMarketData = (
             0,
         );
         totalVolume += rows.reduce(
-            (sum, row) => sum + Number(row.bid_total_quantity) + Number(row.ask_total_quantity),
+            (sum, row) => sum + row.bid_total_quantity + row.ask_total_quantity,
             0,
         );
 

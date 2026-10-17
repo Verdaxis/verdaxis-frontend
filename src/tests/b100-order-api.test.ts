@@ -109,9 +109,14 @@ describe('B100 standard orderbook API', () => {
             alcohol, { id: 'ucome-order', fame_terms: { ...publicAsk, certificate_reference: 'owner-certificate' } },
         ]), { status: 200 }));
         const orders = await api.orderbook.myOrders();
-        expect(orders[0]).toEqual(alcohol);
-        expect(orders[1].fame_terms.lhv_mj_kg).toBe(37.2);
-        expect(orders[1].fame_terms.certificate_reference).toBe('owner-certificate');
+        // The order boundary converts the wire decimal and normalizes the other
+        // decimal fields this partial row omits; the fame_terms layer the test
+        // is about keeps every non-decimal field untouched.
+        expect(orders[0]).toMatchObject({ ...alcohol, quantity_mt: 500 });
+        // The owner view narrows to the ask terms this row carries.
+        const terms = orders[1].fame_terms as FameOrderAskTerms;
+        expect(terms?.lhv_mj_kg).toBe(37.2);
+        expect(terms?.certificate_reference).toBe('owner-certificate');
     });
 
     it('sends the supplier declaration and acknowledgements when a supplier takes a B100 bid', async () => {

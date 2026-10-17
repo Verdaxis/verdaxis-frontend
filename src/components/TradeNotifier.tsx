@@ -6,6 +6,7 @@ import { useMarketSupport } from '../context/MarketSupportContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Notification } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
+import { wireDecimalText } from '../api/decimals';
 
 /**
  * Invisible component that listens to SSE trade events
@@ -26,32 +27,34 @@ export const TradeNotifier: React.FC = () => {
         switch (event) {
             case 'trade_auto_matched':
                 title = t('tradeNotifier.autoMatched.title');
+                // The stream boundary converted the decimals; render the same
+                // text the raw wire string produced before the conversion.
                 message = t('tradeNotifier.autoMatched.message', {
-                    quantity: data.quantity,
+                    quantity: wireDecimalText(data.quantity),
                     fuelType: data.fuel_type,
-                    price: data.price,
+                    price: wireDecimalText(data.price),
                 });
                 toastType = 'trade';
                 break;
             case 'trade_confirmed':
                 title = t('tradeNotifier.confirmed.title');
                 message = t('tradeNotifier.confirmed.message', {
-                    quantity: data.quantity,
-                    price: data.price,
+                    quantity: wireDecimalText(data.quantity),
+                    price: wireDecimalText(data.price),
                 });
                 toastType = 'success';
                 break;
             case 'trade_delivered':
                 title = t('tradeNotifier.delivered.title');
                 message = t('tradeNotifier.delivered.message', {
-                    quantity: data.final_quantity,
-                    total: data.final_total,
+                    quantity: wireDecimalText(data.final_quantity),
+                    total: wireDecimalText(data.final_total),
                 });
                 toastType = 'info';
                 break;
             case 'trade_paid':
                 title = t('tradeNotifier.paid.title');
-                message = t('tradeNotifier.paid.message', { quantity: data.quantity });
+                message = t('tradeNotifier.paid.message', { quantity: wireDecimalText(data.quantity) });
                 toastType = 'success';
                 break;
             default:

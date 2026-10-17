@@ -1017,6 +1017,8 @@ describe('Marketplace green fuels surface', () => {
 
   it('requires final confirmation and cancels post-trade refresh on unmount', async () => {
     tradesInitiate.mockResolvedValueOnce({
+      // `toTrade` renders `wireDecimalText` for both, so the take-result card
+      // spells them the way the wire did: "875.00" and "1075.00".
       id: 'trade-returned', status: 'PENDING_CONFIRMATION', quantity_mt: 875, price_per_mt_usd: 1075,
       product_name: 'Returned Bio Methanol', delivery_point_name: 'Returned Singapore', fuel_type: 'Methanol', region: 'Asia',
     });
@@ -1049,8 +1051,8 @@ describe('Marketplace green fuels surface', () => {
     });
     await screen.findByText('Trade Request Sent');
     expect(screen.getByText('Returned Bio Methanol')).toBeTruthy();
-    expect(screen.getByText('875 MT')).toBeTruthy();
-    expect(screen.getByText('$1075/MT')).toBeTruthy();
+    expect(screen.getByText('875.00 MT')).toBeTruthy();
+    expect(screen.getByText('$1075.00/MT')).toBeTruthy();
     const readsBeforeUnmount = listAsksPaged.mock.calls.length;
     view.unmount();
     await new Promise(resolve => setTimeout(resolve, 2100));

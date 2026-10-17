@@ -21,6 +21,7 @@ import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import i18n from '../i18n';
 import { formatOrderExpiry } from '../utils/fuel';
 import { getAuthGeneration } from '../services/authToken';
+import { wireDecimalText } from '../api/decimals';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import type { FameOrderTerms } from '../types/fameOrder';
@@ -500,7 +501,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const hasValidCatalogMinimum = typeof catalogMinimumQuantityMt === 'number'
         && Number.isFinite(catalogMinimumQuantityMt)
         && catalogMinimumQuantityMt > 0;
-    const minimumQuantityMt = hasValidCatalogMinimum ? Number(catalogMinimumQuantityMt) : NaN;
+    // `min_lot_size` already crossed the catalog boundary as a number.
+    const minimumQuantityMt = hasValidCatalogMinimum ? catalogMinimumQuantityMt : NaN;
     const expiryTimestamp = formData.expiry_type === 'date' && formData.expiry_date
         ? Date.parse(`${formData.expiry_date}T23:59:59Z`)
         : NaN;
@@ -890,6 +892,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     {t('orderPlaceModal.autoMatched.makerPrice')}
                                 </p>
                                 {matchResult?.trades?.map((trade: any, i: number) => {
+                                    // The create boundary converts a matched trade's
+                                    // decimals, so this renders the same text as the
+                                    // wire string it used to show ("500.00").
                                     const totalValue = (trade.quantity_mt || 0) * (trade.price_per_mt_usd || 0);
                                     return (
                                         <div key={i} className="relative overflow-hidden bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/20 border border-violet-200 dark:border-violet-700/50 rounded-xl p-5 text-left mb-3">
@@ -897,11 +902,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             <div className="grid grid-cols-2 gap-3 relative">
                                                 <div>
                                                     <div className="text-[11px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.quantity')}</div>
-                                                    <div className="text-lg font-extrabold text-slate-900 dark:text-white">{trade.quantity_mt?.toLocaleString(locale)} <span className="text-sm font-medium text-slate-400">MT</span></div>
+                                                    <div className="text-lg font-extrabold text-slate-900 dark:text-white">{wireDecimalText(trade.quantity_mt)} <span className="text-sm font-medium text-slate-400">MT</span></div>
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-[11px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.price')}</div>
-                                                    <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">${trade.price_per_mt_usd}<span className="text-sm font-medium">/MT</span></div>
+                                                    <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">${wireDecimalText(trade.price_per_mt_usd)}<span className="text-sm font-medium">/MT</span></div>
                                                 </div>
                                             </div>
                                             <div className="mt-3 pt-3 border-t border-violet-200/60 dark:border-violet-700/30 flex justify-between items-center">
