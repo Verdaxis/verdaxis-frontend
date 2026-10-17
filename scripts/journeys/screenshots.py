@@ -17,7 +17,7 @@ from .browser_harness import Harness
 from .png_diff import diff_ratio
 
 ROOT = Path(__file__).resolve().parents[2]
-BASELINES = Path(__file__).resolve().parent / 'baselines'
+DEFAULT_BASELINES = Path(__file__).resolve().parent / 'baselines'
 VIEWPORT = {'width': 1440, 'height': 1000}
 TOLERANCE = 0.002  # 0.2% of pixels may differ
 BUYER = 'buyer@example.com'
@@ -25,19 +25,21 @@ SUPPLIER = 'supplier@example.com'
 ADMIN = 'admin@example.com'
 PASSWORD = 'Journeys-Password-7!'
 
-# Frozen clock: every Date/ performance read returns the same instant, so
-# "updated Ns ago", countdowns, and the 1s order book tick render identically.
+# Frozen wall clock: every Date read returns the same instant, so "updated Ns
+# ago", countdowns, notification times and the order book's snapshot age render
+# identically. The instant is captured when the page loads, not hard-coded:
+# a fixed past instant would make every freshly minted JWT look expired and the
+# auth context would log straight back out. performance.now() is deliberately
+# left alone because React 19 schedules work from it.
 FREEZE_CLOCK = """
 (() => {
-    const FROZEN = 1790000000000;
+    const FROZEN = Date.now();
     const RealDate = Date;
     class FrozenDate extends RealDate {
         constructor(...args) { args.length ? super(...args) : super(FROZEN); }
         static now() { return FROZEN; }
     }
     window.Date = FrozenDate;
-    window.performance.now = () => 5000;
-    window.matchMedia = window.matchMedia || ((q) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
 })();
 """
 
@@ -58,6 +60,21 @@ class ScreenshotHarness(Harness):
             " JSON.stringify({version: 1, optionalAnalytics: false})); } catch (e) {}")
 
 
+def baseline_dir():
+    """Where baselines live.
+
+    The committed set is ``scripts/journeys/baselines``. Recording writes to
+    whatever ``JOURNEYS_BASELINES_DIR`` names instead, because the test host's
+    lane wrapper resets the working tree (untracked files included) at the
+    start of every call: a recorded image written into the checkout would be
+    deleted before it could be retrieved. The runner points that variable at
+    the mounted run directory.
+    """
+    import os
+    override = os.environ.get('JOURNEYS_BASELINES_DIR')
+    return Path(override) if override else DEFAULT_BASELINES
+
+
 def capture(browser, base, api, shot, api_tokens=None):
     """Capture one named screen; returns the PNG bytes."""
     theme = shot.get('theme', 'dark')
@@ -72,8 +89,21 @@ def capture(browser, base, api, shot, api_tokens=None):
             page = open_app(harness, email, PASSWORD)
             page.goto(base + shot['path'], wait_until='networkidle', timeout=45000)
             if shot.get('tab') == 'orderbook':
-                page.wait_for_selector('[data-tour="marketplace-tab-orderbook"]', timeout=30000)
+                # The order book renders only for one exact product, port and
+                # window, so the B30 chip and the spot window are picked before
+                # the tab opens.
+                page.locator('[data-market-product="B30"]').click()
+                page.wait_for_timeout(800)
+                page.locator('[data-tour="marketplace-filter-toggle"]').click()
+                page.wait_for_selector('#marketplace-advanced-filters', timeout=10000)
+                page.locator('[data-tour="marketplace-port-select"]').click()
+                page.locator('[role="option"]', has_text='Singapore').first.click()
+                page.wait_for_timeout(800)
+                page.locator('[data-tour="marketplace-window-select"]').click()
+                page.locator('[data-tour="marketplace-window-option-spot"]').first.click()
+                page.wait_for_timeout(600)
                 page.locator('[data-tour="marketplace-tab-orderbook"]').click()
+                page.wait_for_selector('[data-tour="orderbook-panel"]', timeout=30000)
         # Let React settle, then take the shot with animations disabled.
         page.wait_for_timeout(shot.get('settle', 2500))
         png = page.screenshot(full_page=shot.get('full_page', False), animations='disabled')
@@ -99,15 +129,23 @@ def spec():
 
 def run(browser, base, api, mode='compare', tolerance=TOLERANCE):
     """Record or compare every screen in the spec; returns result entries."""
-    BASELINES.mkdir(exist_ok=True)
+    baselines = baseline_dir()
+    baselines.mkdir(parents=True, exist_ok=True)
     results = []
     for shot in spec():
-        png = capture(browser, base, api, shot)
-        target = BASELINES / f"{shot['name']}.png"
+        try:
+            png = capture(browser, base, api, shot)
+        except Exception as error:  # noqa: BLE001 - one screen must not hide the rest
+            results.append({'name': shot['name'], 'passed': False,
+                            'error': f'{type(error).__name__}: {error}'[:300]})
+            print(f"  [FAIL] {shot['name']} {type(error).__name__}: {error}"[:300])
+            continue
+        target = baselines / f"{shot['name']}.png"
         if mode == 'record':
             target.write_bytes(png)
-            results.append({'name': shot['name'], 'recorded': True, 'bytes': len(png)})
-            print(f"  [recorded] {shot['name']} ({len(png)} bytes)")
+            results.append({'name': shot['name'], 'recorded': True,
+                            'bytes': len(png), 'path': str(target)})
+            print(f"  [recorded] {shot['name']} ({len(png)} bytes) {target}")
             continue
         if not target.exists():
             results.append({'name': shot['name'], 'error': 'missing baseline', 'passed': False})
@@ -118,8 +156,8 @@ def run(browser, base, api, mode='compare', tolerance=TOLERANCE):
         results.append({'name': shot['name'], 'diffRatio': round(ratio, 6), 'passed': ok})
         print(f"  [{'PASS' if ok else 'FAIL'}] {shot['name']} diff={ratio:.4%}")
         if not ok:
-            (BASELINES / f"{shot['name']}.actual.png").write_bytes(png)
-    (BASELINES / 'manifest.json').write_text(json.dumps(
+            (baselines / f"{shot['name']}.actual.png").write_bytes(png)
+    (baselines / 'manifest.json').write_text(json.dumps(
         {'viewport': VIEWPORT, 'tolerance': tolerance,
          'generated': time.strftime('%Y-%m-%dT%H:%M:%SZ'), 'results': results}, indent=2) + '\n')
     return results

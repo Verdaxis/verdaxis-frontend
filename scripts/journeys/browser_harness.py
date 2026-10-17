@@ -154,6 +154,13 @@ class Harness:
         headers = dict(route.request.headers)
         headers.pop('host', None)
         headers.pop('origin', None)
+        if path.startswith('/api/auth/'):
+            # Cookie-authenticated auth transitions (refresh, logout) must carry
+            # a browser Origin the backend allowlists, or it answers 403 and
+            # the app logs out. The loopback origin the bundle runs on is not
+            # in the test allowlist, so auth requests present the allowed
+            # https://test origin; every other route forwards as-is.
+            headers['origin'] = 'https://test'
         response = self.context.request.fetch(
             self.api_origin + path + query,
             method=route.request.method,

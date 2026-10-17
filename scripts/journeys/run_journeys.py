@@ -222,7 +222,7 @@ def ensure_browser_deps(log_dir):
     return deps
 
 
-def run_browser_phase(run, log_dir, base, api_origin, mode, fixture, only=None):
+def run_browser_phase(run, log_dir, base, api_origin, mode, only=None):
     """Drive journeys + screenshots inside the official Playwright image."""
     # The repository is mounted at /work inside the container; the harness
     # modules are imported from the mounted scripts directory, not the host
@@ -243,7 +243,11 @@ from journeys.browser_harness import Harness
 from journeys.journeys import steps
 from journeys import screenshots
 
-state = {'fixture': json.loads({json.dumps(fixture)!r})}
+try:
+    fixture = json.load(open('/run/fixture.json'))
+except Exception:
+    fixture = {{}}
+state = {{'fixture': fixture}}
 results = []
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=True)
@@ -299,6 +303,11 @@ print('JOURNEYS_JSON:' + json.dumps(results))
              '-v', f'{ROOT}:/work:Z',
              '-v', f'{run}:/run:Z',
              '-v', f'{deps}:/deps:Z',
+             # Recording writes outside the checkout: the lane wrapper resets
+             # the working tree (untracked files included) at the start of the
+             # next call, so a baseline written into the checkout would be lost
+             # before it could be retrieved and committed.
+             '-e', 'JOURNEYS_BASELINES_DIR=/run/baselines',
              '-w', '/work',
              PLAYWRIGHT_IMAGE,
              'python3', '-c', script],
@@ -422,6 +431,9 @@ def main():
         # ---- 3. backend -------------------------------------------------
         print('[journeys] starting disposable backend...', flush=True)
         environment['DISPOSABLE_TEST_TOKEN'] = uuid.uuid4().hex
+        # The backend enforces exact Origin semantics for cookie
+        # authentication: the test allowlist is 'https://test', so the bundle's
+        # real origin (the loopback static server) must be named explicitly.
         environment['JOURNEYS_BACKEND'] = str(backend)
         (run / 'disposable-token').write_text(environment['DISPOSABLE_TEST_TOKEN'])
         (run / 'disposable-token').chmod(0o600)
@@ -458,8 +470,9 @@ def main():
         print(f'[journeys] serving bundle at {base} and running browser phase...', flush=True)
         static_server = serve_static(dist, static_port)
         wait_status(base + '/index.html', 30)
+        (run / 'fixture.json').write_text(json.dumps(fixture_orders))
         entries = run_browser_phase(run, log_dir, base, api_origin,
-                                    args.screenshots, fixture_orders, args.only)
+                                    args.screenshots, args.only)
         report['steps'] = entries
         report['complete'] = True
     except Exception as exc:  # noqa: BLE001 - reported below
@@ -480,7 +493,10 @@ def main():
         report['finished_at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ')
         (run / REPORT_NAME).write_text(json.dumps(report, indent=2) + '\n')
         print(f'[journeys] report: {run / REPORT_NAME}', flush=True)
-    failed = [step for step in report['steps'] if not step.get('passed')]
+    # Recorded screenshots count as success: a fresh baseline is the intended
+    # outcome of --screenshots record.
+    failed = [step for step in report['steps']
+              if not step.get('passed') and not step.get('recorded')]
     screenshot_failed = [s for s in failed if s['name'].startswith('screenshot:')]
     journey_failed = [s for s in failed if not s['name'].startswith('screenshot:')]
     if journey_failed:
