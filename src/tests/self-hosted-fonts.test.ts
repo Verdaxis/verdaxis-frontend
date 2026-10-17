@@ -6,23 +6,45 @@ import { buildFontPreloadTags, injectFontPreloads, PRELOADED_FONT_FILES } from '
 const read = (relative: string) => readFileSync(join(process.cwd(), relative), 'utf8');
 
 /**
- * The faces the shell served through Google Fonts before step 3b. Lato is
- * static per weight; Montserrat and JetBrains Mono share one variable file.
+ * The faces the shell served through Google Fonts before step 3b — the eight
+ * faces the site uses, in each of the two Google slices it serves them in.
+ * Lato is static per weight; Montserrat and JetBrains Mono share one variable
+ * file per slice. The order is the declaration order in `src/index.css`: the
+ * `latin` rules first, then the `latin-ext` ones.
+ *
+ * `latin-ext` is not decoration: it carries the letters port and company names
+ * use (Gdańsk, İstanbul, Constanța, Świnoujście). Dropping it puts a system font
+ * in the middle of a word.
  */
 const REQUIRED_FACES = [
-  ['Lato', '300'],
-  ['Lato', '400'],
-  ['Lato', '700'],
-  ['Montserrat', '500'],
-  ['Montserrat', '600'],
-  ['Montserrat', '700'],
-  ['JetBrains Mono', '400'],
-  ['JetBrains Mono', '600'],
+  ['Lato', '300', 'latin', 'lato-latin-300-normal.woff2'],
+  ['Lato', '400', 'latin', 'lato-latin-400-normal.woff2'],
+  ['Lato', '700', 'latin', 'lato-latin-700-normal.woff2'],
+  ['Montserrat', '500', 'latin', 'montserrat-latin-500-700-normal.woff2'],
+  ['Montserrat', '600', 'latin', 'montserrat-latin-500-700-normal.woff2'],
+  ['Montserrat', '700', 'latin', 'montserrat-latin-500-700-normal.woff2'],
+  ['JetBrains Mono', '400', 'latin', 'jetbrains-mono-latin-400-600-normal.woff2'],
+  ['JetBrains Mono', '600', 'latin', 'jetbrains-mono-latin-400-600-normal.woff2'],
+  ['Lato', '300', 'latin-ext', 'lato-latin-ext-300-normal.woff2'],
+  ['Lato', '400', 'latin-ext', 'lato-latin-ext-400-normal.woff2'],
+  ['Lato', '700', 'latin-ext', 'lato-latin-ext-700-normal.woff2'],
+  ['Montserrat', '500', 'latin-ext', 'montserrat-latin-ext-500-700-normal.woff2'],
+  ['Montserrat', '600', 'latin-ext', 'montserrat-latin-ext-500-700-normal.woff2'],
+  ['Montserrat', '700', 'latin-ext', 'montserrat-latin-ext-500-700-normal.woff2'],
+  ['JetBrains Mono', '400', 'latin-ext', 'jetbrains-mono-latin-ext-400-600-normal.woff2'],
+  ['JetBrains Mono', '600', 'latin-ext', 'jetbrains-mono-latin-ext-400-600-normal.woff2'],
 ] as const;
 
 const LATIN_RANGE = 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, '
   + 'U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, '
   + 'U+2212, U+2215, U+FEFF, U+FFFD';
+
+/** Google's `latin-ext` range, which does not overlap the `latin` one. */
+const LATIN_EXT_RANGE = 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, '
+  + 'U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, '
+  + 'U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF';
+
+const RANGES = { latin: LATIN_RANGE, 'latin-ext': LATIN_EXT_RANGE } as const;
 
 const fontFaces = () => [...read('src/index.css').matchAll(/@font-face\s*\{([^}]*)\}/g)]
   .map(([, body]) => ({
@@ -34,17 +56,34 @@ const fontFaces = () => [...read('src/index.css').matchAll(/@font-face\s*\{([^}]
   }));
 
 describe('self-hosted fonts', () => {
-  it('serves every family and weight from a local hashed asset, Latin only', () => {
+  it('serves every family, weight and Google slice from a local hashed asset', () => {
     const faces = fontFaces();
 
     expect(faces.map(({ family, weight }) => [family, weight]))
       .toEqual(REQUIRED_FACES.map(([family, weight]) => [family, weight]));
-    for (const face of faces) {
-      expect(face.url, `${face.family} ${face.weight}`).toMatch(/^\.\/assets\/fonts\/[a-z0-9-]+\.woff2$/);
-      expect(existsSync(join(process.cwd(), 'src', face.url!.slice(2))), face.url!).toBe(true);
-      expect(face.display, face.url!).toBe('swap');
-      expect(face.range, face.url!).toBe(LATIN_RANGE);
+    for (const [index, face] of faces.entries()) {
+      const [family, weight, subset, file] = REQUIRED_FACES[index];
+      const label = `${family} ${weight} ${subset}`;
+      expect(face.url, label).toBe(`./assets/fonts/${file}`);
+      expect(existsSync(join(process.cwd(), 'src', face.url!.slice(2))), label).toBe(true);
+      expect(face.display, label).toBe('swap');
+      expect(face.range, label).toBe(RANGES[subset]);
     }
+  });
+
+  it('ships the ten pinned files as real woff2 binaries', () => {
+    const files = new Set(REQUIRED_FACES.map(([, , , file]) => file));
+
+    expect(files.size).toBe(10);
+    for (const file of files) {
+      const bytes = readFileSync(join(process.cwd(), 'src', 'assets', 'fonts', file));
+      expect(bytes.subarray(0, 4).toString('latin1'), file).toBe('wOF2');
+      expect(bytes.byteLength, file).toBeGreaterThan(1000);
+    }
+  });
+
+  it('preloads no Latin Extended file, which unicode-range loads on demand', () => {
+    expect(PRELOADED_FONT_FILES.some((stem) => stem.includes('latin-ext'))).toBe(false);
   });
 
   it('does not load fonts from a third party in the HTML shell', () => {

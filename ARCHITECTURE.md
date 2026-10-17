@@ -123,7 +123,7 @@ src/
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/brandImages.ts              srcSet ladders for the WebP brand images
   utils/                            market identity, slice URLs, axis and display helpers
-  assets/fonts/                     self-hosted Latin woff2 files
+  assets/fonts/                     self-hosted Latin/Latin Extended woff2 files
   assets/brand/                     right-sized lossless WebP brand images
   build/fontPreload.ts              pure builder for the webfont preload tags
   build/preconnect.ts               pure builders for the API/Mapbox preconnect tags
@@ -178,12 +178,16 @@ first load lowers its ceiling with it.
 and `src/tests/api-preconnect.test.ts` covers them. Only these tags are added
 to the shell and to every prerendered page.
 
-The shell self-hosts its webfonts. `src/index.css` declares the eight faces the
-site uses (JetBrains Mono 400/600, Lato 300/400/700, Montserrat 500/600/700) as
-`@font-face` rules with Google's own Latin `unicode-range` and
-`font-display: swap`, pointing at `src/assets/fonts/*.woff2`;
-`scripts/fetch-self-hosted-fonts.sh` re-downloads those five files and checks
-their digests, so a re-run cannot silently swap the shipped glyphs. The shell
+The shell self-hosts its webfonts. `src/index.css` declares the sixteen faces
+the site uses (JetBrains Mono 400/600, Lato 300/400/700, Montserrat 500/600/700,
+each in Google's `latin` and `latin-ext` slice) as `@font-face` rules with
+Google's own `unicode-range` and `font-display: swap`, pointing at
+`src/assets/fonts/*.woff2`; `scripts/fetch-self-hosted-fonts.sh` re-downloads
+those ten files and checks their digests, so a re-run cannot silently swap the
+shipped glyphs. `latin-ext` carries the letters port and company names use
+(Gdańsk, İstanbul, Constanța, Świnoujście); its five files are not preloaded,
+because `unicode-range` makes the browser fetch one only when a page shows such
+a letter. The shell
 no longer requests anything from `fonts.googleapis.com`: the two preconnects and
 the stylesheet link are gone. The one Google Fonts request left in the app is
 `PartnerShowcasePage.tsx`'s `@import` of DM Serif Display for its own headings;
@@ -191,7 +195,7 @@ that predates this step and is not self-hosted yet. `src/build/fontPreload.ts`
 builds the two preload tags for the above-the-fold files (Lato 400 and
 Montserrat's variable file) from the names Vite emitted, because the hashes only
 exist after the CSS is transformed; `src/tests/self-hosted-fonts.test.ts` covers
-the face set, the digests on disk and the preload builder.
+the face set, the slice ranges, the files on disk and the preload builder.
 
 Brand artwork is served right-sized. `scripts/optimize-brand-images.sh` writes
 lossless 1x/2x WebP cuts into `src/assets/brand/`, `src/utils/brandImages.ts`
