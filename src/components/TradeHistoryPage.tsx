@@ -76,7 +76,8 @@ const PerformanceTab: React.FC = () => {
                             });
                             // The API sorts daily references newest first. Never borrow another slice's price.
                             const reference = response.prices.find((price) => tradeSliceKey(price) === key);
-                            const vwap = Number(reference?.vwap_usd ?? 0);
+                            // The reference boundary converts `vwap_usd` to a number.
+                            const vwap = reference?.vwap_usd ?? 0;
                             return { key, value: Number.isFinite(vwap) && vwap > 0 ? vwap : 0, date: reference?.date };
                         } catch {
                             return { key, value: 0, date: undefined };

@@ -65,11 +65,12 @@ export interface TradePerformanceModel {
 }
 
 function tradeQuantity(trade: Trade): number {
-  return Number(trade.final_quantity_mt ?? trade.quantity_mt ?? 0);
+  // Both fields are numbers at the boundary; `?? 0` keeps "absent means zero".
+  return trade.final_quantity_mt ?? trade.quantity_mt ?? 0;
 }
 
 function tradePrice(trade: Trade): number {
-  return Number(trade.final_price_per_mt ?? trade.price_per_mt_usd ?? 0);
+  return trade.final_price_per_mt ?? trade.price_per_mt_usd ?? 0;
 }
 
 function tradeFuelLabel(trade: Trade, unknownFuelLabel: string): string {

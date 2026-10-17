@@ -25,3 +25,16 @@ export function parseWireDecimal(value: unknown): number | null {
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) ? parsed : null;
 }
+
+/**
+ * A decimal the app declares as a required `number`.
+ *
+ * A value the wire cannot be read from becomes `NaN`, which is what the
+ * `Number(...)` coercion this replaces produced for a malformed or absent
+ * field. `null` and `''` also become `NaN`; the wire never sends either for a
+ * required decimal, so no caller can observe the difference.
+ */
+export function requireWireDecimal(value: unknown): number {
+    return parseWireDecimal(value) ?? NaN;
+}
+

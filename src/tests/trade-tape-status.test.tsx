@@ -75,7 +75,7 @@ describe('TradeTape status copy', () => {
   it('shows confirmed B100 trades with their exact product filter and no generic grade fallback', async () => {
     tradeTapeList.mockResolvedValue({ items: [{
       id: 'b100-trade', market_product: 'UCOME_B100', fuel_type: 'FAME', fuel_grade: 'UCOME',
-      region: 'Singapore', quantity_mt: '450', price_per_mt_usd: '1125.50',
+      region: 'Singapore', quantity_mt: 450, price_per_mt_usd: 1125.5,
       confirmed_at: new Date().toISOString(), availability_window: 'SPOT', provenance_kind: 'CONFIRMED_TRADE',
     }], total: 1 });
     renderWithProviders(<TradeTape fuelType="FAME" marketProduct="UCOME_B100" deliveryPointId="singapore" availability="SPOT" />);
@@ -133,8 +133,8 @@ describe('TradeTape status copy', () => {
         fuel_type: 'Methanol',
         fuel_grade: 'Bio',
         region: 'Singapore',
-        quantity_mt: '1200.50',
-        price_per_mt_usd: '710.25',
+        quantity_mt: 1200.5,
+        price_per_mt_usd: 710.25,
         confirmed_at: new Date().toISOString(),
         availability_window: 'SPOT',
         provenance_kind: 'DEMO_SEED',
@@ -164,8 +164,8 @@ describe('TradeTape status copy', () => {
       fuel_type: 'Methanol',
       fuel_grade: 'Bio',
       region: 'Singapore',
-      quantity_mt: '1000',
-      price_per_mt_usd: '710',
+      quantity_mt: 1000,
+      price_per_mt_usd: 710,
       availability_window: 'SPOT',
       provenance_kind: 'CONFIRMED_TRADE' as const,
     };
@@ -197,7 +197,7 @@ describe('TradeTape status copy', () => {
       fuel_type: 'Methanol',
       fuel_grade: 'Bio',
       region: 'Singapore',
-      quantity_mt: '100',
+      quantity_mt: 100,
       confirmed_at: new Date().toISOString(),
       availability_window: 'SPOT',
       provenance_kind: 'CONFIRMED_TRADE',
@@ -205,7 +205,7 @@ describe('TradeTape status copy', () => {
     tradeTapeList
       .mockImplementationOnce(() => staleRequest)
       .mockResolvedValueOnce({
-        items: [{ ...trade, id: 'fresh-trade', price_per_mt_usd: '720' }],
+        items: [{ ...trade, id: 'fresh-trade', price_per_mt_usd: 720 }],
         total: 1,
         market_hours: true,
       });
@@ -231,7 +231,7 @@ describe('TradeTape status copy', () => {
 
     await act(async () => {
       resolveStaleRequest({
-        items: [{ ...trade, id: 'stale-trade', price_per_mt_usd: '600' }],
+        items: [{ ...trade, id: 'stale-trade', price_per_mt_usd: 600 }],
         total: 1,
         market_hours: true,
       });

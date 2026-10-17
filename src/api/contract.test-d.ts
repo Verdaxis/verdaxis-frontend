@@ -14,6 +14,13 @@
 
 import { expectTypeOf } from 'vitest';
 import type { AggregatedOrderbook, AvailabilityWindow, DeliveryPoint, ExecutionEligibility, MapCompactMarket, MarketProduct, MarketSourceKind, Notification, OrderBookOrder, OrderCreateInput, PriceSummary, Product, Trade } from '../types';
+import {
+    toAggregatedOrderbook,
+    toMapCompactMarket,
+    toOrderBookOrder,
+    toProduct,
+    toTrade,
+} from './mappers';
 import type { User } from '../context/AuthContext';
 import type { PaginatedResult } from '../services/api';
 import type {
@@ -42,25 +49,27 @@ type HasProperty<T, K extends PropertyKey> = K extends keyof T ? true : false;
 /** True when `Member` is assignable to `Union`, that is, it is one of its members. */
 type HasMember<Union, Member> = Member extends Union ? true : false;
 
-// ─── DRIFT-1: decimals typed `number`, sent as strings ──────────────
-// The backend serializes `Decimal` as a JSON string. The hand-written types say
-// `number`; every consumer compensates with `Number(...)`.
+// ─── Decimals: converted once, at the boundary ─────────────────────
+// DRIFT-1 is resolved by the mappers in `./mappers`, not by a type change: the
+// wire still spells a decimal as a JSON string, and the app types still declare
+// `number`. The pins below hold both sides of that contract, plus the mapper
+// that joins them, so a change to either side still fails here.
 
 expectTypeOf<WireOrder['quantity_mt']>().toEqualTypeOf<string>();
 expectTypeOf<WireOrder['remaining_quantity_mt']>().toEqualTypeOf<string>();
 expectTypeOf<WireOrder['price_per_mt_usd']>().toEqualTypeOf<string>();
 expectTypeOf<WireOrder['carbon_intensity_gco2_mj']>().toEqualTypeOf<string | null | undefined>();
 expectTypeOf<WireOrder['benchmark_price_per_mt_usd']>().toEqualTypeOf<string | null | undefined>();
+expectTypeOf<WireOrder['premium_discount_per_mt_usd']>().toEqualTypeOf<string | null | undefined>();
 
 expectTypeOf<OrderBookOrder['quantity_mt']>().toEqualTypeOf<number>();
 expectTypeOf<OrderBookOrder['remaining_quantity_mt']>().toEqualTypeOf<number>();
-// The take-window prefill is the one reader that needs the number form now; it
-// calls `parseWireDecimal` (`src/components/Marketplace.tsx`). Other readers
-// still coerce with `Number(...)`. See entry 1.1 in the drift record.
 expectTypeOf<OrderBookOrder['price_per_mt_usd']>().toEqualTypeOf<number>();
 expectTypeOf<OrderBookOrder['carbon_intensity_gco2_mj']>().toEqualTypeOf<number | null | undefined>();
-expectTypeOf<OrderBookOrder['benchmark_price_per_mt_usd']>().toEqualTypeOf<number | string | null | undefined>();
-expectTypeOf<OrderBookOrder['premium_discount_per_mt_usd']>().toEqualTypeOf<number | string | null | undefined>();
+expectTypeOf<OrderBookOrder['benchmark_price_per_mt_usd']>().toEqualTypeOf<number | null | undefined>();
+expectTypeOf<OrderBookOrder['premium_discount_per_mt_usd']>().toEqualTypeOf<number | null | undefined>();
+expectTypeOf<typeof toOrderBookOrder>().parameter(0).toEqualTypeOf<WireOrder>();
+expectTypeOf<typeof toOrderBookOrder>().returns.toEqualTypeOf<OrderBookOrder>();
 
 expectTypeOf<WireTrade['quantity_mt']>().toEqualTypeOf<string>();
 expectTypeOf<WireTrade['price_per_mt_usd']>().toEqualTypeOf<string>();
@@ -70,9 +79,11 @@ expectTypeOf<WireTrade['final_total_usd']>().toEqualTypeOf<string | null | undef
 
 expectTypeOf<Trade['quantity_mt']>().toEqualTypeOf<number>();
 expectTypeOf<Trade['price_per_mt_usd']>().toEqualTypeOf<number>();
-expectTypeOf<Trade['final_quantity_mt']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<Trade['final_price_per_mt']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<Trade['final_total_usd']>().toEqualTypeOf<number | undefined>();
+expectTypeOf<Trade['final_quantity_mt']>().toEqualTypeOf<number | null | undefined>();
+expectTypeOf<Trade['final_price_per_mt']>().toEqualTypeOf<number | null | undefined>();
+expectTypeOf<Trade['final_total_usd']>().toEqualTypeOf<number | null | undefined>();
+expectTypeOf<typeof toTrade>().parameter(0).toEqualTypeOf<WireTrade>();
+expectTypeOf<typeof toTrade>().returns.toEqualTypeOf<Trade>();
 
 expectTypeOf<WirePriceSummary['last_price']>().toEqualTypeOf<string | null | undefined>();
 expectTypeOf<WirePriceSummary['avg_price_24h']>().toEqualTypeOf<string | null | undefined>();
@@ -90,9 +101,8 @@ expectTypeOf<PriceSummary['volume_24h']>().toEqualTypeOf<number>();
 
 expectTypeOf<WireProduct['min_lot_size']>().toEqualTypeOf<string>();
 expectTypeOf<Product['min_lot_size']>().toEqualTypeOf<number>();
-// The catalog boundary converts the wire string into this number
-// (`mapCatalogProduct` in `src/services/api.ts`, `parseWireDecimal` in
-// `src/api/decimals.ts`). See entry 1.8 in `docs/refactor/api-type-drift.md`.
+expectTypeOf<typeof toProduct>().parameter(0).toEqualTypeOf<WireProduct>();
+expectTypeOf<typeof toProduct>().returns.toEqualTypeOf<Product>();
 
 // The create payload accepts either form on the wire; the frontend sends numbers.
 expectTypeOf<WireOrderCreateInput['quantity_mt']>().toEqualTypeOf<number | string>();
@@ -103,16 +113,18 @@ expectTypeOf<OrderCreateInput['price_per_mt_usd']>().toEqualTypeOf<number>();
 expectTypeOf<WireAggregatedOrderbook['min_price']>().toEqualTypeOf<string>();
 expectTypeOf<WireAggregatedOrderbook['max_price']>().toEqualTypeOf<string>();
 expectTypeOf<WireAggregatedOrderbook['total_quantity']>().toEqualTypeOf<string>();
-expectTypeOf<AggregatedOrderbook['min_price']>().toEqualTypeOf<number | string>();
-expectTypeOf<AggregatedOrderbook['max_price']>().toEqualTypeOf<number | string>();
-expectTypeOf<AggregatedOrderbook['total_quantity']>().toEqualTypeOf<number | string>();
+expectTypeOf<AggregatedOrderbook['min_price']>().toEqualTypeOf<number>();
+expectTypeOf<AggregatedOrderbook['max_price']>().toEqualTypeOf<number>();
+expectTypeOf<AggregatedOrderbook['total_quantity']>().toEqualTypeOf<number>();
+expectTypeOf<typeof toAggregatedOrderbook>().parameter(0).toEqualTypeOf<WireAggregatedOrderbook>();
+expectTypeOf<typeof toAggregatedOrderbook>().returns.toEqualTypeOf<AggregatedOrderbook>();
 
-// The buyer map already types its decimals as strings. This is the shape step 5b
-// generalises; only the optionality still differs.
 expectTypeOf<WireMapCompactMarket['bid_min_price']>().toEqualTypeOf<string | null | undefined>();
 expectTypeOf<WireMapCompactMarket['bid_total_quantity']>().toEqualTypeOf<string>();
-expectTypeOf<MapCompactMarket['bid_min_price']>().toEqualTypeOf<string | null>();
-expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<string>();
+expectTypeOf<MapCompactMarket['bid_min_price']>().toEqualTypeOf<number | null>();
+expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
+expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
+expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
 // ─── DRIFT-2: `unknown_count` is on the wire, absent from the app ───
 
@@ -283,11 +295,14 @@ expectTypeOf<PriceSummary['availability_window']>().toEqualTypeOf<string | null 
 expectTypeOf<WirePriceSummary['is_reference']>().toEqualTypeOf<boolean>();
 expectTypeOf<PriceSummary['is_reference']>().toEqualTypeOf<boolean | undefined>();
 
-// Commissions: the wire sends exact strings on every response.
+// Commissions: the wire sends exact strings on every response; the trade
+// boundary converts them, so the app types are plain numbers again.
 expectTypeOf<WireTrade['commission_rate_pct']>().toEqualTypeOf<string>();
-expectTypeOf<Trade['commission_rate_pct']>().toEqualTypeOf<string | number>();
+expectTypeOf<Trade['commission_rate_pct']>().toEqualTypeOf<number>();
 expectTypeOf<WireTrade['commission_amount_usd']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<Trade['commission_amount_usd']>().toEqualTypeOf<string | number | null | undefined>();
+expectTypeOf<WireTrade['commission_fee_per_mt_usd']>().toEqualTypeOf<string | null | undefined>();
+expectTypeOf<Trade['commission_amount_usd']>().toEqualTypeOf<number | null | undefined>();
+expectTypeOf<Trade['commission_fee_per_mt_usd']>().toEqualTypeOf<number | null | undefined>();
 
 expectTypeOf<WireProduct['execution_mode']>().toEqualTypeOf<string>();
 expectTypeOf<Product['execution_mode']>().toEqualTypeOf<'ORDERBOOK' | 'RFQ_ONLY' | undefined>();

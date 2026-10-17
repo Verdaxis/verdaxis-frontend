@@ -239,34 +239,40 @@ describe('bounded API read cache', () => {
             }
             getCount += 1;
             if (getCount === 1) return oldGet.promise;
-            if (getCount === 2) return Promise.resolve(jsonResponse({ items: [{ id: 'during' }] }));
-            if (getCount === 3) return Promise.resolve(jsonResponse({ items: [{ id: 'after' }] }));
-            if (getCount === 4) return Promise.resolve(jsonResponse({ items: [{ id: 'during-failure' }] }));
-            return Promise.resolve(jsonResponse({ items: [{ id: 'after-failure' }] }));
+            if (getCount === 2) return Promise.resolve(jsonResponse({ items: [{ id: 'during', quantity_mt: '10.00' }] }));
+            if (getCount === 3) return Promise.resolve(jsonResponse({ items: [{ id: 'after', quantity_mt: '20.00' }] }));
+            if (getCount === 4) return Promise.resolve(jsonResponse({ items: [{ id: 'during-failure', quantity_mt: '30.00' }] }));
+            return Promise.resolve(jsonResponse({ items: [{ id: 'after-failure', quantity_mt: '40.00' }] }));
         });
 
         const oldRead = api.orderbook.myOrders();
         const cancel = api.orderbook.cancel('order-1');
-        await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'during' }]);
+        await expect(api.orderbook.myOrders()).resolves.toMatchObject([{ id: 'during', quantity_mt: 10 }]);
 
         mutation.resolve(new Response(null, { status: 204 }));
         await expect(cancel).resolves.toBeUndefined();
-        await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'after' }]);
+        await expect(api.orderbook.myOrders()).resolves.toMatchObject([{ id: 'after', quantity_mt: 20 }]);
 
         oldGet.resolve(jsonResponse({ items: [{ id: 'old' }] }));
-        await expect(oldRead).resolves.toEqual([{ id: 'old' }]);
-        await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'after' }]);
+        await expect(oldRead).resolves.toMatchObject([{ id: 'old', quantity_mt: NaN }]);
+        await expect(api.orderbook.myOrders()).resolves.toMatchObject([{ id: 'after', quantity_mt: 20 }]);
 
         const failedCancel = api.orderbook.cancel('order-2');
-        await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'during-failure' }]);
+        await expect(api.orderbook.myOrders()).resolves.toMatchObject([{ id: 'during-failure', quantity_mt: 30 }]);
         const rejection = expect(failedCancel).rejects.toThrow('The request was sent, but the server did not confirm the outcome.');
         failedMutation.reject(new TypeError('network failed'));
         await rejection;
-        await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'after-failure' }]);
+        await expect(api.orderbook.myOrders()).resolves.toMatchObject([{ id: 'after-failure', quantity_mt: 40 }]);
     });
 
     it('invalidates watchlists for every trade transition and market reads for declines', async () => {
-        vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+        // One fresh Response per call: a Response body can be read only once,
+        // and the trade transition endpoints are mutations that retry refreshes.
+        const tradeBody = () => JSON.stringify({ id: 'trade-1', quantity_mt: '1.00', price_per_mt_usd: '1.00' });
+        vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(tradeBody(), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        }));
         const loads = new Map<string, Mock<() => Promise<string>>>();
         const read = async (resourceKey: string) => {
             let load = loads.get(resourceKey);

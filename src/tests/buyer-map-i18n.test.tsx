@@ -197,6 +197,8 @@ describe('BuyerMap failure localization', () => {
     expect(document.activeElement).toBe(legendButton);
   });
 
+  // The compact-summary mock replaces the api client wholesale, so its fixture
+  // carries the mapped numbers the real boundary would produce.
   it('renders B100 map data and keeps all ticker fallbacks after selecting a map fuel', async () => {
     portsListMock.mockResolvedValue([]);
     const b100Row = {
@@ -213,14 +215,14 @@ describe('BuyerMap failure localization', () => {
       demo_status: 'REAL_ONLY',
       bid_min_price: null,
       bid_max_price: null,
-      bid_total_quantity: '0',
+      bid_total_quantity: 0,
       bid_order_count: 0,
-      ask_min_price: '777',
-      ask_max_price: '777',
-      ask_total_quantity: '9999',
+      ask_min_price: 777,
+      ask_max_price: 777,
+      ask_total_quantity: 9999,
       ask_order_count: 1,
       spot_best_bid: null,
-      spot_best_ask: '777',
+      spot_best_ask: 777,
       observed_at: '2026-09-09T00:00:00Z',
     };
     compactMapSummaryMock.mockResolvedValueOnce({
@@ -238,14 +240,14 @@ describe('BuyerMap failure localization', () => {
         demo_status: 'REAL_ONLY',
         bid_min_price: null,
         bid_max_price: null,
-        bid_total_quantity: '0',
+        bid_total_quantity: 0,
         bid_order_count: 0,
-        ask_min_price: '999',
-        ask_max_price: '999',
-        ask_total_quantity: '1234',
+        ask_min_price: 999,
+        ask_max_price: 999,
+        ask_total_quantity: 1234,
         ask_order_count: 1,
         spot_best_bid: null,
-        spot_best_ask: '999',
+        spot_best_ask: 999,
         observed_at: '2026-09-08T00:00:00Z',
       }, b100Row],
       demo_groups: [{
@@ -258,9 +260,9 @@ describe('BuyerMap failure localization', () => {
         availability_window: 'SPOT',
         region: 'Singapore',
         side: 'ASK',
-        min_price: '999',
-        max_price: '999',
-        total_quantity: '1234',
+        min_price: 999,
+        max_price: 999,
+        total_quantity: 1234,
         order_count: 1,
         product_total_order_count: 1,
         evidence_class: 'DEMO',
@@ -278,9 +280,9 @@ describe('BuyerMap failure localization', () => {
         availability_window: 'SPOT',
         region: 'Singapore',
         side: 'ASK',
-        min_price: '777',
-        max_price: '777',
-        total_quantity: '9999',
+        min_price: 777,
+        max_price: 777,
+        total_quantity: 9999,
         order_count: 1,
       }],
       recent_asks: [{
@@ -291,8 +293,8 @@ describe('BuyerMap failure localization', () => {
         delivery_point_id: 'sg-sin',
         delivery_point_name: 'Singapore',
         region: 'Singapore',
-        price_per_mt_usd: '999',
-        remaining_quantity_mt: '1234',
+        price_per_mt_usd: 999,
+        remaining_quantity_mt: 1234,
         created_at: '2026-09-08T00:00:00Z',
       }, {
         product_id: 'ucome-b100',
@@ -302,8 +304,8 @@ describe('BuyerMap failure localization', () => {
         delivery_point_id: 'sg-sin',
         delivery_point_name: 'Singapore',
         region: 'Singapore',
-        price_per_mt_usd: '777',
-        remaining_quantity_mt: '9999',
+        price_per_mt_usd: 777,
+        remaining_quantity_mt: 9999,
         created_at: '2026-09-09T00:00:00Z',
       }],
     });
@@ -316,15 +318,15 @@ describe('BuyerMap failure localization', () => {
     expect(screen.getByText('$777')).toBeTruthy();
     expect(compactMapSummaryMock).toHaveBeenCalledWith({ force: false });
     expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
-      expect.objectContaining({ availability_window: 'SPOT', min_price: '999' }),
-      expect.objectContaining({ market_product: 'UCOME_B100', min_price: '777' }),
+      expect.objectContaining({ availability_window: 'SPOT', min_price: 999 }),
+      expect.objectContaining({ market_product: 'UCOME_B100', min_price: 777 }),
     ]);
 
     fireEvent.click(screen.getByRole('button', { name: 'UCOME B100' }));
     await waitFor(() => {
       expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
-        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '999' }),
-        expect.objectContaining({ market_product: 'UCOME_B100', min_price: '777' }),
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: 999 }),
+        expect.objectContaining({ market_product: 'UCOME_B100', min_price: 777 }),
       ]);
     });
   });
@@ -340,8 +342,8 @@ describe('BuyerMap failure localization', () => {
     compactMapSummaryMock.mockResolvedValue({ markets: [{
       market_product: product, product_name: product, delivery_point_name: 'Singapore',
       delivery_point_id: 'sg-sin', bid_order_count: 0, ask_order_count: 1,
-      bid_total_quantity: '0', ask_total_quantity: '200', bid_min_price: null, bid_max_price: null,
-      ask_min_price: '900', ask_max_price: '900', spot_best_bid: null, spot_best_ask: '900',
+      bid_total_quantity: 0, ask_total_quantity: 200, bid_min_price: null, bid_max_price: null,
+      ask_min_price: 900, ask_max_price: 900, spot_best_bid: null, spot_best_ask: 900,
       source_kind: 'LIVE_ORDER', demo_status: 'REAL_ONLY',
     }], demo_groups: [], recent_asks: [] });
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
@@ -503,7 +505,7 @@ describe('BuyerMap failure localization', () => {
         market_product: 'BIO_METHANOL',
         delivery_point_id: 'sg-sin',
         delivery_point_name: 'Singapore',
-        min_price: '650',
+        min_price: 650,
       }],
       recent_asks: [],
     };
@@ -534,7 +536,7 @@ describe('BuyerMap failure localization', () => {
     await waitFor(() => {
       expect(screen.queryByRole('alert')).toBeNull();
       expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
-        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '650' }),
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: 650 }),
       ]);
     });
     expect(compactMapSummaryMock).toHaveBeenCalledTimes(2);
@@ -549,7 +551,7 @@ describe('BuyerMap failure localization', () => {
         market_product: 'BIO_METHANOL',
         delivery_point_id: 'sg-sin',
         delivery_point_name: 'Singapore',
-        min_price: '650',
+        min_price: 650,
       }],
       recent_asks: [],
     };
@@ -559,7 +561,7 @@ describe('BuyerMap failure localization', () => {
         market_product: 'BIO_METHANOL',
         delivery_point_id: 'sg-sin',
         delivery_point_name: 'Singapore',
-        min_price: '900',
+        min_price: 900,
       }],
       recent_asks: [],
     };
@@ -581,7 +583,7 @@ describe('BuyerMap failure localization', () => {
     });
     await waitFor(() => {
       expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
-        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '900' }),
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: 900 }),
       ]);
     });
 
@@ -591,7 +593,7 @@ describe('BuyerMap failure localization', () => {
     });
 
     expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
-      expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '900' }),
+      expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: 900 }),
     ]);
     expect(compactMapSummaryMock).toHaveBeenCalledTimes(2);
   });
@@ -605,7 +607,7 @@ describe('BuyerMap failure localization', () => {
         market_product: 'BIO_METHANOL',
         delivery_point_id: 'sg-sin',
         delivery_point_name: 'Singapore',
-        min_price: '650',
+        min_price: 650,
       }],
       recent_asks: [],
     };

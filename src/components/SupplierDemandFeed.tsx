@@ -100,9 +100,9 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
                                     )}
                                 </div>
                                 <div className="text-sm text-slate-700 dark:text-slate-300">
-                                    <span className="font-medium">{Number(bid.quantity_mt).toLocaleString()} MT</span>
+                                    <span className="font-medium">{bid.quantity_mt.toLocaleString()} MT</span>
                                     <span className="text-slate-400 mx-1.5">{t('supplierDemand.at')}</span>
-                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">${Number(bid.price_per_mt_usd).toFixed(0)}/MT</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">${bid.price_per_mt_usd.toFixed(0)}/MT</span>
                                 </div>
                                 <div className="text-xs text-slate-400 mt-0.5">{bid.region} • {formatAvailabilityWindow(bid.availability_window, locale)}</div>
                             </div>

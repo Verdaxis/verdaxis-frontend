@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNamespace } from '../../hooks/useNamespace';
+import { formatUsd } from '../../utils/numberFormat';
 
 interface BenchmarkPriceBlockProps {
   priceUsd: number;
@@ -8,13 +9,6 @@ interface BenchmarkPriceBlockProps {
   benchmarkSource?: string | null;
   contextUpdatedAt?: string | null;
   align?: 'left' | 'right';
-}
-
-function formatUsd(value: number): string {
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 export const BenchmarkPriceBlock: React.FC<BenchmarkPriceBlockProps> = ({

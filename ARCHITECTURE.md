@@ -35,7 +35,7 @@ index.html
                     -> production or staging API
 ```
 
-`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable.
+`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable. `src/api/` holds the decimal boundary: `decimals.ts` converts one wire decimal, `mappers.ts` maps each wire shape to its app type, and `contract.ts` names the generated wire types the mappers read.
 
 ## Route and workspace rules
 
@@ -54,6 +54,8 @@ index.html
 **Market Support.** The admin remains the authenticated principal. The browser persists only an opaque context id. `MarketSupportContext` rehydrates server state and expires it; `api.ts` sends the context header only to the narrow customer route allowlist. Capability discovery recognizes `MARKET_SUPPORT_LISTINGS` and `MARKET_SUPPORT_AUTHORIZATIONS`, while the server eligibility result remains authoritative. Entry requires an approved `REAL` organization and an `ORDER_CREATE`/`ORDER_CANCEL` scope. Both assisted BID and ASK use `OrderPlaceModal` and `MarketSupportFinalConfirmation`. Unsupported mutations and trade execution stay blocked.
 
 **Cached reads.** `readCache.ts` keys private reads by the auth generation, accepted account/organization, and assisted context. Mutations and market stream events invalidate affected keys. Results from an obsolete scope cannot repopulate the cache.
+
+**Decimal boundary.** The backend serializes `Decimal` as a JSON string. `src/api/decimals.ts` converts each one (`parseWireDecimal`, `requireWireDecimal`), and `src/api/mappers.ts` applies one mapper per wire shape — typed from the generated wire types in `src/api/contract.ts` to the app types — at every entry point: each `services/api.ts` method, the public ticker's direct fetches in `data/fuelPrices.ts`, and the trade stream in `useSSE`. A component therefore never sees a wire string. Money and unit prices render with `formatUsd` and quantities and measurements with `formatQuantity` (`src/utils/numberFormat.ts`), so no displayed text depends on how the wire spells a number (tracker decision 71). The cache stores raw wire bodies and every mapper runs outside it. `docs/refactor/api-type-drift.md` records the entry points and the shapes still open.
 
 **Intelligence-map summaries.** `BuyerMap` keeps its canvas across workspace changes, but each active period is a separate market-data lifecycle. A valid response from the current lifecycle can apply if it is not older than the latest successfully applied response, including after a newer request fails. A failure from the latest started request in that lifecycle keeps previously applied data visible and shows the market-data warning. Deactivation invalidates all pending responses.
 

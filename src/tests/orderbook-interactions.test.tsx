@@ -129,10 +129,12 @@ describe('orderbook inspection', () => {
     expect(screen.queryByText('CROSSED')).toBeNull();
   });
 
-  it('formats API decimal strings as readable prices and quantities', async () => {
+  it('formats converted decimal values as readable prices and quantities', async () => {
+    // The snapshot boundary reads each decimal once, so the order book sees the
+    // number the wire string spelled.
     snapshot.mockResolvedValue(makeSnapshot([{
-      id: 'bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: '1260.20',
-      remaining_quantity_mt: '1500.25', availability_window: 'SPOT', region: 'Singapore', certifications: [],
+      id: 'bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 1260.2,
+      remaining_quantity_mt: 1500.25, availability_window: 'SPOT', region: 'Singapore', certifications: [],
     }], []));
     renderWithProviders(<OrderBook {...MARKET} />);
     expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500.25 MT/ })).toBeTruthy();

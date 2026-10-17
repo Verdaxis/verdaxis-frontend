@@ -82,16 +82,18 @@ describe('TradeNotifier', () => {
     const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: Record<string, unknown>) => void;
 
     act(() => {
+      // The stream boundary converted the decimals; the notifier renders
+      // the wire's own two-decimal spelling.
       handler('trade_confirmed', { quantity: 500, price: 740 });
     });
 
     expect(addToastMock).toHaveBeenCalledWith(expect.objectContaining({
       title: '交易已确认',
-      message: '500 MT 已按 $740/MT 确认',
+      message: '500 MT 已按 $740.00/MT 确认',
     }));
     expect(addNotificationMock).toHaveBeenCalledWith(expect.objectContaining({
       title: '交易已确认',
-      message: '500 MT 已按 $740/MT 确认',
+      message: '500 MT 已按 $740.00/MT 确认',
     }));
   });
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../services/config';
 import { getAccessToken, refreshAccessToken } from '../services/authToken';
 import { invalidateReadCache, invalidateReadsForEvent } from '../services/readCache';
+import { toTradeStreamPayload } from '../api/mappers';
 
 type SSEChannel = 'prices' | 'orderbook' | 'trades';
 type SSEHandler = (event: string, data: any) => void;
@@ -200,7 +201,10 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             const handleMessage = (type: string, event: MessageEvent<string>) => {
                 if (sourceRef.current !== source || !isActive()) return;
                 if (event.lastEventId) lastEventIdRef.current = event.lastEventId;
-                const data = decodeEventData(event.data);
+                const decoded = decodeEventData(event.data);
+                // A trade payload carries wire decimals; convert them here so no
+                // consumer below sees a wire string (DRIFT-1).
+                const data = channel === 'trades' ? toTradeStreamPayload(type, decoded) : decoded;
                 invalidateReadsForEvent(channel, type);
                 handlerRef.current(type, data);
             };

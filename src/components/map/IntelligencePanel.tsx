@@ -18,11 +18,10 @@ interface CurveReference {
     change: number | null;
 }
 
-const positivePrice = (value: number | null | undefined): number | null => {
-    if (value == null) return null;
-    const price = Number(value);
-    return Number.isFinite(price) && price > 0 ? price : null;
-};
+const positivePrice = (value: number | null | undefined): number | null => (
+    // The curve boundary has already converted `mid_price` to a number or null.
+    value != null && Number.isFinite(value) && value > 0 ? value : null
+);
 
 function supportsDeliveryPoint(product: Product, deliveryPointId: string | undefined): boolean {
     if (!deliveryPointId) return true;

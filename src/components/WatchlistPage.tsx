@@ -151,8 +151,10 @@ export const WatchlistPage: React.FC = () => {
                                                             </div>
                                                             <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">
                                                                 {t('watchlist.pinTerms', {
-                                                                    price: Number(pinTarget.snapshot_price_per_mt_usd ?? 0).toLocaleString(locale),
-                                                                    quantity: Number(pinTarget.snapshot_remaining_quantity_mt ?? 0).toLocaleString(locale),
+                                                                    // The backend types both snapshots as floats, so the
+                                                                    // boundary has already made them numbers.
+                                                                    price: (pinTarget.snapshot_price_per_mt_usd ?? 0).toLocaleString(locale),
+                                                                    quantity: (pinTarget.snapshot_remaining_quantity_mt ?? 0).toLocaleString(locale),
                                                                 })}
                                                             </div>
                                                         </div>

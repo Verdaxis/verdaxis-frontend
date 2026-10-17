@@ -125,10 +125,11 @@ const findMatchingSummary = (summaries: PriceSummary[], product: OrderbookMarket
 };
 
 const getSummaryPrice = (summary: PriceSummary) => {
-    const lastPrice = Number(summary.last_price);
-    if (Number.isFinite(lastPrice) && lastPrice > 0) return lastPrice;
-    const avgPrice = Number(summary.avg_price_24h);
-    return Number.isFinite(avgPrice) && avgPrice > 0 ? avgPrice : null;
+    // The boundary makes these numbers, or null when the wire has no price.
+    const lastPrice = summary.last_price;
+    if (lastPrice != null && Number.isFinite(lastPrice) && lastPrice > 0) return lastPrice;
+    const avgPrice = summary.avg_price_24h;
+    return avgPrice != null && Number.isFinite(avgPrice) && avgPrice > 0 ? avgPrice : null;
 };
 
 const getSummaryStatus = (summary: PriceSummary): RowStatus => {
@@ -179,7 +180,7 @@ const buildSummaryRow = (port: Port, product: OrderbookMarketProduct, summary: P
     const price = getSummaryPrice(summary);
     if (price == null) return null;
 
-    const changePct = summary.price_change_pct == null ? null : Number(summary.price_change_pct);
+    const changePct = summary.price_change_pct ?? null;
     return {
         key: `${product}-${port.id}`,
         port,
