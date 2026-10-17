@@ -126,38 +126,6 @@ expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
 expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
 expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
-// ─── DRIFT-3: provenance fields missing or wrongly optional ────────
-
-expectTypeOf<WireOrder['source_kind']>().toEqualTypeOf<WireMarketSourceKind>();
-expectTypeOf<WireOrder['scope']>().toEqualTypeOf<WireMarketScope>();
-expectTypeOf<WireOrder['demo_status']>().toEqualTypeOf<WireMarketDemoStatus>();
-expectTypeOf<WireOrder['version']>().toEqualTypeOf<number>();
-expectTypeOf<WireOrder['terms_digest']>().toEqualTypeOf<string>();
-
-expectTypeOf<HasProperty<OrderBookOrder, 'source_kind'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<OrderBookOrder, 'scope'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<OrderBookOrder, 'demo_status'>>().toEqualTypeOf<false>();
-expectTypeOf<OrderBookOrder['version']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<OrderBookOrder['terms_digest']>().toEqualTypeOf<string | undefined>();
-
-expectTypeOf<WireTrade['source_kind']>().toEqualTypeOf<WireMarketSourceKind>();
-expectTypeOf<WireTrade['scope']>().toEqualTypeOf<WireMarketScope>();
-expectTypeOf<WireTrade['demo_status']>().toEqualTypeOf<WireMarketDemoStatus>();
-expectTypeOf<HasProperty<Trade, 'source_kind'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<Trade, 'scope'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<Trade, 'demo_status'>>().toEqualTypeOf<false>();
-
-// `LIVE_INVENTORY` is a backend source kind the frontend union never learned.
-expectTypeOf<HasMember<WireMarketSourceKind, 'LIVE_INVENTORY'>>().toEqualTypeOf<true>();
-expectTypeOf<HasMember<MarketSourceKind, 'LIVE_INVENTORY'>>().toEqualTypeOf<false>();
-
-// The spec models creation method as a bare string on the order, and defines an
-// unused `OrderCreationMethod` enum next to it. The frontend's union is erased by
-// its own `| string`, so it narrows nothing.
-expectTypeOf<WireOrderCreationMethod>().toEqualTypeOf<'SELF_SERVICE' | 'MARKET_SUPPORT' | 'SYSTEM' | 'LEGACY_UNKNOWN'>();
-expectTypeOf<WireOwnedOrder['creation_method']>().toEqualTypeOf<string>();
-expectTypeOf<OrderBookOrder['creation_method']>().toEqualTypeOf<string | undefined>();
-
 // ─── DRIFT-4: owner-view fields folded into the public interface ───
 // `OrderResponse` carries no ownership fields; `OrderMyResponse` adds them as
 // required. The frontend has one interface with all of them optional, so code
@@ -186,33 +154,6 @@ expectTypeOf<OrderBookOrder['trade_count']>().toEqualTypeOf<number | undefined>(
 expectTypeOf<OrderBookOrder['updated_at']>().toEqualTypeOf<string | undefined>();
 expectTypeOf<OrderBookOrder['etag']>().toEqualTypeOf<string | undefined>();
 expectTypeOf<OrderBookOrder['vessel_id']>().toEqualTypeOf<string | undefined>();
-
-// Fields the wire always sends, which the app marks optional.
-expectTypeOf<WireOrder['product_id']>().toEqualTypeOf<string>();
-expectTypeOf<WireOrder['product_name']>().toEqualTypeOf<string>();
-expectTypeOf<WireOrder['fuel_type']>().toEqualTypeOf<string>();
-expectTypeOf<WireOrder['region']>().toEqualTypeOf<string>();
-expectTypeOf<WireOrder['is_crossed']>().toEqualTypeOf<boolean>();
-expectTypeOf<WireOrder['certification_declared']>().toEqualTypeOf<boolean>();
-expectTypeOf<WireOrder['is_demo_listing']>().toEqualTypeOf<boolean>();
-expectTypeOf<WireOrder['msds_available']>().toEqualTypeOf<boolean>();
-expectTypeOf<WireOrder['certifications']>().toEqualTypeOf<string[] | undefined>();
-
-expectTypeOf<OrderBookOrder['product_id']>().toEqualTypeOf<string | undefined>();
-expectTypeOf<OrderBookOrder['product_name']>().toEqualTypeOf<string | undefined>();
-expectTypeOf<OrderBookOrder['fuel_type']>().toEqualTypeOf<string>();
-expectTypeOf<OrderBookOrder['region']>().toEqualTypeOf<string>();
-expectTypeOf<OrderBookOrder['is_crossed']>().toEqualTypeOf<boolean | undefined>();
-expectTypeOf<OrderBookOrder['certification_declared']>().toEqualTypeOf<boolean | undefined>();
-expectTypeOf<OrderBookOrder['is_demo_listing']>().toEqualTypeOf<boolean | undefined>();
-expectTypeOf<OrderBookOrder['msds_available']>().toEqualTypeOf<boolean | undefined>();
-expectTypeOf<OrderBookOrder['certifications']>().toEqualTypeOf<string[]>();
-
-// The wire types `fuel_grade` as a free string; the frontend narrows it to the
-// five grades it renders.
-expectTypeOf<WireOrder['fuel_grade']>().toEqualTypeOf<string>();
-expectTypeOf<HasMember<OrderBookOrder['fuel_grade'], 'Green'>>().toEqualTypeOf<true>();
-expectTypeOf<HasMember<OrderBookOrder['fuel_grade'], 'Diesel'>>().toEqualTypeOf<false>();
 
 // ─── DRIFT-5: the `User` profile ───────────────────────────────────
 // `email_verified` is not on `UserResponse` at all; `/auth/me` can never set it.
@@ -313,6 +254,15 @@ expectTypeOf<Notification['data']>().toEqualTypeOf<any>();
 
 // ─── Shapes that already agree ─────────────────────────────────────
 // Pinned so a change to either side is noticed here too.
+
+type OrderProvenance = 'source_kind' | 'scope' | 'demo_status' | 'version' | 'terms_digest' | 'product_id' | 'product_name' | 'fuel_grade' | 'is_crossed' | 'certification_declared' | 'is_demo_listing' | 'msds_available';
+expectTypeOf<Pick<OrderBookOrder, OrderProvenance>>().toEqualTypeOf<Pick<WireOrder, OrderProvenance>>();
+expectTypeOf<Pick<Trade, 'source_kind' | 'scope' | 'demo_status'>>().toEqualTypeOf<Pick<WireTrade, 'source_kind' | 'scope' | 'demo_status'>>();
+expectTypeOf<MarketSourceKind>().toEqualTypeOf<WireMarketSourceKind>();
+expectTypeOf<WireOrder['certifications']>().toEqualTypeOf<string[] | undefined>();
+expectTypeOf<OrderBookOrder['certifications']>().toEqualTypeOf<string[]>();
+expectTypeOf<WireOwnedOrder['creation_method']>().toEqualTypeOf<string>();
+expectTypeOf<OrderBookOrder['creation_method']>().toEqualTypeOf<string | undefined>();
 
 expectTypeOf<OrderBookOrder['unknown_count']>().toEqualTypeOf<WireOrder['unknown_count']>();
 expectTypeOf<Trade['unknown_count']>().toEqualTypeOf<WireTrade['unknown_count']>();

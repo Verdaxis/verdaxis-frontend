@@ -1,4 +1,4 @@
-import type { WireOrder, WireTrade } from './api/contract';
+import type { WireOrder, WireTrade, WireMarketSourceKind } from './api/contract';
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
@@ -191,14 +191,7 @@ export const MARKET_PRODUCTS = ORDERBOOK_MARKET_PRODUCTS;
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
-export type MarketSourceKind =
-    | 'CONFIRMED_TRADE'
-    | 'LIVE_ORDER'
-    | 'DEMO_SEED'
-    | 'BENCHMARK_REFERENCE'
-    | 'MIXED_SOURCE'
-    | 'NO_DATA'
-    | 'UNKNOWN';
+export type MarketSourceKind = WireMarketSourceKind;
 
 export type MarketScope = 'DELIVERY_POINT' | 'REGION' | 'PRODUCT' | 'UNKNOWN';
 export type MarketDemoStatus = 'REAL_ONLY' | 'DEMO_ONLY' | 'MIXED' | 'UNKNOWN' | 'NOT_APPLICABLE';
@@ -277,21 +270,16 @@ export interface TradeCreateInput {
     idempotency_key?: string;
 }
 
-export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count'> {
+export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count' | 'source_kind' | 'scope' | 'demo_status' | 'version' | 'terms_digest' | 'product_id' | 'product_name' | 'fuel_grade' | 'is_crossed' | 'certification_declared' | 'is_demo_listing' | 'msds_available'> {
     id: string;
-    terms_digest?: string;
-    version?: number;
     organization_id?: string; // Only in "my" view
     side: OrderSide;
     // Product/DeliveryPoint FK fields (new model)
-    product_id?: string;
-    product_name?: string;
     delivery_point_id?: string;
     delivery_point_name?: string;
     // Denormalized fields from product/delivery_point (always present in API responses)
     market_product?: MarketProduct;
     fuel_type: string;
-    fuel_grade: FuelGrade;
     region: string;
     port_id?: string;
     vessel_id?: string;
@@ -305,12 +293,10 @@ export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count'> {
     is_verdaxis_verified: boolean;
     carbon_intensity_gco2_mj?: number | null;
     carbon_intensity_method?: string | null;
-    certification_declared?: boolean;
     certification_scheme?: string | null;
     specification_standard?: string | null;
     fame_terms?: FameOrderPublicTerms | null;
     lng_terms?: LngOrderTermsView | null;
-    msds_available?: boolean;
     feedstock?: string | null;
     origin?: string | null;
     off_spec?: boolean;
@@ -318,15 +304,13 @@ export interface OrderBookOrder extends Pick<WireOrder, 'unknown_count'> {
     benchmark_price_per_mt_usd?: number | null;
     benchmark_source?: string | null;
     premium_discount_per_mt_usd?: number | null;
-    is_crossed?: boolean;
     tier_label: TierLabel;
     status: OrderBookStatus;
     expires_at?: string;
     created_at: string;
-    is_demo_listing?: boolean;
     updated_at?: string;
     trade_count?: number; // Only in "my" view
-    creation_method?: 'SELF_SERVICE' | 'MARKET_SUPPORT' | string;
+    creation_method?: string;
     etag?: string;
 }
 
@@ -342,7 +326,7 @@ export interface OrderBookSnapshot {
     asks: OrderBookOrder[];
 }
 
-export interface Trade extends Pick<WireTrade, 'unknown_count'> {
+export interface Trade extends Pick<WireTrade, 'unknown_count' | 'source_kind' | 'scope' | 'demo_status'> {
     id: string;
     bid_order_id?: string;
     ask_order_id?: string;

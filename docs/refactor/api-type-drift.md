@@ -36,12 +36,12 @@ tracker decision 67, which lets the backend respell a decimal).
 |---|---|---|---|
 | DRIFT-1 | Decimals typed `number`, sent as JSON strings | 11 (resolved) | 5b |
 | DRIFT-2 | Required `unknown_count` derived from the wire | 2 (resolved) | 5c |
-| DRIFT-3 | Provenance fields missing or wrongly optional | 8 | 5c |
+| DRIFT-3 | Provenance and order metadata derived from the wire | 8 (resolved) | 5c |
 | DRIFT-4 | Owner-view fields folded into the public interface | 5 | 5c |
 | DRIFT-5 | The `User` profile | 8 | 5c |
 | DRIFT-6 | Availability windows: display labels against canonical codes | 3 | 5c |
 | DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **33** | |
+| | **Open** | **25** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -281,33 +281,17 @@ branch changes. Founder decision: whether and where to display this count.
 
 ---
 
-## DRIFT-3 — Provenance fields missing or wrongly optional
+## DRIFT-3 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 3.1 `OrderBookOrder.source_kind`, `scope`, `demo_status` | absent | required enum | `src/types.ts:279-330` |
-| 3.2 `OrderBookOrder.version`, `terms_digest` | optional | required | `src/types.ts:281-282` |
-| 3.3 `Trade.source_kind`, `scope`, `demo_status` | absent | required enum | `src/types.ts:344-381` |
-| 3.4 `MarketSourceKind` | 7 members, no `LIVE_INVENTORY` | 8 members | `src/types.ts:193-200` |
-| 3.5 `creation_method` | `'SELF_SERVICE' \| 'MARKET_SUPPORT' \| string` (the literal members are erased by `\| string`) | `string`; the spec's `OrderCreationMethod` enum is unused by the response | `src/types.ts:328` |
-| 3.6 `product_id`, `product_name`, `is_crossed`, `certification_declared`, `is_demo_listing`, `msds_available` | optional | required | `src/types.ts:286-287,304,307,320,325` |
-| 3.7 `certifications` | required `string[]` | optional | `src/types.ts:303` |
-| 3.8 `fuel_grade` | `FuelGrade` (4 grades) | `string` | `src/types.ts:293` |
+Orders and trades derive their provenance from the wire; the source vocabulary now
+includes `LIVE_INVENTORY`. Required order metadata and the free-string fuel grade
+also derive from the wire. Creation method is a plain string, as the response is.
+`certifications` stays required in the **mapped app shape**: `toOrderBookOrder`
+already turns the optional wire field into `[]`. No consumer must shape it again.
 
-Consumers:
-
-- `src/components/Marketplace.tsx:836,1099` derive a `demo_status`-shaped value
-  from `order.is_demo_listing` because the wire's own `demo_status` is not on the
-  hand-written type.
-- `src/components/Marketplace.tsx:931,1872` branch on `order.creation_method`,
-  which only exists because `OrderBookOrder` folds the owner view in (DRIFT-4).
-- `src/components/ForwardCurveWorkspace.tsx:231,232,704,1256` and
-  `src/components/map/MarketWatchTicker.tsx:135-145` read `source_kind` /
-  `demo_status` from *other* types that do declare them. They are the precedent
-  for how order and trade provenance should be surfaced.
-- The order snapshot's own `source_kind`, `scope` and `demo_status`
-  (`src/types.ts:337-339`) have no reader at all: `src/components/OrderBook.tsx`
-  uses only `bids`, `asks` and `generated_at` (`:153,159,167`).
+No safety guard was removed: a required string may still be empty, and a required
+version may still be invalid. Analytics keeps its existing `DEMO`/`LIVE` values;
+using the new provenance for labels or analytics needs a founder decision.
 
 ---
 
