@@ -151,6 +151,16 @@ scripts/
 | Bio-LNG/catalog | LNG types/services/components, `Marketplace.tsx`, `OrderPlaceModal.tsx` | `lng-order-api.test.ts`, `marketplace-biolng-take.test.tsx`, `order-place-modal-biolng.test.tsx`, LNG component tests |
 | Build | `vite.config.ts`, `check-build-artifacts.mjs`, `deploy.sh` | both target builds and artifact checks |
 
+`scripts/check-build-artifacts.mjs` also enforces per-route first-load ceilings in
+gzip bytes (`ROUTE_FIRST_LOAD_BUDGETS`) for the landing page, marketplace, the
+intelligence map's first visit, the command center and compliance. Each ceiling is
+the measured value plus 2 %, so a regression fails `npm run build:check`. The
+measurement is the entry chunk, the shell modulepreloads, the shell stylesheets,
+the route's own chunks and their transitive static import chain — the measurement
+the 2026-10-17 frontend audit uses in section 11. `node scripts/check-build-artifacts.mjs
+--report --root dist` prints the current numbers. A commit that lowers a route's
+first load lowers its ceiling with it.
+
 ## Run commands
 
 ```bash
