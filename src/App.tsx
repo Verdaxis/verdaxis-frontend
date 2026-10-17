@@ -6,10 +6,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
-import { TutorialProvider } from './context/TutorialContext';
+import { TutorialProvider, useTutorial } from './context/TutorialContext';
 import { MarketSupportProvider, useMarketSupport } from './context/MarketSupportContext';
 import { defaultMarketSupportView } from './types/marketSupport';
-import { GuidedTutorial } from './components/GuidedTutorial';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
@@ -64,6 +63,13 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
+
+// react-joyride (and its react-floater / redux peers) is a heavy dependency
+// for a tour that mounts only inside the dashboard, so it must not ride in the
+// entry chunk. The lazy wrapper renders nothing until the chunk arrives, which
+// is what the tour renders when it is not running anyway.
+const loadGuidedTutorial = () => import('./components/GuidedTutorial').then((module) => ({ default: module.GuidedTutorial }));
+const GuidedTutorial = lazyWithRetry(loadGuidedTutorial);
 
 // Bound on its own line, a loader keeps the module's component type — and with it the
 // route's real prop types — through `React.lazy`. Inlining the loader in the
@@ -287,6 +293,7 @@ const pathToPage = (pathname: string): Page => {
 const DashboardLayout: React.FC = () => {
   const { user } = useAuth();
   const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
+  const { isRunning: isTutorialRunning } = useTutorial();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation('common');
@@ -402,7 +409,13 @@ const DashboardLayout: React.FC = () => {
       onNavigate={handleNavigate}
       onPrimaryAction={() => setSidebarModalSide(effectiveViewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
-      {!context && <GuidedTutorial viewMode={effectiveViewMode} />}
+      {/* The tour library loads when a tour starts, never on first paint. The
+          tour renders nothing until `isRunning`, so gating on it is invisible. */}
+      {isTutorialRunning && !context && (
+        <Suspense fallback={null}>
+          <GuidedTutorial viewMode={effectiveViewMode} />
+        </Suspense>
+      )}
       {shouldRenderMap && (
         <div
           className="h-full"

@@ -45,15 +45,15 @@ const LOCAL_API_PATTERNS = [
 // a commit that lowers a route's first load lowers the ceiling with it.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
-  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 386500 },
+  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
   // authenticated marketplace workspace
-  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 347500 },
+  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 310300 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
-  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 844300 },
+  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
   // authenticated command center
-  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 285300 },
+  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 248100 },
   // compliance workspace
-  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 380700 },
+  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 343500 },
 ];
 
 const GZIP_OPTIONS = { level: zlibConstants.Z_BEST_COMPRESSION };
@@ -105,6 +105,56 @@ function parseShellHtml(source) {
  * `style.load` during the first visit). Stylesheets are attributed by chunk
  * stem, because Vite extracts each chunk's CSS beside it.
  */
+export function staticImportClosure({ assetsDirectory, files, seed }) {
+  const closure = new Set();
+  const pending = [...seed];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (closure.has(current)) continue;
+    closure.add(current);
+    const filePath = path.join(assetsDirectory, current);
+    // A shell reference (the entry script) can sit outside the assets tree in
+    // a synthetic fixture; it contributes nothing to the closure then.
+    if (!existsSync(filePath)) continue;
+    const source = readFileSync(filePath, 'utf8');
+    for (const reference of staticImports(source)) {
+      const resolved = resolveChunkName(files, reference);
+      if (resolved && !closure.has(resolved)) pending.push(resolved);
+    }
+  }
+  return closure;
+}
+
+// Dependencies that must not reach the entry chunk: a tour library that mounts
+// only inside the dashboard, and a chart library that only two route chunks
+// need. The delivery refactor moved all three off the eager path and this pins
+// that. Each entry names the crate string to look for and the chunk prefixes
+// whose static closure must stay clean.
+const EAGER_EXCLUSIONS = [
+  { marker: 'react-floater', description: 'react-joyride tour (GuidedTutorial)' },
+];
+
+export function assertEagerChunkExclusions({ assetsDirectory, files, shellHtml }) {
+  const shell = parseShellHtml(shellHtml);
+  const closure = staticImportClosure({
+    assetsDirectory,
+    files,
+    seed: [shell.entry, ...shell.preloads],
+  });
+  for (const file of closure) {
+    if (!file.endsWith('.js')) continue;
+    const filePath = path.join(assetsDirectory, file);
+    if (!existsSync(filePath)) continue;
+    const source = readFileSync(filePath, 'utf8');
+    for (const exclusion of EAGER_EXCLUSIONS) {
+      assert(
+        !source.includes(exclusion.marker),
+        `Entry chunk '${file}' still carries ${exclusion.description} (found '${exclusion.marker}')`,
+      );
+    }
+  }
+}
+
 export function measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, prefixes }) {
   const seed = files.filter(
     (file) => file.endsWith('.js') && prefixes.some((prefix) => file.startsWith(prefix)),
@@ -114,18 +164,7 @@ export function measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, p
     `No route chunk found for prefix(es) ${prefixes.join(', ')} — the route, or its chunk naming, changed`,
   );
 
-  const closure = new Set();
-  const pending = [...seed];
-  while (pending.length > 0) {
-    const current = pending.pop();
-    if (closure.has(current)) continue;
-    closure.add(current);
-    const source = readFileSync(path.join(assetsDirectory, current), 'utf8');
-    for (const reference of staticImports(source)) {
-      const resolved = resolveChunkName(files, reference);
-      if (resolved && !closure.has(resolved)) pending.push(resolved);
-    }
-  }
+  const closure = staticImportClosure({ assetsDirectory, files, seed });
 
   const shell = parseShellHtml(shellHtml);
   const stems = new Set(Array.from(closure, chunkStem));
@@ -242,10 +281,12 @@ export function checkBuildArtifacts({ root, target }) {
   assertApiTarget(files, target);
 
   const allAssets = readdirSync(assetsDirectory);
+  const shellHtml = readFileSync(indexHtml, 'utf8');
+  assertEagerChunkExclusions({ assetsDirectory, files: allAssets, shellHtml });
   return assertRouteFirstLoadBudgets({
     assetsDirectory,
     files: allAssets,
-    shellHtml: readFileSync(indexHtml, 'utf8'),
+    shellHtml,
   });
 }
 

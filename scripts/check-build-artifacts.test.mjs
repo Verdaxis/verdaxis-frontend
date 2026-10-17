@@ -11,7 +11,6 @@ import {
   measureRouteFirstLoadGzip,
   ROUTE_FIRST_LOAD_BUDGETS,
 } from './check-build-artifacts.mjs';
-
 const PROD = 'https://api.verdaxis.exchange/api';
 const STAGING = 'https://api-staging.verdaxis.exchange/api';
 const VENDORS = [
@@ -194,5 +193,37 @@ test('the committed route budgets cover the five documented routes', () => {
   assert.deepEqual(
     ROUTE_FIRST_LOAD_BUDGETS.map((budget) => budget.name),
     ['landing', 'marketplace', 'intelligence-map', 'command-center', 'compliance'],
+  );
+});
+
+// --- entry-chunk exclusions ------------------------------------------------
+
+test('passes when the tour library is outside the entry static closure', () => {
+  const root = fixture(PROD, {
+    chunks: {
+      Marketplace: 'import{a}from"./GuidedTutorial-test.js";export const a = 1;',
+      GuidedTutorial: 'export const floater = "react-floater";',
+    },
+  });
+  assert.doesNotThrow(() => checkBuildArtifacts({ root, target: 'production' }));
+});
+
+test('fails when the entry chunk itself carries the tour library', () => {
+  const root = fixture(`${PROD};const floater = "react-floater";`);
+  assert.throws(
+    () => checkBuildArtifacts({ root, target: 'production' }),
+    /still carries react-joyride tour/,
+  );
+});
+
+test('fails when a chunk statically linked from the entry carries the tour library', () => {
+  const root = fixture(PROD, { chunks: { 'vendor-clsx': 'export const floater = "react-floater";' } });
+  // A preload in the shell pulls the vendor chunk into the entry closure.
+  const indexHtml = path.join(root, 'index.html');
+  const html = readFileSync(indexHtml, 'utf8');
+  writeFileSync(indexHtml, `${html}<link rel="modulepreload" href="/assets/vendor-clsx-test.js">`);
+  assert.throws(
+    () => checkBuildArtifacts({ root, target: 'production' }),
+    /still carries react-joyride tour/,
   );
 });
