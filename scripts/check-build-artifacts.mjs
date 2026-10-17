@@ -45,15 +45,15 @@ const LOCAL_API_PATTERNS = [
 // a commit that lowers a route's first load lowers the ceiling with it.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
-  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
+  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 341000 },
   // authenticated marketplace workspace
-  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 310300 },
+  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 302000 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
-  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
+  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 798700 },
   // authenticated command center
-  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 248100 },
+  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 239700 },
   // compliance workspace
-  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 233500 },
+  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 225100 },
 ];
 
 const GZIP_OPTIONS = { level: zlibConstants.Z_BEST_COMPRESSION };

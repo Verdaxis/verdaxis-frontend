@@ -61,6 +61,8 @@ index.html
 
 **On-demand chart libraries.** Recharts is the heaviest workspace dependency and only two chart components use it: `compliance/FuelEuBarChart.tsx` (lazily imported by `ComplianceDashboard`) and `admin/product-analytics/TrendChart.tsx` (lazily imported through `LazyTrendChart`, used by the five analytics tabs). Both lazy boundaries reserve the chart's box (`h-52` / the `height` prop) so the layout does not move while the chunk arrives. Recharts therefore leaves the compliance and admin route chunks' static imports; the checker fails the build if any route statically reaches `vendor-recharts`.
 
+**Lazy `common` namespace.** Every namespace, `common` included, is a per-language lazy chunk; `src/i18n.ts` initializes with no resources. Because `common` is the default namespace, the boot path awaits it before the first render: `prepareBootLocale()` runs in `src/index.tsx` `mountApp`, and `renderPublicRoute.tsx` awaits it for the prerendered shell. A missing bundle would show raw keys in the shell, the header, and the components that call `useTranslation()` with no argument, so `src/tests/i18n-common-boot.test.tsx` pins that the awaited render is translated and the un-awaited one is not. Interactively switching language is still safe: `loadNamespace` loads a bundle for every supported language in one call.
+
 **Orderbook snapshots.** `OrderBook` treats the bids, asks, and server `generated_at` value from one canonical market-slice snapshot as one dated view. It clears that evidence when the slice changes. If refresh fails, it keeps the last depth visible and labels its age and refresh failure.
 
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
@@ -122,7 +124,7 @@ src/
   hooks/                            workspace readiness, SSE, preferences, watchlists
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/                            market identity, slice URLs, axis and display helpers
-  locales/{en,zh}/                  lazy translation namespaces
+  locales/{en,zh}/                  lazy translation namespaces, `common` included
   pages/                            auth/onboarding and public route pages
   tests/                            Vitest and React Testing Library checks
 scripts/
