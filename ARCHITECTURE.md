@@ -187,17 +187,23 @@ those ten files and checks their digests, so a re-run cannot silently swap the
 shipped glyphs. `latin-ext` carries the letters port and company names use
 (Gdańsk, İstanbul, Constanța, Świnoujście); its five files are not preloaded,
 because `unicode-range` makes the browser fetch one only when a page shows such
-a letter. The shell
-no longer requests anything from `fonts.googleapis.com`: the two preconnects and
-the stylesheet link are gone. The one Google Fonts request left in the app is
-`PartnerShowcasePage.tsx`'s `@import` of DM Serif Display for its own headings;
-that predates this step and is not self-hosted yet. `src/build/fontPreload.ts`
+a letter. The shell no longer requests anything from `fonts.googleapis.com`: the
+two preconnects and the stylesheet link are gone. The one Google Fonts request
+left in the app is `PartnerShowcasePage.tsx`'s `@import` of DM Serif Display for
+its own headings; that predates this step and is not self-hosted yet. `src/build/fontPreload.ts`
 builds the two preload tags for the above-the-fold files (Lato 400 and
 Montserrat's variable file) from the names Vite emitted, because the hashes only
 exist after the CSS is transformed, and places them directly after the shell's
 `<meta charset>` (and ahead of the stylesheets), so the charset stays the first
 element of `<head>`; `src/tests/self-hosted-fonts.test.ts` covers the face set,
 the slice ranges, the files on disk and the preload builder.
+
+All three families are under the SIL Open Font License 1.1. Their licence texts
+sit beside the binaries as `src/assets/fonts/OFL-Lato.txt`,
+`OFL-Montserrat.txt` and `OFL-JetBrainsMono.txt`, taken unmodified from
+`google/fonts` (`ofl/lato`, `ofl/montserrat`, `ofl/jetbrainsmono`). Nothing
+imports them, so they are part of the repository's licence record and not of the
+build output.
 
 Brand artwork is served right-sized. `scripts/optimize-brand-images.sh` writes
 lossless 1x/2x WebP cuts into `src/assets/brand/`, `src/utils/brandImages.ts`
