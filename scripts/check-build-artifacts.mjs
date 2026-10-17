@@ -53,7 +53,7 @@ export const ROUTE_FIRST_LOAD_BUDGETS = [
   // authenticated command center
   { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 248100 },
   // compliance workspace
-  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 343500 },
+  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 233500 },
 ];
 
 const GZIP_OPTIONS = { level: zlibConstants.Z_BEST_COMPRESSION };
@@ -125,14 +125,43 @@ export function staticImportClosure({ assetsDirectory, files, seed }) {
   return closure;
 }
 
-// Dependencies that must not reach the entry chunk: a tour library that mounts
-// only inside the dashboard, and a chart library that only two route chunks
-// need. The delivery refactor moved all three off the eager path and this pins
-// that. Each entry names the crate string to look for and the chunk prefixes
-// whose static closure must stay clean.
+// Heavy dependencies that must not reach the entry chunk: the react-joyride
+// tour mounts only inside the dashboard. The delivery refactor moved it off the
+// eager path and this pins that.
 const EAGER_EXCLUSIONS = [
   { marker: 'react-floater', description: 'react-joyride tour (GuidedTutorial)' },
 ];
+
+// Chunks a route must not pull in statically. Recharts is the workspace's
+// heaviest dependency and only two lazily loaded chart components use it, so no
+// route's first load may statically reach its vendor chunk. The check is on the
+// resolved closure's file names, because a chunk that *dynamically* imports the
+// chart still names the vendor chunk in its preload list — that reference is
+// the on-demand load, not a first-load cost. `admin` has no first-load ceiling
+// yet but is checked here.
+const ROUTE_STATIC_EXCLUSIONS = [
+  { prefix: 'vendor-recharts-', description: 'Recharts (charts load on demand)' },
+];
+
+const ROUTE_STATIC_EXCLUSION_TARGETS = [
+  ...ROUTE_FIRST_LOAD_BUDGETS.map(({ name, prefixes }) => ({ name, prefixes })),
+  { name: 'admin', prefixes: ['AdminDashboard-', 'admin-'] },
+];
+
+function assertSourceExcludes({ assetsDirectory, closure, exclusions, context }) {
+  for (const file of closure) {
+    if (!file.endsWith('.js')) continue;
+    const filePath = path.join(assetsDirectory, file);
+    if (!existsSync(filePath)) continue;
+    const source = readFileSync(filePath, 'utf8');
+    for (const exclusion of exclusions) {
+      assert(
+        !source.includes(exclusion.marker),
+        `${context} '${file}' still carries ${exclusion.description} (found '${exclusion.marker}')`,
+      );
+    }
+  }
+}
 
 export function assertEagerChunkExclusions({ assetsDirectory, files, shellHtml }) {
   const shell = parseShellHtml(shellHtml);
@@ -141,16 +170,23 @@ export function assertEagerChunkExclusions({ assetsDirectory, files, shellHtml }
     files,
     seed: [shell.entry, ...shell.preloads],
   });
-  for (const file of closure) {
-    if (!file.endsWith('.js')) continue;
-    const filePath = path.join(assetsDirectory, file);
-    if (!existsSync(filePath)) continue;
-    const source = readFileSync(filePath, 'utf8');
-    for (const exclusion of EAGER_EXCLUSIONS) {
-      assert(
-        !source.includes(exclusion.marker),
-        `Entry chunk '${file}' still carries ${exclusion.description} (found '${exclusion.marker}')`,
-      );
+  assertSourceExcludes({ assetsDirectory, closure, exclusions: EAGER_EXCLUSIONS, context: 'Entry chunk' });
+}
+
+export function assertRouteStaticChunkExclusions({ assetsDirectory, files }) {
+  for (const target of ROUTE_STATIC_EXCLUSION_TARGETS) {
+    const seed = files.filter(
+      (file) => file.endsWith('.js') && target.prefixes.some((prefix) => file.startsWith(prefix)),
+    );
+    assert(seed.length > 0, `No route chunk found for prefix(es) ${target.prefixes.join(', ')}`);
+    const closure = staticImportClosure({ assetsDirectory, files, seed });
+    for (const file of closure) {
+      for (const exclusion of ROUTE_STATIC_EXCLUSIONS) {
+        assert(
+          !file.startsWith(exclusion.prefix),
+          `Route '${target.name}' statically imports ${exclusion.description} (chunk '${file}')`,
+        );
+      }
     }
   }
 }
@@ -283,6 +319,7 @@ export function checkBuildArtifacts({ root, target }) {
   const allAssets = readdirSync(assetsDirectory);
   const shellHtml = readFileSync(indexHtml, 'utf8');
   assertEagerChunkExclusions({ assetsDirectory, files: allAssets, shellHtml });
+  assertRouteStaticChunkExclusions({ assetsDirectory, files: allAssets });
   return assertRouteFirstLoadBudgets({
     assetsDirectory,
     files: allAssets,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import {
     TrendingUp,
     FileText,
@@ -12,19 +12,13 @@ import {
     Beaker,
     AlertTriangle,
 } from 'lucide-react';
-import {
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip as RechartsTooltip,
-    Cell,
-    type TooltipPayloadEntry,
-} from 'recharts';
 import { api } from '../../services/api';
 import { useTranslation } from 'react-i18next';
+
+// Recharts is the FuelEU bar chart's only dependency, so it must not sit in
+// this route chunk's static imports. The chart body loads on mount inside the
+// reserved `.h-52` box, so the layout never moves.
+const FuelEuBarChart = lazy(() => import('./FuelEuBarChart').then(module => ({ default: module.FuelEuBarChart })));
 
 // --- Types matching backend response ---
 
@@ -292,6 +286,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         target: parseFloat(v.fueleu.target_intensity_gco2_mj),
         score: v.overall_score,
         light: v.traffic_light,
+        color: trafficColor(v.traffic_light),
     }));
 
     const fuelTarget = fleet.vessels.length > 0
@@ -410,49 +405,9 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
 
                     {/* Recharts bar chart */}
                     <div className="h-52 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={vesselBarData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                <XAxis
-                                    dataKey="name"
-                                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                                    axisLine={{ stroke: '#e2e8f0' }}
-                                />
-                                <YAxis
-                                    tick={{ fontSize: 11, fill: '#94a3b8' }}
-                                    axisLine={{ stroke: '#e2e8f0' }}
-                                    domain={[0, 100]}
-                                />
-                                <RechartsTooltip
-                                    contentStyle={{
-                                        backgroundColor: '#1e293b',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        color: '#fff',
-                                        fontSize: '12px',
-                                    }}
-                                    formatter={(value: number | undefined, _name: string | undefined, entry: TooltipPayloadEntry<number, string>): [string, string] => {
-                                        // The bar data always carries a numeric intensity; keep the label stable if it does not.
-                                        const intensity = Number(value ?? 0).toFixed(1);
-                                        return [
-                                            `${intensity} gCO2eq/MJ`,
-                                            entry.payload.fullName,
-                                        ];
-                                    }}
-                                    labelFormatter={() => ''}
-                                />
-                                {/* Reference line for target */}
-                                <Bar dataKey="intensity" radius={[4, 4, 0, 0]}>
-                                    {vesselBarData.map((entry, idx) => (
-                                        <Cell
-                                            key={idx}
-                                            fill={trafficColor(entry.light)}
-                                            opacity={0.85}
-                                        />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <Suspense fallback={<div className="h-full w-full" />}>
+                            <FuelEuBarChart data={vesselBarData} />
+                        </Suspense>
                     </div>
                     <div className="flex items-center justify-center gap-2 mt-2">
                         <div className="w-3 h-0.5 bg-red-400 border-t-2 border-dashed border-red-400" />

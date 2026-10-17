@@ -6,7 +6,7 @@ import { AnalyticsTab, OverviewResponse } from '../../../types/productAnalytics'
 import { CoverageNote, EmptyNote, SectionHeading, metricText } from './AnalyticsStates';
 import { LifecycleSpine } from './LifecycleSpine';
 import { MetricStrip } from './MetricStrip';
-import { TrendChart } from './TrendChart';
+import { LazyTrendChart } from './LazyTrendChart';
 
 export const OverviewTab: React.FC<{
   data: OverviewResponse;
@@ -47,7 +47,7 @@ export const OverviewTab: React.FC<{
         <SectionHeading title={t('pa.section.activityTrend')} />
         {/* Faceted: visitors and trades differ by orders of magnitude, so a
             shared y-axis would flatten the business series. */}
-        <TrendChart
+        <LazyTrendChart
           facet
           emptyLabel={t('pa.state.sparse')}
           series={[

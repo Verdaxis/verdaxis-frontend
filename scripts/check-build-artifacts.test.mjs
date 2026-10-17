@@ -33,6 +33,8 @@ const ROUTE_CHUNKS = [
   'CommandCenter',
   'Compliance',
   'compliance',
+  'AdminDashboard',
+  'admin',
 ];
 
 const EMPTY_CHUNK = 'export {};';
@@ -226,4 +228,24 @@ test('fails when a chunk statically linked from the entry carries the tour libra
     () => checkBuildArtifacts({ root, target: 'production' }),
     /still carries react-joyride tour/,
   );
+});
+
+test('fails when a route statically imports the chart vendor chunk', () => {
+  const root = fixture(PROD, {
+    chunks: { Compliance: 'import{a}from"./vendor-recharts-test.js";export const a = 1;' },
+  });
+  assert.throws(
+    () => checkBuildArtifacts({ root, target: 'production' }),
+    /Route 'compliance' statically imports Recharts/,
+  );
+});
+
+test('passes when only a lazily imported chunk reaches the chart vendor chunk', () => {
+  const root = fixture(PROD, {
+    chunks: {
+      Compliance: 'export const load = () => import("./FuelEuBarChart-test.js");',
+      FuelEuBarChart: 'import{a}from"./vendor-recharts-test.js";export const a = 1;',
+    },
+  });
+  assert.doesNotThrow(() => checkBuildArtifacts({ root, target: 'production' }));
 });
