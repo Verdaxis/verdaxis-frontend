@@ -5,7 +5,7 @@ import { AnalyticsTab, EngagementResponse } from '../../../types/productAnalytic
 import { CoverageNote, SectionHeading, cellText } from './AnalyticsStates';
 import { FeatureAdoptionTable } from './FeatureAdoptionTable';
 import { MetricStrip } from './MetricStrip';
-import { TrendChart } from './TrendChart';
+import { LazyTrendChart } from './LazyTrendChart';
 
 export const EngagementTab: React.FC<{
   data: EngagementResponse;
@@ -44,7 +44,7 @@ export const EngagementTab: React.FC<{
       )}
       <div>
         <SectionHeading title={t('pa.section.activeMembersTrend')} />
-        <TrendChart
+        <LazyTrendChart
           emptyLabel={t('pa.state.sparse')}
           series={[{ key: 'members', label: t('pa.series.activeMembers'), color: 'var(--chart-2)', points: data.active_members_trend }]}
         />

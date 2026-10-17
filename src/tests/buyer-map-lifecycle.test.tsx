@@ -26,9 +26,11 @@ vi.mock('../hooks/useDashboardContentReady', () => ({
 }));
 vi.mock('../hooks/useSSE', () => ({ useSSE: () => ({ isConnected: false }) }));
 vi.mock('../context/ThemeContext', () => ({ useTheme: () => ({ theme: 'light' }) }));
-vi.mock('../map/addEcaLayers', () => ({
-  addEcaLayers: vi.fn(),
-  setEcaLayersVisible: vi.fn(),
+vi.mock('../map/loadEcaLayers', () => ({
+  loadEcaLayers: vi.fn().mockResolvedValue({
+    addEcaLayers: vi.fn(),
+    setEcaLayersVisible: vi.fn(),
+  }),
 }));
 vi.mock('../components/map/MarketWatchTicker', () => ({ MarketWatchTicker: () => null }));
 vi.mock('../components/map/IntelligencePanel', () => ({ IntelligencePanel: () => null }));

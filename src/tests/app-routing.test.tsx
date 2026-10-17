@@ -86,7 +86,7 @@ vi.mock('../context/AuthContext', () => ({
 }));
 
 vi.mock('../context/TutorialContext', () => ({
-  useTutorial: () => ({ start: () => undefined }),
+  useTutorial: () => ({ isRunning: false, start: () => undefined }),
   TutorialProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

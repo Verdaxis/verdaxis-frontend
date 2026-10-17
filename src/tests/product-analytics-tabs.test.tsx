@@ -41,9 +41,12 @@ describe('overview tab', () => {
     expect(link.getAttribute('href')).toBe('/app/admin/users');
   });
 
-  it('renders the activity trend as small multiples, one facet per series', () => {
+  it('renders the activity trend as small multiples, one facet per series', async () => {
     render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={noop} /></MemoryRouter>);
-    const facets = screen.getByTestId('trend-facets');
+    // The chart body is a lazy chunk, so it appears after the fallback resolves.
+    // Recharts is heavy and the suite loads both locales in parallel, so give
+    // the chunk more than the default one-second find timeout.
+    const facets = await screen.findByTestId('trend-facets', undefined, { timeout: 5000 });
     // Mixed-scale series (visitors vs. trades) each get their own y-axis;
     // a shared-axis overlay would flatten the business series.
     expect(within(facets).getByText('Visitors')).toBeTruthy();

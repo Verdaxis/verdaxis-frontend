@@ -1,15 +1,15 @@
 import type { Map as MapboxMap } from 'mapbox-gl';
 
 import {
-    ECA_ZONE_COLLECTION,
+    type EcaZoneFeatureCollection,
     SECA_ZONE_LABEL_SOURCE_ID,
     SECA_ZONE_LAYER_IDS,
     SECA_ZONE_SOURCE_ID,
 } from '../data/secaZones';
 
-const labelCollection = () => ({
+const labelCollection = (collection: EcaZoneFeatureCollection) => ({
     type: 'FeatureCollection' as const,
-    features: ECA_ZONE_COLLECTION.features.map((feature) => ({
+    features: collection.features.map((feature) => ({
         type: 'Feature' as const,
         properties: feature.properties,
         geometry: {
@@ -19,15 +19,17 @@ const labelCollection = () => ({
     })),
 });
 
-interface AddEcaLayersOptions {
+export interface EcaLayersOptions {
     isDark: boolean;
     visible: boolean;
+    /** The fetched ECA geometry; `loadEcaLayers` supplies it after `style.load`. */
+    collection: EcaZoneFeatureCollection;
     beforeLayerId?: string;
 }
 
 export const addEcaLayers = (
     map: MapboxMap,
-    { isDark, visible, beforeLayerId }: AddEcaLayersOptions,
+    { isDark, visible, collection, beforeLayerId }: EcaLayersOptions,
 ): void => {
     // Keep the reference overlay below basemap labels, with trading markers above both.
     const before = beforeLayerId ?? map.getStyle()?.layers.find(layer => layer.type === 'symbol')?.id;
@@ -36,14 +38,14 @@ export const addEcaLayers = (
     if (!map.getSource(SECA_ZONE_SOURCE_ID)) {
         map.addSource(SECA_ZONE_SOURCE_ID, {
             type: 'geojson',
-            data: ECA_ZONE_COLLECTION as never,
+            data: collection as never,
         });
     }
 
     if (!map.getSource(SECA_ZONE_LABEL_SOURCE_ID)) {
         map.addSource(SECA_ZONE_LABEL_SOURCE_ID, {
             type: 'geojson',
-            data: labelCollection() as never,
+            data: labelCollection(collection) as never,
         });
     }
 

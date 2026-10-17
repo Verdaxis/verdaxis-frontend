@@ -10,7 +10,7 @@ import { formatAvailabilityWindow } from '../../../utils/availabilityWindow';
 import { EmptyNote, SectionHeading, cellText } from './AnalyticsStates';
 import { MarketActivityMatrix } from './MarketActivityMatrix';
 import { MetricStrip } from './MetricStrip';
-import { TrendChart } from './TrendChart';
+import { LazyTrendChart } from './LazyTrendChart';
 
 const decimal = (value: string | null): string => (value === null ? '—' : value);
 
@@ -121,7 +121,7 @@ const ActivitySection: React.FC<{
         <>
           <div>
             <SectionHeading title={t('pa.section.balanceTrend')} />
-            <TrendChart
+            <LazyTrendChart
               emptyLabel={t('pa.state.sparse')}
               series={[
                 { key: 'bids', label: t('pa.balance.bids'), color: 'var(--chart-2)', points: section.balance_trend.bids },

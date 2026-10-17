@@ -57,6 +57,10 @@ index.html
 
 **Intelligence-map summaries.** `BuyerMap` keeps its canvas across workspace changes, but each active period is a separate market-data lifecycle. A valid response from the current lifecycle can apply if it is not older than the latest successfully applied response, including after a newer request fails. A failure from the latest started request in that lifecycle keeps previously applied data visible and shows the market-data warning. Deactivation invalidates all pending responses.
 
+**ECA zone geometry.** `src/data/eca-zones-web.json` (1.1 MB of web-simplified zone polygons) is emitted as a hashed static asset, not a JS import. `src/data/secaZones.ts` exposes its URL (`?url` import) and `loadEcaZoneCollection()`, which fetches and caches it once. `loadEcaLayers` awaits both the layer code and that data, so `BuyerMap` installs the overlay on `style.load` after first paint and keeps a single failure path (`ecaOverlayError`). Removing the dataset from the bundle cut the intelligence map's first-load JS by about 394 KB gzip; the asset keeps the same geometry and the `/assets/*` immutable cache header.
+
+**On-demand chart libraries.** Recharts is the heaviest workspace dependency and only two chart components use it: `compliance/FuelEuBarChart.tsx` (lazily imported by `ComplianceDashboard`) and `admin/product-analytics/TrendChart.tsx` (lazily imported through `LazyTrendChart`, used by the five analytics tabs). Both lazy boundaries reserve the chart's box (`h-52` / the `height` prop) so the layout does not move while the chunk arrives. Recharts therefore leaves the compliance and admin route chunks' static imports; the checker fails the build if any route statically reaches `vendor-recharts`.
+
 **Orderbook snapshots.** `OrderBook` treats the bids, asks, and server `generated_at` value from one canonical market-slice snapshot as one dated view. It clears that evidence when the slice changes. If refresh fails, it keeps the last depth visible and labels its age and refresh failure.
 
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
@@ -150,6 +154,22 @@ scripts/
 | FAME/catalog | FAME types/services/components and `Marketplace.tsx` | `b100-order-api.test.ts`, `marketplace-b100-take.test.tsx`, FAME component tests |
 | Bio-LNG/catalog | LNG types/services/components, `Marketplace.tsx`, `OrderPlaceModal.tsx` | `lng-order-api.test.ts`, `marketplace-biolng-take.test.tsx`, `order-place-modal-biolng.test.tsx`, LNG component tests |
 | Build | `vite.config.ts`, `check-build-artifacts.mjs`, `deploy.sh` | both target builds and artifact checks |
+
+`scripts/check-build-artifacts.mjs` also enforces per-route first-load ceilings in
+gzip bytes (`ROUTE_FIRST_LOAD_BUDGETS`) for the landing page, marketplace, the
+intelligence map's first visit, the command center and compliance. Each ceiling is
+the measured value plus 2 %, so a regression fails `npm run build:check`. The
+measurement is the entry chunk, the shell modulepreloads, the shell stylesheets,
+the route's own chunks and their transitive static import chain — the measurement
+the 2026-10-17 frontend audit uses in section 11. `node scripts/check-build-artifacts.mjs
+--report --root dist` prints the current numbers. A commit that lowers a route's
+first load lowers its ceiling with it.
+
+`vite.config.ts` also injects preconnect tags for the build-time API origin
+(from `VITE_API_URL`, with a `dns-prefetch` fallback) and for
+`https://api.mapbox.com`; `src/build/preconnect.ts` holds the pure tag builders
+and `src/tests/api-preconnect.test.ts` covers them. Only these tags are added
+to the shell and to every prerendered page.
 
 ## Run commands
 

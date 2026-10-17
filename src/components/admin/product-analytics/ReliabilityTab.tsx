@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AnalyticsTab, ReliabilityResponse } from '../../../types/productAnalytics';
 import { EmptyNote, SectionHeading, cellText, metricText } from './AnalyticsStates';
 import { reliabilityLabel, ReliabilityStatusList } from './ReliabilityStatusList';
-import { TrendChart } from './TrendChart';
+import { LazyTrendChart } from './LazyTrendChart';
 
 const CellList: React.FC<{
   cells: { key: string; count: number | null; suppressed: boolean }[];
@@ -49,7 +49,7 @@ export const ReliabilityTab: React.FC<{
         />
         <div className="grid md:grid-cols-2 gap-6">
           <CellList cells={data.login_failures.categories} labelGroup="login" />
-          <TrendChart
+          <LazyTrendChart
             height={140}
             emptyLabel={t('pa.state.sparse')}
             series={[{ key: 'failures', label: t('pa.section.loginFailures'), color: 'var(--chart-bad)', points: data.login_failures.trend }]}

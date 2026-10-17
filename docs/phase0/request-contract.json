@@ -154,6 +154,7 @@
   "adapters": {
     "src/services/api.ts:fetch:url": "Transport adapter; method/path are classified at its callers.",
     "src/services/api.ts:fetchWithTimeout:url": "Transport adapter; method/path are classified at its callers.",
-    "src/services/api.ts:fetchApi:path": "Transport adapter; method/path are classified at its callers."
+    "src/services/api.ts:fetchApi:path": "Transport adapter; method/path are classified at its callers.",
+    "src/data/secaZones.ts:fetch:ECA_ZONES_ASSET_URL": "Static same-origin asset: the hashed ECA zone geometry under /assets/ (immutable cache), fetched once after the map style loads. Not an API request."
   }
 }

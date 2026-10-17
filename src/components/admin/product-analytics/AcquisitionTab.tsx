@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AcquisitionResponse, AnalyticsTab, RankedRow } from '../../../types/productAnalytics';
 import { CoverageNote, EmptyNote, SectionHeading, metricText } from './AnalyticsStates';
 import { MetricStrip } from './MetricStrip';
-import { TrendChart } from './TrendChart';
+import { LazyTrendChart } from './LazyTrendChart';
 
 const RankedTable: React.FC<{
   rows: RankedRow[];
@@ -66,7 +66,7 @@ export const AcquisitionTab: React.FC<{
       </p>
       <div>
         <SectionHeading title={t('pa.section.visitorsTrend')} />
-        <TrendChart
+        <LazyTrendChart
           emptyLabel={t('pa.state.sparse')}
           series={[{ key: 'visitors', label: t('pa.series.visitors'), color: 'var(--chart-1)', points: data.visitors_trend }]}
         />
