@@ -1,4 +1,4 @@
-import type { WireOrder, WireOwnedOrder, WireTrade, WireMarketSourceKind } from './api/contract';
+import type { WireOrder, WireOwnedOrder, WireTrade, WireMarketSourceKind, WireExecutionEligibility } from './api/contract';
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
@@ -138,11 +138,7 @@ export type ExecutionEligibilityReason =
  * Whether the signed-in user may execute trades. `NOT_APPLICABLE` covers
  * platform admins and users without an organization; they are not gated.
  */
-export interface ExecutionEligibility {
-    eligible: boolean;
-    reason: ExecutionEligibilityReason;
-    grace_expires_at: string | null;
-}
+export type ExecutionEligibility = WireExecutionEligibility;
 
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 

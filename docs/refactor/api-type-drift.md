@@ -38,10 +38,10 @@ tracker decision 67, which lets the backend respell a decimal).
 | DRIFT-2 | Required `unknown_count` derived from the wire | 2 (resolved) | 5c |
 | DRIFT-3 | Provenance and order metadata derived from the wire | 8 (resolved) | 5c |
 | DRIFT-4 | Owner metadata derived; public compatibility retained | 5 (resolved) | 5c |
-| DRIFT-5 | The `User` profile | 8 | 5c |
+| DRIFT-5 | Auth profile and eligibility derived from the wire | 8 (resolved) | 5c |
 | DRIFT-6 | Availability windows: display labels against canonical codes | 3 | 5c |
 | DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **20** | |
+| | **Open** | **12** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -308,38 +308,18 @@ No UI, request, mapper output or branch changes.
 
 ---
 
-## DRIFT-5 — The `User` profile
+## DRIFT-5 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 5.1 `email_verified` | `boolean \| undefined` | **absent from `UserResponse`** | `src/context/AuthContext.tsx:26` |
-| 5.2 `referral_code` | absent | `string \| null \| undefined` | — |
-| 5.3 `role` | required `UserRole \| null` | optional `UserRole \| null` | `src/context/AuthContext.tsx:20` |
-| 5.4 `first_name`, `last_name` | required `string \| null` | optional `string \| null` | `src/context/AuthContext.tsx:18-19` |
-| 5.5 `kyc_status` | optional `string` | required `string` | `src/context/AuthContext.tsx:27` |
-| 5.6 `must_change_password` | optional `boolean` | required `boolean` | `src/context/AuthContext.tsx:29` |
-| 5.7 `execution_eligibility` | optional `ExecutionEligibility \| null` | optional, not nullable | `src/context/AuthContext.tsx:28` |
-| 5.8 `ExecutionEligibility.grace_expires_at` | required `string \| null` | optional `string \| null` | `src/types.ts:143` |
+`User` and `ExecutionEligibility` now alias their generated wire shapes. This
+removes the nonexistent `email_verified`, adds `referral_code`, and corrects all
+profile field presence and eligibility nullability. The admin queue's distinct
+`email_verified` is unchanged.
 
-`email_verified` is the audit's finding 4.2: `/api/auth/me` can never set it.
-`AdminDashboard.tsx:51,73,114,115,182,1034` also uses an `email_verified` field,
-but that is the admin review-queue DTO (`AdminUserEntry`, wire type has it) and is
-not drift.
-
-Consumers:
-
-- 5.1/5.2: `src/context/AuthContext.tsx:26` (declaration), `:56-73`
-  (`parseUserProfile`, which neither validates nor populates it), `:186` (the
-  single call site). Nothing reads `user.email_verified`.
-- 5.2: `src/components/ReferralsTab.tsx:47,60` re-fetches the code from
-  `/referrals/my-code` (`src/services/api.ts:1473`) because the profile does not
-  carry it. `src/pages/RegisterPage.tsx:17,38,114` and
-  `src/components/public/PublicLanguageWrapper.tsx:11,15,17,21` handle the inbound
-  `?ref=` code separately.
-- 5.7/5.8: `src/types.ts:140-144` and every reader of
-  `user.execution_eligibility` — `src/components/OrderPlaceModal.tsx`,
-  `src/components/Marketplace.tsx` (execution gate) and the KYC banner flow. The
-  `| null` is defensive only.
+The login profile validator remains unchanged: relaxing it for omitted names,
+role or organization could suppress its fallback `/auth/me` request. That is a
+behavior change, not a type correction. KYC guards and the referral-code fetch
+also stay unchanged. Founder decision: relax that validator or reuse the profile
+referral code only in a separate behavior/request change.
 
 ---
 

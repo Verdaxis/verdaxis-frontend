@@ -126,40 +126,6 @@ expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
 expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
 expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
-// ─── DRIFT-5: the `User` profile ───────────────────────────────────
-// `email_verified` is not on `UserResponse` at all; `/auth/me` can never set it.
-// `referral_code` is on the wire and missing from the frontend type.
-
-expectTypeOf<HasProperty<WireUser, 'email_verified'>>().toEqualTypeOf<false>();
-expectTypeOf<HasProperty<User, 'email_verified'>>().toEqualTypeOf<true>();
-expectTypeOf<User['email_verified']>().toEqualTypeOf<boolean | undefined>();
-
-expectTypeOf<HasProperty<WireUser, 'referral_code'>>().toEqualTypeOf<true>();
-expectTypeOf<WireUser['referral_code']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<HasProperty<User, 'referral_code'>>().toEqualTypeOf<false>();
-
-expectTypeOf<WireUser['role']>().toEqualTypeOf<WireUserRole | null | undefined>();
-expectTypeOf<User['role']>().toEqualTypeOf<'BUYER' | 'SUPPLIER' | 'ADMIN' | null>();
-expectTypeOf<WireUser['status']>().toEqualTypeOf<WireUserStatus>();
-expectTypeOf<User['status']>().toEqualTypeOf<'PENDING' | 'APPROVED' | 'REJECTED'>();
-
-expectTypeOf<WireUser['first_name']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<WireUser['last_name']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<User['first_name']>().toEqualTypeOf<string | null>();
-expectTypeOf<User['last_name']>().toEqualTypeOf<string | null>();
-
-expectTypeOf<WireUser['kyc_status']>().toEqualTypeOf<string>();
-expectTypeOf<User['kyc_status']>().toEqualTypeOf<string | undefined>();
-expectTypeOf<WireUser['must_change_password']>().toEqualTypeOf<boolean>();
-expectTypeOf<User['must_change_password']>().toEqualTypeOf<boolean | undefined>();
-expectTypeOf<WireUser['execution_eligibility']>().toEqualTypeOf<WireExecutionEligibility | undefined>();
-expectTypeOf<User['execution_eligibility']>().toEqualTypeOf<ExecutionEligibility | null | undefined>();
-
-// The eligibility reason is one field the two sides model identically.
-expectTypeOf<WireExecutionEligibility['reason']>().toEqualTypeOf<ExecutionEligibility['reason']>();
-expectTypeOf<WireExecutionEligibility['grace_expires_at']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<ExecutionEligibility['grace_expires_at']>().toEqualTypeOf<string | null>();
-
 // ─── DRIFT-6: availability windows, display labels against codes ───
 // The frontend union holds display labels ("Q1 2026"); the wire sends canonical
 // codes ("2026-Q1"). Every cast of a canonical code into `AvailabilityWindow`
@@ -225,6 +191,11 @@ expectTypeOf<Notification['data']>().toEqualTypeOf<any>();
 
 // ─── Shapes that already agree ─────────────────────────────────────
 // Pinned so a change to either side is noticed here too.
+
+expectTypeOf<User>().toEqualTypeOf<WireUser>();
+expectTypeOf<HasProperty<User, 'email_verified'>>().toEqualTypeOf<false>();
+expectTypeOf<User['referral_code']>().toEqualTypeOf<string | null | undefined>();
+expectTypeOf<ExecutionEligibility>().toEqualTypeOf<WireExecutionEligibility>();
 
 type OwnerKeys = 'organization_id' | 'updated_at' | 'trade_count' | 'creation_method' | 'etag' | 'vessel_id';
 expectTypeOf<Pick<import('../types').OwnedOrderBookOrder, OwnerKeys>>().toEqualTypeOf<Pick<WireOwnedOrder, OwnerKeys>>();
