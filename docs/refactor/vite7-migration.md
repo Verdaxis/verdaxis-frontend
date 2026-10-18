@@ -2,15 +2,19 @@
 
 ## Status
 
-Implementation and all requested CI/build/journey gates passed. **Final structural build equivalence is incomplete.** The comparison helper first exited 1 because the runner removed the saved reference artifact on a later lane reset. A retry intended to rebuild starting commit `425e3cb8` exhausted the shared `flock -w 5400` wait and exited 1 before any build started.
+**Complete.** Implementation, CI/build/journey gates and the final structural comparison passed. The PM resolved the earlier shared-lock blocker. Both versions were rebuilt in one locked host call with the required one-hour timeout; every command and the outer host call exited 0.
 
-The lock owner is another lane (`fe-step8-3f`): flock PID `2083362`, child Python PID `2084273`, command `python3 -m unittest scripts.journeys.test_request_volume scripts.journeys.test_stream_relay -v`. That lane confirmed that failed setup left non-daemon threads running. They need PM/user permission to stop the call under the no-interruption rule. This lane did not interrupt or bypass it. No Vite lane heavy call remains running. No push or deployment was performed.
+The comparison proves the same 53 HTML paths, 147 named JS/CSS chunks, normalized resource hints and 32 byte-identical static files. No application source or screenshot baseline changed. No call from this lane remains running. No push or deployment was performed.
+
+Historical failures are retained below: the first comparison lost its saved reference during a runner reset; the next call exhausted its lock wait. During the follow-up, one expanded comparison call failed before execution because ignored evidence logs from the pending move already existed on the host. Committing the path move fixed that synchronization conflict; the next full comparison passed. No lock or time limit was bypassed.
 
 ## Commits
 
 - `b7ecec4e` — build: align frontend runtimes on Node 24
 - `8b5deea6` — build: migrate to Vite 7 without changing browser targets
-- Evidence is in the following documentation commit (see git log).
+- `a421960f` — initial gate evidence and historical comparison blocker
+- `f3868030` — move records out of `outputs/` into `docs/refactor/`
+- Final comparison evidence is in the subsequent documentation commit (see git log).
 
 ## Versions
 
@@ -48,7 +52,7 @@ No `.nvmrc`, `.node-version` or `.tool-versions` is tracked. The release uses `v
 
 - Explicitly retained the old target: `['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14']`. Vite 7 otherwise raises browser targets to Baseline widely available (Chrome/Edge 107, Firefox 104, Safari 16).
 - `apiPreconnectPlugin` already uses a function-form `transformIndexHtml`; removed object aliases `enforce`/`transform` do not apply. Plugin-level `enforce: 'post'` is still supported and is retained for the other two plugins.
-- `fontPreloadPlugin` still uses `generateBundle` before `staticRouteMetadataPlugin`; both target builds and artifact gates passed. Full normalized before/after hint comparison is pending.
+- `fontPreloadPlugin` still uses `generateBundle` before `staticRouteMetadataPlugin`; both target builds and artifact gates passed. Full normalized before/after hint comparison passed for the shell and all prerendered pages.
 - `staticRouteMetadataPlugin` uses Vite's supported `ssrLoadModule`, closes the server in `finally`, and does not provide a custom module-runner context. No `__vite_ssr_exportName__` change is needed. Prerender builds passed.
 - Retained `assetsInlineLimit` callback unchanged: `.woff2`/`.webp` are never inlined; other assets retain the 4 KiB default.
 - Retained all six manual chunk groups unchanged: vendor-react, vendor-i18n, vendor-clsx, vendor-recharts, vendor-mapbox, vendor-leaflet.
@@ -67,11 +71,28 @@ Both builds used Node 24.22.0 and `VITE_MAPBOX_PUBLIC_TOKEN=pk.measurement-only`
 | command-center | 244,043 | 242,770 | -1,273 | -0.52% | 248,100 |
 | compliance | 229,729 | 228,335 | -1,394 | -0.61% | 233,500 |
 
-No route changed by more than 1%. All decreased, so no size increase needs explanation. The production minifier changed with esbuild. No route ceiling was raised. Ceilings are retained during this toolchain-only step rather than recalibrated before final structural comparison.
+No route changed by more than 1%. All decreased, so no size increase needs explanation. The production minifier changed with esbuild. No route ceiling was raised. Existing ceilings are retained for this toolchain-only step; no budget was relaxed.
 
 Brotli bytes before → after: landing 292,996 → 291,927; marketplace 256,652 → 255,353; intelligence-map 647,006 → 645,540; command-center 204,891 → 204,312; compliance 192,728 → 192,105.
 
-**Not yet proved:** exact equality of emitted HTML path sets, normalized shell and prerender resource hint tags, chunk name sets, and font/brand/JSON asset names. The checked-in `vite7-compare.mjs` asserts these and records route changes. Do not treat successful builds alone as this proof.
+## Structural comparison
+
+The final comparison rebuilt starting commit `425e3cb8` and the migrated branch from fresh `npm ci --legacy-peer-deps` installs in the same locked host call. All builds used the same measurement-only Mapbox token and production API target.
+
+| Output | Before | After | Result |
+|---|---:|---:|---|
+| HTML paths | 53 | 53 | Exact set match: shell plus 52 localized prerendered pages |
+| JavaScript chunk names | 144 | 144 | Exact match after removing content hashes |
+| CSS chunk names | 3 | 3 | Exact match after removing content hashes |
+| Non-JS/CSS assets under assets/ | 20 | 20 | Exact filenames, including hashes |
+| All other static files, including public copies | 32 | 32 | Exact paths and SHA-256 digests |
+| Normalized HTML changes | 0 | 0 | Every HTML file is identical after hash normalization |
+
+The shell and every prerendered page retain the same ordered hints: API preconnect and DNS-prefetch, Mapbox preconnect, Lato 400 and Montserrat font preloads, and vendor-i18n/vendor-react/vendor-clsx modulepreloads. Full normalized HTML equality also covers the entry script, stylesheet links, route metadata and prerendered markup.
+
+**Differences explained:** 117 of 147 JS/CSS filenames have new content hashes; 30 filenames are unchanged. Vite's output and esbuild's minified code changed, and hash changes propagate through importing chunks. Browsers request new cache-busted URLs for those chunks, as expected for a toolchain rebuild, but the named chunk set, shell load list, resource hints and static assets are unchanged. There are no added or removed pages or load-list entries. Route payload decreases are listed above; none exceeds 1%. This is output-structure equivalence, not byte equality of compiled JavaScript or a new proof of application semantics; the existing unit and journey gates cover behavior.
+
+Machine-readable proof, including every path, chunk name, hint and static-file digest: [`vite7-evidence/vite7-build-comparison.json`](vite7-evidence/vite7-build-comparison.json). Comparison source: [`vite7-evidence/vite7-compare.mjs`](vite7-evidence/vite7-compare.mjs).
 
 ## Screenshots
 
@@ -123,12 +144,33 @@ Each command's own code is recorded, not inferred from the outer logging shell. 
 
 Vitest: 133 files, 957 tests passed. The three commands within CI's multiline offline-helper step each have their own code above. Main verification outer host call returned 1 because the comparison failed, despite all required CI and journey gates passing. Do not mistake the local logging shell's 0 for that call's result.
 
-## Resume after owner resolves lock
+## Follow-up gates and reproduction
 
-1. Use the required `verdaxis-prod-test` + Rust wait + shared lock wrapper. Do not stop the other lane's process without authorization.
-2. Inside one call, archive `425e3cb8` into `work/vite6-reference`, run its fresh npm ci and fixture-token production build, then run `node outputs/vite7-compare.mjs` against migrated `dist`. Capture each exit and retrieve `outputs/vite7-build-comparison.json` before the next runner reset. If `dist` is no longer present, rebuild migrated production in the same locked call.
-3. Investigate any changed chunk names/hints/pages or size change above 1%. Do not alter application source or screenshot baselines to hide a difference.
-4. Update this report and commit the final structural evidence. No push is authorized.
+The first follow-up structural run passed all ten gates. A later expanded run added SHA-256 comparisons for every static file and made normalized HTML equality an assertion. Its first call failed during runner synchronization (exit 1, before any gate ran); after the relocation commit, all ten expanded gates passed:
+
+| Gate | Command | Exit |
+|---|---|---:|
+| Reference source | archive `425e3cb8` into work/vite6-reference | 0 |
+| Reference install | npm ci --legacy-peer-deps | 0 |
+| Reference production build | npm run build:prod | 0 |
+| Reference artifact check | npm run build:check | 0 |
+| Reference budgets | node scripts/check-build-artifacts.mjs --report --root dist | 0 |
+| Migrated install | npm ci --legacy-peer-deps | 0 |
+| Migrated production build | npm run build:prod | 0 |
+| Migrated artifact check | npm run build:check | 0 |
+| Migrated budgets | node scripts/check-build-artifacts.mjs --report --root dist | 0 |
+| Expanded structural comparison | node docs/refactor/vite7-evidence/vite7-compare.mjs | 0 |
+| Outer host call | shared lock + one-hour timeout | 0 |
+
+CI and journey results above are from the initial acceptance run; they were not rerun during this documentation/comparison-only follow-up. The final builds and comparison are fresh. No runtime code changed since the passing acceptance run.
+
+To reproduce, run from the worktree root:
+
+```bash
+verdaxis-prod-test "$PWD" 'while pgrep -f "[r]ust_contract\.(measure|simulate)" >/dev/null; do sleep 60; done; flock -w 7200 /home/verdaxis-test/.verdaxis-heavy.lock timeout --kill-after=60 3600 bash -lc "bash docs/refactor/vite7-evidence/vite7-structural-gates.sh"'
+```
+
+Retrieve the generated comparison JSON and gate TSV before the next runner reset. No timeout was raised or hit in the follow-up. The repository records now live only under `docs/refactor/`; the top-level `outputs/` directory was removed in a new commit, without amending prior commits.
 
 ## Sources
 
