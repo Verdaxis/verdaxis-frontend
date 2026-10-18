@@ -1,5 +1,6 @@
 import type { SupplierOffer, SupplierOfferList, SupplierOfferMyListParams } from '../types/fameSupplierOffer';
 import { mapFameFuelMeasurements } from './fameRfq';
+import { requireWireDecimal } from '../api/decimals';
 
 export const SUPPLIER_OFFERS_CHANGED_EVENT = 'verdaxis:supplier-offers-changed';
 
@@ -10,15 +11,15 @@ export function mapSupplierOfferResponse(value: Record<string, any>): SupplierOf
         productName: value.product_name ?? null,
         deliveryPointId: value.delivery_point_id,
         deliveryPointName: value.delivery_point_name ?? null,
-        quantityMt: Number(value.quantity_mt),
-        minFillMt: Number(value.min_fill_mt),
-        pricePerMtUsd: Number(value.price_per_mt_usd),
+        quantityMt: requireWireDecimal(value.quantity_mt),
+        minFillMt: requireWireDecimal(value.min_fill_mt),
+        pricePerMtUsd: requireWireDecimal(value.price_per_mt_usd),
         availabilityWindow: value.availability_window,
         deliveryBasis: value.delivery_basis,
         namedLocation: value.named_location,
         deliveryStart: value.delivery_start,
         deliveryEnd: value.delivery_end,
-        quantityTolerancePct: Number(value.quantity_tolerance_pct),
+        quantityTolerancePct: requireWireDecimal(value.quantity_tolerance_pct),
         paymentTerms: value.payment_terms ?? null,
         inspectionTerms: value.inspection_terms ?? null,
         titleRiskTerms: value.title_risk_terms ?? null,

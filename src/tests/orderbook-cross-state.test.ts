@@ -15,6 +15,18 @@ const makeOrder = (overrides: Partial<ProvenanceOrder>): OrderBookOrder => ({
   remaining_quantity_mt: 1000,
   price_per_mt_usd: 600,
   availability_window: 'Spot',
+  unknown_count: 0,
+  source_kind: 'LIVE_ORDER',
+  scope: 'DELIVERY_POINT',
+  demo_status: 'REAL_ONLY',
+  terms_digest: 'terms',
+  version: 1,
+  product_id: 'product',
+  product_name: 'Product',
+  is_crossed: false,
+  certification_declared: false,
+  is_demo_listing: false,
+  msds_available: false,
   certifications: [],
   is_verdaxis_verified: true,
   tier_label: 'INDEPENDENT',
@@ -51,9 +63,11 @@ describe('getLivePriceCrossState', () => {
     expect(state.spread).toBe(-100);
   });
 
-  it('compares decimal strings from the API numerically, not alphabetically', () => {
-    const bid = makeOrder({ id: 'bid', price_per_mt_usd: '995.00' as unknown as number });
-    const ask = makeOrder({ id: 'ask', side: 'ASK', price_per_mt_usd: '1050.00' as unknown as number });
+  it('compares close prices numerically, not as a string concatenation', () => {
+    // The orderbook boundary has already converted both; this pins the guard
+    // that used to need `Number(...)` around every comparison.
+    const bid = makeOrder({ id: 'bid', price_per_mt_usd: 995 });
+    const ask = makeOrder({ id: 'ask', side: 'ASK', price_per_mt_usd: 1050 });
     expect(getLivePriceCrossState([bid], [ask]).hasCross).toBe(false);
     expect(getLivePriceCrossState([bid], [ask]).spread).toBe(55);
   });

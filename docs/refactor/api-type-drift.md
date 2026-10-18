@@ -1,11 +1,12 @@
-# API type drift — record for step 5a, work plan for step 5b
+# API type drift — the live record
 
-Step 5a generates the backend wire types and adds compile-time contract tests
-between them and the hand-written frontend types. **It changes no runtime code.**
-That combination necessarily produces a list of places where the two sides do not
-agree. This file is that list. It is the work plan for step 5b (runtime migration
-and the decimal boundary), and it must be updated in the same commit as any change
-that makes one of the entries stale.
+Step 5a generated the backend wire types and added compile-time contract tests
+between them and the hand-written frontend types. That comparison produced this
+list of places where the two sides do not agree. **Step 5b resolved DRIFT-1 (the
+decimals) and DRIFT-7.3/7.4 (the commissions) at one decimal boundary; the
+step 5c resolved the remaining named entries without runtime changes.** This file is the record for all of them,
+and it must be updated in the same commit as any change that makes an entry
+stale.
 
 Sources and how they were checked:
 
@@ -17,24 +18,30 @@ Sources and how they were checked:
 - Every entry has a named expectation in `src/api/contract.test-d.ts` that fails
   `npm run typecheck` when either side moves. The `DRIFT-n` ids match the section
   comments in that file.
-- Consumer line numbers are the current working tree at
-  `72096661620ce7dfdcd9f0660c7fd479881f3ab6`. Re-grep before relying on them.
+- Consumer line numbers were captured at the step 5a working tree
+  `72096661620ce7dfdcd9f0660c7fd479881f3ab6` and are stale after step 5b. Re-grep
+  before relying on them.
+- The wire's own decimal spellings were read from the backend's recorded
+  responses under
+  `work/rust-phase1-build/tests/rust_contract/golden/<sha>/<case>/response.body`
+  and its Pydantic schemas under `app/schemas/` (read only).
 
-The rule for step 5b is unchanged: **same look and behavior**. Nothing here is a
-bug to fix in step 5a; each entry is a decision step 5b must make deliberately.
+Two rules decide every entry: **same look and behavior** (founder decision 61),
+and one conversion per decimal where it enters the app (the prerequisite for
+tracker decision 67, which lets the backend respell a decimal).
 
 ## Summary
 
-| Id | Difference | Entries |
-|---|---|---|
-| DRIFT-1 | Decimals typed `number`, sent as JSON strings | 11 |
-| DRIFT-2 | `unknown_count` on the wire, absent from the app | 2 |
-| DRIFT-3 | Provenance fields missing or wrongly optional | 8 |
-| DRIFT-4 | Owner-view fields folded into the public interface | 5 |
-| DRIFT-5 | The `User` profile | 8 |
-| DRIFT-6 | Availability windows: display labels against canonical codes | 3 |
-| DRIFT-7 | Remaining differences on the named wire shapes | 11 |
-| | **Total** | **48** |
+| Id | Difference | Entries | Step |
+|---|---|---|---|
+| DRIFT-1 | Decimals typed `number`, sent as JSON strings | 11 (resolved) | 5b |
+| DRIFT-2 | Required `unknown_count` derived from the wire | 2 (resolved) | 5c |
+| DRIFT-3 | Provenance and order metadata derived from the wire | 8 (resolved) | 5c |
+| DRIFT-4 | Owner metadata derived; public compatibility retained | 5 (resolved) | 5c |
+| DRIFT-5 | Auth profile and eligibility derived from the wire | 8 (resolved) | 5c |
+| DRIFT-6 | Window types derive the wire string; labels unchanged | 3 (resolved) | 5c |
+| DRIFT-7 | Named price, catalog and notification shapes aligned | 11 (resolved) | 5b/5c |
+| | **Open** | **0** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -43,275 +50,307 @@ That is why several entries below read "the wire always sends it".
 
 ---
 
-## DRIFT-1 — Decimals typed `number`, sent as JSON strings
+## DRIFT-1 — resolved: one decimal boundary
 
-The backend serializes `Decimal` as a JSON string. The hand-written types declare
-`number`, and 100+ call sites compensate with `Number(...)`. This is the largest
-gap and the reason D4 puts the conversion at one boundary.
+The backend serializes a `Decimal` as a JSON string. The hand-written types
+declare `number`, and 80 `Number(...)` coercions across 21 files used to fix that
+up field by field. Step 5b moved the conversion to the point where a decimal
+enters the app:
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 1.1 `quantity_mt`, `remaining_quantity_mt`, `price_per_mt_usd` | `number` | `string` | `src/types.ts:297-299` |
-| 1.2 `carbon_intensity_gco2_mj` | `number \| null` (optional) | `string \| null` (optional) | `src/types.ts:305` |
-| 1.3 `benchmark_price_per_mt_usd`, `premium_discount_per_mt_usd` | `number \| string \| null` (optional) | `string \| null` (optional) | `src/types.ts:317,319` |
-| 1.4 `Trade.quantity_mt`, `price_per_mt_usd` | `number` | `string` | `src/types.ts:354-355` |
-| 1.5 `Trade.final_quantity_mt`, `final_price_per_mt`, `final_total_usd` | `number` (optional) | `string \| null` (optional) | `src/types.ts:357-359` |
-| 1.6 `PriceSummary.last_price`, `avg_price_24h`, `high_24h`, `low_24h`, `price_change_pct` | `number \| null` | `string \| null` (optional) | `src/types.ts:439-442,448` |
-| 1.7 `PriceSummary.volume_24h` | `number` | `string` | `src/types.ts:443` |
-| 1.8 `Product.min_lot_size` | `number` | `string` | `src/types.ts:158` |
-| 1.9 `OrderCreateInput.quantity_mt`, `price_per_mt_usd` | `number` | `number \| string` | `src/types.ts:244-245` |
-| 1.10 `AggregatedOrderbook.min_price`, `max_price`, `total_quantity` | `number \| string` | `string` | `src/types.ts:393-395` |
-| 1.11 `MapCompactMarket.bid_min_price` (and the ask side) | `string \| null` | `string \| null` (optional) | `src/types.ts:417-426` |
+- `src/api/decimals.ts` holds the one conversion. `parseWireDecimal(value)`
+  returns a finite number or `null`; `requireWireDecimal(value)` returns the same
+  number or `NaN`, which is what the `Number(...)` it replaces produced for a
+  malformed or absent field.
+- `src/utils/numberFormat.ts` holds the display formatters a converted value
+  renders with: `formatUsd` for money and unit prices (the listing price
+  column's grouped, exactly-two-decimals format) and `formatQuantity` for
+  quantities and measurements (the My Orders table's locale format). Tracker
+  decision 71 chose these — the formats the main screens already use — after
+  the review found the wire's decimal columns are unscaled `Numeric()`, so a
+  number can never give back the wire's spelling.
+- `src/api/mappers.ts` holds one mapper per wire shape, typed from the generated
+  wire type in `src/api/contract.ts` to the app type in `src/types.ts`. Every
+  mapper is applied at an entry point below, so no component sees a wire string.
+- `src/types.ts` now declares the shapes the boundary produces: `number` where
+  the app needs a value, `number | null` where the wire may omit or null it.
+  `OrderBookOrder.benchmark_price_per_mt_usd` and
+  `premium_discount_per_mt_usd`, `AggregatedOrderbook.min_price` / `max_price` /
+  `total_quantity`, `MapCompactMarket`'s eight decimals, `TradeTapeEntry`'s two,
+  and `Trade`'s `final_*` and commission fields all lost their `| string`.
 
-Entry 1.11 is the shape the rest should become: the buyer map already types its
-decimals as strings, so `src/utils/buyerMapMarket.ts:89,94,135` and
-`src/components/BuyerMap.tsx:456,479,480` do the right thing. Only optionality
-still differs, because the frontend marks the field required.
+### Entry points — every path a DRIFT-1 shape takes into the app
 
-### Handled at the boundary today
+REST through `src/services/api.ts`. The mapper named is applied inside the
+method, after `cachedRead` returns, so a cache hit is converted exactly like a
+miss:
 
-Step 5b converts a wire decimal where it enters the app instead of at every
-consumer. Two entries have moved. Neither changes the wire type or the
-hand-written type, so both rows above stay as they are; this records where the
-conversion now happens.
+| Method | Endpoint | Mapper |
+|---|---|---|
+| `ports.list` | GET `/ports` | `mapPortResponse` (no decimal boundary: `PortResponse.intelligence` is JSON numbers) |
+| `inventory.list` | GET `/inventory` | `toInventoryItems` |
+| `inventory.add` | POST `/inventory` | `toInventoryItem` |
+| `catalog.products` | GET `/catalog/products` | `toProducts` |
+| `orderbook.snapshot` | GET `/orderbook/snapshot` | `toOrderBookOrder` over `bids` and `asks` |
+| `orderbook.list` | GET `/orderbook` | `toOrderBookOrders` |
+| `orderbook.listBids`, `listBidsPaged` | GET `/orderbook/bids` | `toOrderBookOrders`, `mapWirePage(…, toOrderBookOrder)` |
+| `orderbook.listAsks`, `listAsksPaged` | GET `/orderbook/asks` | as above |
+| `orderbook.myOrders` | GET `/orderbook/my` | `toOrderBookOrders` |
+| `orderbook.create` | POST `/orderbook` | `toOrderBookOrder`, plus `toTrades` on a `trades` array if one is ever returned |
+| `orderbook.update` | PUT `/orderbook/{id}` | `toOrderBookOrder` |
+| `orderbook.aggregated` | GET `/orderbook/aggregated` | `toAggregatedOrderbooks` |
+| `orderbook.mapSummary` | GET `/orderbook/map-summary` | `toAggregatedOrderbooks`, `toMapRecentAsks` |
+| `orderbook.compactMapSummary` | GET `/orderbook/map-summary/compact` | `toMapCompactMarkets`, `toAggregatedOrderbooks`, `toMapRecentAsks` |
+| `prices.getSummaries` | GET `/prices` | `toPriceSummaries` |
+| `prices.getReference` | GET `/prices/reference` | `toReferencePriceItems` |
+| `trades.initiate` | POST `/trades/` | `toTrade` |
+| `trades.myTrades`, `myTradesPaged` | GET `/trades/my` | `toTrades`, `mapWirePage(…, toTrade)` |
+| `trades.confirm`, `decline`, `deliver`, `pay` | PUT/POST `/trades/{id}/…` | `toTrade` |
+| `curves.forward` | GET `/curves/forward` | `toForwardCurveResponse` |
+| `curves.board` | GET `/curves/forward/board` | `toForwardCurveBoard` |
+| `curves.table` | GET `/curves/forward/table` | `toForwardCurveTable` |
+| `curves.slice` | GET `/curves/forward/slice` | `toForwardCurveSlice` |
+| `tradeTape.list` | GET `/trade-tape` | `toTradeTapeEntries` |
+| `supplierOffers.*` | `/supplier-offers…` | `mapSupplierOfferResponse`, `mapSupplierOfferListResponse` |
+| `rfq.*` | `/rfq…` | `mapFameRfqResponse`, `mapFameFqListResponse`, `mapFameQuoteResponse` |
+| the terms layer | `fame_terms`, `lng_terms`, `fame_terms_snapshot`, `lng_terms_snapshot` on the responses above | `mapOrderbookTermsResponse`, `mapTradeTermsResponse` |
 
-- **1.8 `Product.min_lot_size`** — converted once at the catalog boundary in
-  `src/services/api.ts` (`mapCatalogProduct`, called from
-  `api.catalog.products`), using `parseWireDecimal` from `src/api/decimals.ts`.
-  The converter returns `null` for an absent or malformed value, so the mapper
-  stores `NaN`: the order form keeps its `hasValidCatalogMinimum` guard and its
-  "Catalog minimum unavailable" message instead of accepting a bogus minimum.
-  The only display consumer is `src/components/OrderPlaceModal.tsx:499`
-  (`:1174` value, `:1225` placeholder, `:1228` `min`), which formats the number
-  with `toLocaleString(locale)`; that formatting is untouched, so no displayed
-  text changes.
-- **1.1 `remaining_quantity_mt` on the take window** — the only reader that must
-  treat it as a `number` is the quantity prefill at
-  `src/components/Marketplace.tsx:851`, which now calls
-  `parseWireDecimal(order.remaining_quantity_mt) ?? NaN`. Before, it assigned the
-  raw wire string, so `Number.isFinite` was false and the input rendered empty.
-  Every other 1.1 reader keeps its existing `Number(...)` coercion.
+Direct `fetch` calls that bypass the client:
 
-Consumers that depend on the current shape — every site that coerces a wire
-decimal with `Number(...)`:
+- `src/data/fuelPrices.ts` `fetchFuelPrices` reads GET `/orderbook/aggregated`,
+  `/catalog/products` and `/catalog/delivery-points` itself (the public ticker
+  needs no auth and no client cache). It applies `toAggregatedOrderbooks` and
+  `toProducts` to the parsed bodies. The fetch calls themselves are unchanged, so
+  the Phase 0 request manifest gains no entry.
+- `api.ports.getById`, `api.vessels.*`, `api.compliance.*` and
+  `api.notifications.*` call `fetchWithTimeout` directly; none of them returns a
+  DRIFT-1 shape. `ports.getById` has no caller and is dead.
 
-| Type | Consumers |
-|---|---|
-| `OrderBookOrder` | `src/components/Marketplace.tsx:1264,1265,1266,1850,1853,1856,2309,2310`; `src/components/OrderBook.tsx:44,60,66,69`; `src/components/SupplierDemandFeed.tsx:103,105` |
-| `Trade` | `src/utils/tradeAnalytics.ts:68,72`; `src/components/NeedsAttentionFeed.tsx:89,90`; `src/components/WatchlistPage.tsx:154,155` |
-| `TradeTapeEntry` | `src/components/TradeTape.tsx:209,212`; `src/components/WatchlistPage.tsx:154,155` |
-| `PriceSummary` | `src/components/map/MarketWatchTicker.tsx:128,130,182`; `src/components/map/IntelligencePanel.tsx:23`; `src/components/TradeHistoryPage.tsx:79`; `src/utils/watchlist.ts:40,46` |
-| `AggregatedOrderbook` | `src/utils/demoMarketQuotes.ts:47,50` |
-| `ForwardCurve*` | `src/components/ForwardCurveWorkspace.tsx:67,80,85,693` |
-| API mapping | `src/services/api.ts:37,38,47,48` (ports), `:765,778,779,825,837,838` (inventory) |
-| FAME / LNG own types | `src/services/fameRfq.ts:18,19,54,62,66,67,68,73,84,90,105,111,125`; `src/services/fameSupplierOffer.ts:13,14,15,21,31,48,49,50`; `src/services/fameOrder.ts:10,11,12,42`; `src/services/lngOrder.ts:14,15,16,30,31,32`; `src/components/lng/LngOrderTermsDetails.tsx:76,78` |
+Server-sent events (`src/hooks/useSSE.ts`):
 
-Not drift, and deliberately left alone: `Number(event.target.value)` and
-`optionalNumber(data, ...)` in `src/components/fame/FameFormFields.tsx`,
-`src/components/lng/LngOrderFields.tsx`, `src/components/rfq/FameRfqForms.tsx`,
-`src/components/supplier/FameSupplierOfferForm.tsx` and
-`src/pages/public/ProducerMapPage.tsx` parse *form input*, not wire data. The
-`src/components/trading/CompliancePriceHint.tsx:13,14,15,32` coercions are
-correct today: `ListingComplianceOverlay` and `ComplianceOverlayAssumptions`
-already declare those fields as `string` (`src/types.ts:972-992`).
+- The `trades` channel converts each payload once, through
+  `toTradeStreamPayload`, in `handleMessage` before the consumer handler runs:
+  `trade_created`, `trade_confirmed` and `trade_paid` carry `quantity` and
+  `price`; `trade_auto_matched` carries the same plus identity; `trade_delivered`
+  carries `final_quantity`, `final_price` and `final_total`. `trade_declined`
+  carries no decimal. Consumers are `TradeNotifier` (which displays them),
+  `MyTrades` and `CommandCenter` (which only refetch).
+- The `orderbook` channel's events (`order_created`, `order_cancelled`,
+  `orders_matched`, `market_invalidated`, `reset`, `reconnect`) carry no decimal:
+  `PublicMarketSync` reads only `schema_version` and `resync_required`. The
+  `prices` channel is declared but no component subscribes.
 
----
+Fixtures and demo data:
 
-## DRIFT-2 — `unknown_count` on the wire, absent from the app
+- `src/utils/demoMarketQuotes.ts` `buildDemoMarketQuotes` reads
+  `AggregatedOrderbook` rows. Both callers convert first: `MarketWatchTicker`
+  through `api.orderbook.aggregated`, and `fuelPrices.ts` as above.
 
-The wire always sends `unknown_count` on orders and trades. Neither
-`OrderBookOrder` nor `Trade` declares it, so no component can show how much of a
-market picture is unattributable. No consumer reads it: nothing in `src/` mentions
-the field.
+Stored copies: no DRIFT-1 shape is persisted. `localStorage` and `sessionStorage`
+hold the theme, the language, the cookie choice, the marketplace and
+forward-curve selections and the tutorial flag only. `src/services/readCache.ts`
+caches raw wire bodies in memory for a TTL, and every mapper runs outside
+`cachedRead`, so a cache hit is converted like a miss.
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 2.1 `OrderBookOrder` | absent | `number` | `src/types.ts:279-330` |
-| 2.2 `Trade` | absent | `number` | `src/types.ts:344-381` |
+### Consumers — what the boundary let the components drop
 
-Consumers: none. Step 5b decides whether the UI should surface it (the market
-provenance vocabulary elsewhere in the app already counts real/demo/unknown
-elsewhere, for example `ForwardCurveBoardDepthLevel.unknown_order_count`).
+80 `Number(...)` occurrences were removed. Each one was replaced by the value the
+boundary already produced, so every input keeps its result:
 
----
+- `OrderBookOrder`: the listings volume and money columns, the take-window
+  prefill and the order-window prefill in `src/components/Marketplace.tsx`,
+  `src/components/OrderBook.tsx` (price and quantity formatting and the
+  live-price cross state), `src/components/SupplierDemandFeed.tsx`.
+- `Trade`: `src/utils/tradeAnalytics.ts` (the quantity and price readers keep
+  their `??` chain and their `?? 0` defaults), `src/components/NeedsAttentionFeed.tsx`,
+  `src/components/MyTrades.tsx` rows through those readers,
+  `src/components/trading/BenchmarkPriceBlock` props.
+- `PriceSummary`: `src/components/map/MarketWatchTicker.tsx` (a null price still
+  falls through to the 24-hour average), `src/components/map/IntelligencePanel.tsx`
+  (`mid_price`), `src/components/TradeHistoryPage.tsx` (`vwap_usd` keeps `?? 0`).
+- `AggregatedOrderbook`: `src/utils/demoMarketQuotes.ts` keeps
+  `Number.isFinite(price)` as its guard, which is what it always tested.
+- `MapCompactMarket` and `MapRecentAsk`: `src/utils/buyerMapMarket.ts` (the min
+  and max reducers keep their `null` branches) and `src/components/BuyerMap.tsx`.
+- `TradeTapeEntry`: `src/components/TradeTape.tsx`.
+- `ForwardCurve*`: the `currency`, `preciseCurrency`, `numericValue` and
+  `quantity` helpers in `src/components/ForwardCurveWorkspace.tsx` now take
+  `number | null | undefined` and keep every guard; the depth-level spread
+  subtracts two numbers.
+- Ports and inventory: the inventory mapper, plus `mapPortResponse` for the
+  ports. The port intelligence prices are JSON numbers on the wire, so the port
+  mapper crosses no decimal boundary and its three former coercions were
+  already no-ops.
+- FAME and LNG: `src/services/fameRfq.ts`, `src/services/fameSupplierOffer.ts`
+  and the two terms adapters. `optionalRfqNumber`, the module's own optional
+  reader, is now `parseWireDecimal` under the name that reads better there, so
+  FAME, LNG and the rest of the app share one implementation.
+- Watchlist: `src/utils/watchlist.ts` `currency` and `quantity` lost a dead
+  `typeof === 'string'` branch. The backend builds every numeric watchlist event
+  payload with `float(…)` (`app/services/watchlist_events.py`), and
+  `WatchlistTarget.snapshot_*` is `float | None` in the schema, so these values
+  arrive as JSON numbers and never needed a conversion;
+  `src/components/WatchlistPage.tsx` keeps its `?? 0` defaults.
 
-## DRIFT-3 — Provenance fields missing or wrongly optional
+Two coercions that only *look* like wire decimals were removed with a comment
+saying why: `Product.min_lot_size` in `src/components/OrderPlaceModal.tsx` (the
+catalog boundary already converted it, and `hasValidCatalogMinimum` already
+guards it), and the `Number(...)` on the four port-intelligence fields above.
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 3.1 `OrderBookOrder.source_kind`, `scope`, `demo_status` | absent | required enum | `src/types.ts:279-330` |
-| 3.2 `OrderBookOrder.version`, `terms_digest` | optional | required | `src/types.ts:281-282` |
-| 3.3 `Trade.source_kind`, `scope`, `demo_status` | absent | required enum | `src/types.ts:344-381` |
-| 3.4 `MarketSourceKind` | 7 members, no `LIVE_INVENTORY` | 8 members | `src/types.ts:193-200` |
-| 3.5 `creation_method` | `'SELF_SERVICE' \| 'MARKET_SUPPORT' \| string` (the literal members are erased by `\| string`) | `string`; the spec's `OrderCreationMethod` enum is unused by the response | `src/types.ts:328` |
-| 3.6 `product_id`, `product_name`, `is_crossed`, `certification_declared`, `is_demo_listing`, `msds_available` | optional | required | `src/types.ts:286-287,304,307,320,325` |
-| 3.7 `certifications` | required `string[]` | optional | `src/types.ts:303` |
-| 3.8 `fuel_grade` | `FuelGrade` (4 grades) | `string` | `src/types.ts:293` |
+### Displays of the raw wire string
 
-Consumers:
+Eight places rendered a wire string as text (the PM review found the eighth).
+Each now renders a converted value through one of the two shared formatters in
+`src/utils/numberFormat.ts` (tracker decision 71: the formats the main screens
+already use, not the wire's spelling — the columns are unscaled `Numeric()`, so
+the wire itself sends "1109" and "1000.000000000000000000000000000000"):
 
-- `src/components/Marketplace.tsx:836,1099` derive a `demo_status`-shaped value
-  from `order.is_demo_listing` because the wire's own `demo_status` is not on the
-  hand-written type.
-- `src/components/Marketplace.tsx:931,1872` branch on `order.creation_method`,
-  which only exists because `OrderBookOrder` folds the owner view in (DRIFT-4).
-- `src/components/ForwardCurveWorkspace.tsx:231,232,704,1256` and
-  `src/components/map/MarketWatchTicker.tsx:135-145` read `source_kind` /
-  `demo_status` from *other* types that do declare them. They are the precedent
-  for how order and trade provenance should be surfaced.
-- The order snapshot's own `source_kind`, `scope` and `demo_status`
-  (`src/types.ts:337-339`) have no reader at all: `src/components/OrderBook.tsx`
-  uses only `bids`, `asks` and `generated_at` (`:153,159,167`).
+| Display | Formatter | Was the raw wire text |
+|---|---|---|
+| `Marketplace.tsx` listings volume column (`remaining_quantity_mt`) | `formatQuantity` | `200.00` |
+| `Marketplace.tsx` take-result card quantity | `formatQuantity` | `200.00` |
+| `Marketplace.tsx` take-result card price | `formatUsd` | `915.00` |
+| `Marketplace.tsx` take-modal summary price | `formatUsd` | `915.00` |
+| `Marketplace.tsx` take-modal maximum available quantity | `formatQuantity` | `200.00` |
+| `Marketplace.tsx` take-modal carbon intensity readback | `formatQuantity` (fallback `common.notAvailable`) | `18.40` |
+| `OrderPlaceModal.tsx` auto-matched panel quantity and price | `formatQuantity` / `formatUsd` | `100.00`, `600.00` |
+| `TradeNotifier.tsx` toast quantity, price and delivered total | `formatQuantity` / `formatUsd` | `200.00`, `915.00`, `183000.00` |
 
----
+An earlier draft of this step used a `wireDecimalText` helper that spelled the
+number the way the wire did. That was wrong: `decimal_places=2` in
+`app/schemas/orderbook.py` is an upper limit on unscaled `Numeric()` columns,
+and the recorded responses already send `"price_per_mt_usd":"1109"` (R17-asks)
+and `"1000.000000000000000000000000000000"` (R16-bids). A number cannot give
+back the wire's spelling, and decision 67 needs every display independent of
+it, so the helper is deleted and the shared formatters own the text.
 
-## DRIFT-4 — Owner-view fields folded into the public interface
+Every other decimal display already formatted a *number* — `toLocaleString`,
+`toFixed`, the `formatPrice` / `formatQty` helpers in `OrderBook.tsx`,
+`BenchmarkPriceBlock` (now through `formatUsd`), `preciseCurrency` in
+`ForwardCurveWorkspace.tsx` — so it was spelling-independent before this step
+and is unchanged after it.
 
-`OrderResponse` (public) carries no ownership fields. `OrderMyResponse` (owner)
-adds `organization_id` and `updated_at` as required, plus `trade_count`,
-`creation_method`, `etag` and `vessel_id`. The frontend has one
-`OrderBookOrder` interface with all of them optional, so a component cannot tell
-which view it holds.
+One consequence worth stating: `OrderPlaceModal.tsx` compares
+`matchResult.trades[0].price_per_mt_usd !== orderSnapshot?.pricePerMtUsd` to
+decide whether to show the "price improvement" line. A wire string can never
+equal a number, so that line showed on every auto-match; with both sides numbers
+it now shows only when the prices differ. The panel is unreachable today because
+`POST /orderbook` answers with `OrderResponse`, which carries no `trades`, so no
+screen changes.
 
-| Entry | Hand-written | Wire (owner view) | Wire (public) | Declared at |
-|---|---|---|---|---|
-| 4.1 `organization_id` | `string \| undefined` | required `string` | absent | `src/types.ts:283` |
-| 4.2 `trade_count` | `number \| undefined` | required `number` | absent | `src/types.ts:327` |
-| 4.3 `etag` | `string \| undefined` | `string \| null \| undefined` | absent | `src/types.ts:329` |
-| 4.4 `updated_at` | `string \| undefined` | required `string` | absent | `src/types.ts:326` |
-| 4.5 `vessel_id` | `string \| undefined` | `string \| null \| undefined` | absent | `src/types.ts:296` |
+### Not drift, deliberately untouched
 
-Consumers:
+- Form-input parsing: `Number(event.target.value)` in
+  `src/components/Marketplace.tsx`, `src/components/map/ComplianceEstimatorCard.tsx`
+  and `src/pages/public/ProducerMapPage.tsx`, and `optionalNumber(data, …)` in
+  `src/components/fame/FameFormFields.tsx`,
+  `src/components/fame/FameDeclarationFields.tsx`,
+  `src/components/fame/FameOrderFields.tsx`,
+  `src/components/lng/LngOrderFields.tsx`,
+  `src/components/rfq/FameRfqForms.tsx` and
+  `src/components/supplier/FameSupplierOfferForm.tsx` read user input, not wire
+  data.
+- `src/components/trading/CompliancePriceHint.tsx` is still correct:
+  `ListingComplianceOverlay` and `ComplianceOverlayAssumptions` already declare
+  those fields as `string` (`src/types.ts`), so the compliance pricing overlay
+  crosses no boundary this step moved.
+- Integer and count reads: `revision`, `total`, `skip`, `limit`, `quote_count`,
+  the trade summary counts in `src/components/CommandCenter.tsx`, the
+  product-analytics counts in `src/services/api.ts` and the Mapbox feature
+  property in `src/components/BuyerMap.tsx`.
 
-- `src/components/Marketplace.tsx:316-318,865-866` — the "My Listings" tab stores
-  `/orderbook/my` results as `OrderBookOrder[]`, which is the fold in practice.
-- `src/components/Marketplace.tsx:931,940,954` — the assisted-workspace cancel
-  path requires `etag` and `creation_method` on the order it is cancelling; the
-  public wire shape has neither.
-- `src/components/Marketplace.tsx:1268` — `order.updated_at` as
-  `contextUpdatedAt`.
-- `src/components/Marketplace.tsx:1872` — `creation_method` gates the cancel
-  action.
-- `organization_id` has **no** reader on an order: every
-  `user.organization_id` use (`src/components/CommandCenter.tsx:70`,
-  `src/components/MyTrades.tsx:76,89,154,159,160`,
-  `src/components/TradeNotifier.tsx:77`, `src/components/DataAnalytics.tsx:100`,
-  `src/components/Marketplace.tsx:368,392,876,1007,1638,1640`) reads the auth
-  profile, not the order.
+### Still to do
 
----
-
-## DRIFT-5 — The `User` profile
-
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 5.1 `email_verified` | `boolean \| undefined` | **absent from `UserResponse`** | `src/context/AuthContext.tsx:26` |
-| 5.2 `referral_code` | absent | `string \| null \| undefined` | — |
-| 5.3 `role` | required `UserRole \| null` | optional `UserRole \| null` | `src/context/AuthContext.tsx:20` |
-| 5.4 `first_name`, `last_name` | required `string \| null` | optional `string \| null` | `src/context/AuthContext.tsx:18-19` |
-| 5.5 `kyc_status` | optional `string` | required `string` | `src/context/AuthContext.tsx:27` |
-| 5.6 `must_change_password` | optional `boolean` | required `boolean` | `src/context/AuthContext.tsx:29` |
-| 5.7 `execution_eligibility` | optional `ExecutionEligibility \| null` | optional, not nullable | `src/context/AuthContext.tsx:28` |
-| 5.8 `ExecutionEligibility.grace_expires_at` | required `string \| null` | optional `string \| null` | `src/types.ts:143` |
-
-`email_verified` is the audit's finding 4.2: `/api/auth/me` can never set it.
-`AdminDashboard.tsx:51,73,114,115,182,1034` also uses an `email_verified` field,
-but that is the admin review-queue DTO (`AdminUserEntry`, wire type has it) and is
-not drift.
-
-Consumers:
-
-- 5.1/5.2: `src/context/AuthContext.tsx:26` (declaration), `:56-73`
-  (`parseUserProfile`, which neither validates nor populates it), `:186` (the
-  single call site). Nothing reads `user.email_verified`.
-- 5.2: `src/components/ReferralsTab.tsx:47,60` re-fetches the code from
-  `/referrals/my-code` (`src/services/api.ts:1473`) because the profile does not
-  carry it. `src/pages/RegisterPage.tsx:17,38,114` and
-  `src/components/public/PublicLanguageWrapper.tsx:11,15,17,21` handle the inbound
-  `?ref=` code separately.
-- 5.7/5.8: `src/types.ts:140-144` and every reader of
-  `user.execution_eligibility` — `src/components/OrderPlaceModal.tsx`,
-  `src/components/Marketplace.tsx` (execution gate) and the KYC banner flow. The
-  `| null` is defensive only.
-
----
-
-## DRIFT-6 — Availability windows: display labels against canonical codes
-
-`AvailabilityWindow` (`src/types.ts:175`) is the *display* vocabulary:
-`'Spot'`, `'Q1 2026'`, `'Forward 2027'`. The wire sends canonical codes
-(`SPOT`, `2026-Q1`, `2026-04`, `2026-CAL`) as a `string` with a pattern, and the
-backend normalizes legacy labels on input only. `src/utils/availabilityWindow.ts`
-does the display conversion. No type connects the two.
-
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 6.1 `AvailabilityWindow` | display labels; no `SPOT`, no `2026-Q3` | canonical-code `string` | `src/types.ts:175` |
-| 6.2 `OrderBookOrder.availability_window` | `AvailabilityWindow` | `string` | `src/types.ts:300` |
-| 6.3 `Trade.availability_window` | `string \| undefined` | `string \| null \| undefined` | `src/types.ts:374` |
-
-Consumers that cast a canonical code into the label union:
-
-- `src/App.tsx:439` — `sidebarMarketSlice?.window as AvailabilityWindow \| undefined`
-- `src/components/Marketplace.tsx:223` — `initialSlice.window as AvailabilityWindow`
-- `src/components/Marketplace.tsx:225` — `normalizeAvailabilityWindow(stored) as AvailabilityWindow`
-- `src/components/Marketplace.tsx:613` — `setAvailability(initialSlice.window as AvailabilityWindow)`
-- `src/components/Marketplace.tsx:1504` — `onChange` value cast to `AvailabilityWindow`
-
-Consumers that rely on the display conversion instead of the type:
-`src/utils/fuel.ts:133`, `src/utils/watchlist.ts:35`,
-`src/utils/tradeAnalytics.ts:87`, `src/components/MyTrades.tsx:506`,
-`src/components/OrderBook.tsx:344,595`, `src/components/SupplierDemandFeed.tsx:107`,
-`src/components/TradeHistoryPage.tsx:64`, `src/components/WatchlistPage.tsx:150`,
-`src/components/supplier/SupplierOfferDetails.tsx:41`,
-`src/components/map/IntelligencePanel.tsx:52,57`,
-`src/components/ForwardCurveWorkspace.tsx:323,543,595,1076,1184,1204`,
-`src/components/admin/product-analytics/MarketplaceTab.tsx:89,146,241`,
-`src/components/admin/product-analytics/AnalyticsFilterRail.tsx:155`,
-`src/components/market-support/MarketSupportFinalConfirmation.tsx:81`,
-`src/components/public/PriceTicker.tsx:126`,
-`src/components/map/MarketWatchTicker.tsx:162`,
-`src/components/OrderPlaceModal.tsx:53,142,150,299,349`.
-
-The typed label list is also the source of the quarterly churn the audit notes:
-`getAvailabilityWindowOptions` (`src/utils/availabilityWindow.ts:182-225`)
-generates windows from the current date, so the union in `src/types.ts:175` will
-need a new member each year while the wire vocabulary never changes.
+- `api.ports.getById` returns the raw body for dead code; delete it with the rest
+  of the step 5c cleanup.
+- `src/components/OrderPlaceModal.tsx`'s auto-matched panel is unreachable dead
+  code. The boundary converts a `trades` array if one ever appears, so the panel
+  would render correctly, but the block itself should go.
+- The shipping and freight decimal families (`PriceAlert.threshold_usd`,
+  `FeeSchedule`, `Subscription.seller_fee_per_mt_usd`,
+  `fleetIntelligence.avg_consumption_mt`, the product-analytics money fields) are
+  still `string | number` in the app types and still coerce at their consumers.
+  They are not among the named DRIFT-2 through DRIFT-7 entries and remain follow-up work.
 
 ---
 
-## DRIFT-7 — Remaining differences on the named wire shapes
+## DRIFT-2 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 7.1 `PriceSummary.product_name` | absent | required `string` | `src/types.ts:431-455` |
-| 7.2 `real_trade_count_24h`, `demo_trade_count_24h`, `unknown_trade_count_24h`, `availability_window`, `is_reference` | optional | required | `src/types.ts:436,445-447,453` |
-| 7.3 `Trade.commission_rate_pct` | required `string \| number` | required `string` | `src/types.ts:360` |
-| 7.4 `Trade.commission_amount_usd` | `string \| number \| null` (optional) | `string \| null` (optional) | `src/types.ts:361` |
-| 7.5 `Product.execution_mode` | optional `'ORDERBOOK' \| 'RFQ_ONLY'` | required `string` | `src/types.ts:161` |
-| 7.6 `Product.available_delivery_point_ids` | optional `string[]` | required `string[]` | `src/types.ts:162` |
-| 7.7 `Product.market_product` | optional `MarketProduct` | `string \| null` (optional) | `src/types.ts:154` |
-| 7.8 `Product.spec_description` | optional `string` | `string \| null` (optional) | `src/types.ts:159` |
-| 7.9 `DeliveryPoint.timezone` | optional `string` | `string \| null` (optional) | `src/types.ts:169` |
-| 7.10 `Notification.type` | 5-literal union | `string` | `src/types.ts:110` |
-| 7.11 `Notification.data` | optional `any` | required `Record<string, unknown>` | `src/types.ts:113` |
+Orders and trades now derive the required `unknown_count` from their wire types.
+The existing mapper spreads already retain the field. No request, screen or
+branch changes. Founder decision: whether and where to display this count.
 
-Consumers:
+---
 
-- 7.1/7.2: `src/components/map/MarketWatchTicker.tsx:128,130,135-145,162,182`
-  reads the price summary for the ticker; it shows no product name because the
-  type does not carry one.
-- 7.3/7.4: `Trade` commission readers — `src/components/MyTrades.tsx`,
-  `src/components/TradeHistoryPage.tsx`,
-  `src/components/admin/CommissionSummary` views. The `string | number` union is
-  what forces `Number()` at those sites (DRIFT-1 family).
-- 7.5/7.6/7.7: `src/components/Marketplace.tsx` product pickers and
-  `src/components/OrderPlaceModal.tsx:520-570` gate order submission on
-  `execution_mode` and `available_delivery_point_ids`; both are optional in the
-  type and always present on the wire, so the guards carry dead branches.
-- 7.10/7.11: `src/components/NotificationBell.tsx` and the notification toaster.
-  `data` is `any`, so its payload shape is unchecked; the wire types it as an
-  object map.
+## DRIFT-3 — resolved in step 5c
+
+Orders and trades derive their provenance from the wire; the source vocabulary now
+includes `LIVE_INVENTORY`. Required order metadata and the free-string fuel grade
+also derive from the wire. Creation method is a plain string, as the response is.
+`certifications` stays required in the **mapped app shape**: `toOrderBookOrder`
+already turns the optional wire field into `[]`. No consumer must shape it again.
+
+No safety guard was removed: a required string may still be empty, and a required
+version may still be invalid. Analytics keeps its existing `DEMO`/`LIVE` values;
+using the new provenance for labels or analytics needs a founder decision.
+
+---
+
+## DRIFT-4 — resolved in step 5c
+
+Owner metadata derives from `WireOwnedOrder`, including nullable `etag` and
+`vessel_id`. `OwnedOrderBookOrder` requires the owner fields, and `/orderbook/my`
+now declares that result. The existing mapper remains the only shaping boundary.
+
+Founder decision: fully separate public and owner consumers. Until approved,
+`OrderBookOrder` retains a documented optional compatibility view of those fields.
+The public price cell's `updated_at` read and assisted-cancel guards stay unchanged.
+No UI, request, mapper output or branch changes.
+
+---
+
+## DRIFT-5 — resolved in step 5c
+
+`User` and `ExecutionEligibility` now alias their generated wire shapes. This
+removes the nonexistent `email_verified`, adds `referral_code`, and corrects all
+profile field presence and eligibility nullability. The admin queue's distinct
+`email_verified` is unchanged.
+
+The login profile validator remains unchanged: relaxing it for omitted names,
+role or organization could suppress its fallback `/auth/me` request. That is a
+behavior change, not a type correction. KYC guards and the referral-code fetch
+also stay unchanged. Founder decision: relax that validator or reuse the profile
+referral code only in a separate behavior/request change.
+
+---
+
+## DRIFT-6 — resolved in step 5c
+
+`AvailabilityWindow` now derives the wire string instead of enumerating dated
+display labels. The trade field admits the wire's nullable optional value, while
+its existing mapper still normalizes null to undefined. Canonical-to-label casts
+in App and Marketplace are removed; they emitted no JavaScript. All existing
+normalization, option generation and display formatting stay unchanged.
+
+Founder decision: the display vocabulary and legacy-label policy. No labels,
+request values or runtime branches change in this step.
+
+---
+
+## DRIFT-7 — resolved in step 5c
+
+Price summaries derive their required identity/count/reference fields. Products
+derive all non-decimal fields, delivery points and notifications alias the wire.
+Notification payloads are a required nullable unknown-valued map, no longer `any`.
+The existing catalog mapper still converts decimals and normalizes description
+null to undefined; no component reshapes the data.
+
+No runtime guard is removed: catalog guards also handle an absent product,
+empty lanes, unknown execution modes or stale/malformed responses. Keeping them
+preserves fail-closed behavior. Founder decision: whether to display summary
+product names or change handling for future catalog/notification strings.
+Commission entries 7.3/7.4 remain resolved by step 5b. Shipping/freight decimal
+families and the unused port/auto-match cleanup are follow-up scope, not entries
+in DRIFT-2 through DRIFT-7; this step does not change their behavior.
 
 ---
 
@@ -323,6 +362,24 @@ Consumers:
 2. `npm run typecheck` fails when `src/api/contract.test-d.ts` no longer matches
    either side. That failure means this file is out of date: update the entry, the
    expectation, and the step 5b plan together.
-3. Step 5b owns the decisions. When it removes an entry, delete the
-   corresponding `DRIFT-n` block from `src/api/contract.test-d.ts` and the row
-   here, and add a positive pin to the "Shapes that already agree" section.
+3. A step that resolves an entry deletes the corresponding `DRIFT-n` block
+   from `src/api/contract.test-d.ts` and the row here, and adds a positive pin
+   (both sides of the shape plus the mapper that joins them) to the resolved
+   section. All named entries are now resolved; compatibility and product
+   decisions are listed below.
+
+## Founder decisions — no UI or request changes made here
+
+1. **Unknown counts:** whether and where to show order/trade `unknown_count`.
+2. **Provenance:** whether order/trade labels or analytics should use the richer
+   provenance fields instead of the existing `is_demo_listing` mapping.
+3. **Public/owner views:** whether to remove owner metadata from public consumers,
+   including the public price cell's `updated_at` context. The compatibility type
+   remains optional; `/orderbook/my` has a required owner result.
+4. **Auth:** whether to accept omitted profile fields in the login fast path or
+   reuse its referral code. Both can change requests, so neither changes here.
+5. **Windows:** display-label vocabulary and the policy for legacy labels. The
+   existing formatter, generated options and request codes remain unchanged.
+6. **Catalog/notifications:** presentation of price-summary product names and
+   handling of future free-string execution modes or notification types. Current
+   guards and fallback rendering remain unchanged.

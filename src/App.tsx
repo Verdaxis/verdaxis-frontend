@@ -449,7 +449,7 @@ const DashboardLayout: React.FC = () => {
         side={sidebarModalSide || 'BID'}
         prefillMarketProduct={sidebarPrefillProduct}
         prefillRegion={sidebarMarketSlice?.port}
-        prefillAvailabilityWindow={sidebarMarketSlice?.window as AvailabilityWindow | undefined}
+        prefillAvailabilityWindow={sidebarMarketSlice?.window}
       />
     </Layout>
   );

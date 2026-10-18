@@ -39,9 +39,11 @@ function isOrderbookOrder(order: OrderBookOrder): boolean {
 
 export function getLivePriceCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
     // This is a provenance-scoped public price signal, not execution authority.
-    // API decimal fields can arrive as strings despite the frontend order type.
+    // The boundary converts `price_per_mt_usd` to a number before either list
+    // reaches this component, so a malformed value is NaN, exactly as the
+    // `Number(...)` coercion here used to produce.
     const hasLivePrice = (order: OrderBookOrder) => isOrderbookOrder(order) && !isDemoMarketActivity(order)
-        && Number.isFinite(Number(order.price_per_mt_usd)) && Number(order.price_per_mt_usd) > 0;
+        && Number.isFinite(order.price_per_mt_usd) && order.price_per_mt_usd > 0;
     const realBids = bids
         .filter(hasLivePrice)
         .sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd);
@@ -57,16 +59,16 @@ export function getLivePriceCrossState(bids: OrderBookOrder[], asks: OrderBookOr
 
     const bestBid = realBids[0];
     const bestAsk = realAsks[0];
-    const hasCross = Boolean(bestBid && bestAsk && Number(bestBid.price_per_mt_usd) >= Number(bestAsk.price_per_mt_usd));
+    const hasCross = Boolean(bestBid && bestAsk && bestBid.price_per_mt_usd >= bestAsk.price_per_mt_usd);
     const bidIds = new Set<string>();
     const askIds = new Set<string>();
 
     if (hasCross && bestBid && bestAsk) {
         realBids
-            .filter(order => Number(order.price_per_mt_usd) >= Number(bestAsk.price_per_mt_usd))
+            .filter(order => order.price_per_mt_usd >= bestAsk.price_per_mt_usd)
             .forEach(order => bidIds.add(order.id));
         realAsks
-            .filter(order => Number(order.price_per_mt_usd) <= Number(bestBid.price_per_mt_usd))
+            .filter(order => order.price_per_mt_usd <= bestBid.price_per_mt_usd)
             .forEach(order => askIds.add(order.id));
     }
 
@@ -79,13 +81,11 @@ export function getLivePriceCrossState(bids: OrderBookOrder[], asks: OrderBookOr
 }
 
 function formatPrice(price: number, locale = 'en'): string {
-    const value = Number(price);
-    return Number.isFinite(value) ? `$${value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
+    return Number.isFinite(price) ? `$${price.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
 }
 
 function formatQty(qty: number, locale = 'en'): string {
-    const value = Number(qty);
-    return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 2 }) : '—';
+    return Number.isFinite(qty) ? qty.toLocaleString(locale, { maximumFractionDigits: 2 }) : '—';
 }
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, executionMode, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {

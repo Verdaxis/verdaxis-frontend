@@ -22,6 +22,9 @@ export type WireOrderPage = Schemas['PaginatedResponse_OrderResponse_'];
 export type WireOrderBookSnapshot = Schemas['OrderBookSnapshotResponse'];
 export type WireAggregatedOrderbook = Schemas['AggregatedOrderbookResponse'];
 export type WireMapCompactMarket = Schemas['MapCompactMarketResponse'];
+export type WireMapCompactSummary = Schemas['MapCompactSummaryResponse'];
+export type WireMapSummary = Schemas['MapSummaryResponse'];
+export type WireMapRecentAsk = Schemas['MapRecentAskResponse'];
 export type WireOrderCreateInput = Schemas['OrderCreate-Input'];
 export type WireOrderSide = Schemas['OrderSide'];
 export type WireOrderBookStatus = Schemas['OrderBookStatus'];
@@ -33,6 +36,8 @@ export type WireTrade = Schemas['TradeResponse'];
 export type WireTradePage = Schemas['PaginatedResponse_TradeResponse_'];
 export type WireTradeCreateInput = Schemas['TradeCreate'];
 export type WireTradeStatus = Schemas['TradeStatus'];
+export type WireTradeTapeEntry = Schemas['TradeTapeEntry'];
+export type WireTradeTapeResponse = Schemas['TradeTapeResponse'];
 
 // ─── Users ──────────────────────────────────────────────────────────
 
@@ -46,11 +51,45 @@ export type WireExecutionEligibility = Schemas['ExecutionEligibilityResponse'];
 
 export type WirePriceSummary = Schemas['PriceSummary'];
 export type WirePriceDiscovery = Schemas['PriceDiscoveryResponse'];
+export type WireReferencePrice = Schemas['ReferencePriceResponse'];
+export type WireReferencePriceItem = Schemas['ReferencePriceItem'];
 
 // ─── Catalog ────────────────────────────────────────────────────────
 
 export type WireProduct = Schemas['ProductResponse'];
 export type WireDeliveryPoint = Schemas['DeliveryPointResponse'];
+export type WireInventoryItem = Schemas['InventoryResponse'];
+export type WirePort = Schemas['PortResponse'];
+
+// ─── Forward curve ──────────────────────────────────────────────────
+
+export type WireForwardCurve = Schemas['ForwardCurveResponse'];
+export type WireForwardCurvePoint = Schemas['ForwardCurvePoint'];
+export type WireForwardCurveBoard = Schemas['ForwardCurveBoardResponse'];
+export type WireForwardCurveBoardCell = Schemas['ForwardCurveBoardCell'];
+export type WireForwardCurveBoardDepthLevel = Schemas['ForwardCurveBoardDepthLevel'];
+export type WireForwardCurveBoardIndication = Schemas['ForwardCurveBoardIndication'];
+export type WireForwardCurveBoardIndicationSummary = Schemas['ForwardCurveBoardIndicationSummary'];
+export type WireForwardCurveBoardFairPriceBand = Schemas['ForwardCurveBoardFairPriceBand'];
+export type WireForwardCurveBoardPhysicalStem = Schemas['ForwardCurveBoardPhysicalStem'];
+export type WireForwardCurveBoardPhysicalStemSummary = Schemas['ForwardCurveBoardPhysicalStemSummary'];
+export type WireForwardCurveBoardPort = Schemas['ForwardCurveBoardPort'];
+export type WireForwardCurveBoardFocus = Schemas['ForwardCurveBoardFocus'];
+export type WireForwardCurveMarketCell = Schemas['ForwardCurveMarketCell'];
+export type WireForwardCurveTableRow = Schemas['ForwardCurveTableRow'];
+export type WireForwardCurveTable = Schemas['ForwardCurveTableResponse'];
+export type WireForwardCurveLatestSignal = Schemas['ForwardCurveLatestSignal'];
+export type WireForwardCurveSlice = Schemas['ForwardCurveSliceResponse'];
+export type WireForwardCurveSliceTrade = Schemas['ForwardCurveSliceTrade'];
+export type WireForwardCurveSliceEvidencePoint = Schemas['ForwardCurveSliceEvidencePoint'];
+
+// ─── Watchlists ─────────────────────────────────────────────────────
+
+export type WireWatchlistTarget = Schemas['WatchlistTargetResponse'];
+export type WireWatchlistEvent = Schemas['WatchlistEventResponse'];
+export type WireWatchlistEventsPage = Schemas['WatchlistEventsPageResponse'];
+export type WireWatchlistSummary = Schemas['WatchlistSummaryResponse'];
+export type WireWatchlistDetail = Schemas['WatchlistDetailResponse'];
 
 // ─── Notifications ──────────────────────────────────────────────────
 

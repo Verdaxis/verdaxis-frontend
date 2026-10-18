@@ -5,6 +5,7 @@ import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS, getMarketplaceProductLabel } from '
 import type { Product } from '../types';
 
 describe('market product display resolution', () => {
+  // Legacy catalog responses intentionally omit execution_mode.
   const products: Product[] = [
     {
       id: 'prod-bio-met',
@@ -14,8 +15,8 @@ describe('market product display resolution', () => {
       fuel_grade: 'Bio',
       unit: 'MT',
       min_lot_size: 500,
-      is_active: true,
-    },
+      is_active: true, available_delivery_point_ids: [],
+    } as unknown as Product,
     {
       id: 'prod-e-met',
       name: 'e-Methanol',
@@ -24,8 +25,8 @@ describe('market product display resolution', () => {
       fuel_grade: 'E',
       unit: 'MT',
       min_lot_size: 500,
-      is_active: true,
-    },
+      is_active: true, available_delivery_point_ids: [],
+    } as unknown as Product,
   ];
 
   it('resolves a catalog product id to a human-readable name', () => {

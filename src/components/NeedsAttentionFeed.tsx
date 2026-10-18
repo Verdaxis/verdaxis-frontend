@@ -86,8 +86,9 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
         <div className="space-y-2">
             {actionable.map(trade => {
                 const counterparty = viewMode === 'BUYER' ? trade.seller_name : trade.buyer_name;
-                const qty = Number(trade.quantity_mt).toLocaleString(i18n.language);
-                const price = Number(trade.price_per_mt_usd).toLocaleString(i18n.language);
+                // The trade boundary converted both to numbers.
+                const qty = trade.quantity_mt.toLocaleString(i18n.language);
+                const price = trade.price_per_mt_usd.toLocaleString(i18n.language);
                 const marketProduct = getMarketplaceProductValue(
                     typeof trade.market_product === 'string'
                         ? trade.market_product

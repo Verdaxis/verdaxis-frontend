@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
-import type { ExecutionEligibility } from '../types';
+import type { WireUser } from '../api/contract';
 import {
     AUTH_IDENTITY_CHANGED_EVENT,
     clearAccessToken,
@@ -13,22 +13,8 @@ import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../servic
 import { analytics, reliability } from '../services/analytics';
 import { setReadCachePrincipal } from '../services/readCache';
 
-type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
-
-export interface User {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  role: UserRole | null;
-  organization_id?: string | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  email_verified?: boolean;
-  kyc_status?: string;
-  /** Whether the user may execute trades, and why (see `ExecutionEligibility`). */
-  execution_eligibility?: ExecutionEligibility | null;
-  must_change_password?: boolean;
-}
+/** The auth profile is the backend response, with no client-only fields. */
+export type User = WireUser;
 
 interface AuthContextType {
   user: User | null;

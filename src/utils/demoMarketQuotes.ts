@@ -44,10 +44,11 @@ export const buildDemoMarketQuotes = (rows: AggregatedOrderbook[]): DemoMarketQu
     };
 
     if (row.side === 'BID') {
-      const price = Number(row.max_price);
+      // The boundary has already made these prices numbers; a missing one is NaN.
+      const price = row.max_price;
       if (Number.isFinite(price)) slice.bestBid = Math.max(slice.bestBid ?? price, price);
     } else if (row.side === 'ASK') {
-      const price = Number(row.min_price);
+      const price = row.min_price;
       if (Number.isFinite(price)) slice.bestAsk = Math.min(slice.bestAsk ?? price, price);
     }
     if ((row.observed_at ?? '') > (slice.observedAt ?? '')) slice.observedAt = row.observed_at;

@@ -51,7 +51,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 - **Component exports:** Named exports throughout (e.g., `export const BuyerMap`). Default exports only on pages used by route definitions.
 - **Styling:** Tailwind utility classes inline. Dark mode uses `dark:` prefix classes. The `dark` class is toggled on `<html>` by ThemeContext.
 - **Icons:** Always from `lucide-react`. Import only the icons you need.
-- **API data quirk:** Backend returns numbers as strings -- always wrap with `Number()` before arithmetic (see Known Gotchas).
+- **Decimal boundary:** Backend `Decimal` fields arrive as JSON strings and are converted to numbers exactly once by the mappers in `src/api/` (see Known Gotchas). Components never call `Number()` on wire data; displays use the shared formatters in `src/utils/numberFormat.ts`.
 - **Context usage:** Use `useAuth()`, `useTheme()`, `useCopilotContext()`, `useNotifications()` hooks, never access contexts directly.
 - **File organization:** Top-level components in `src/components/` for major views. Subdirectories for related groups (layout, map, compliance, ui, public, buyer, supplier, ai, fleet, notifications).
 - **No CSS modules or styled-components.** All styling is Tailwind. Global styles are minimal and live in `src/index.css`.
@@ -143,7 +143,7 @@ prefix. See `docs/behavioral-analytics.md` for the privacy and event contract.
 
 ## Known Gotchas
 
-- **API returns numbers as strings.** Always wrap numeric fields (`quantity_mt`, `final_quantity_mt`, `price_per_mt_usd`, `final_price_per_mt`, `final_total_usd`) with `Number()` before arithmetic or `.toFixed()` calls.
+- **Wire decimals cross one boundary.** The backend serializes `Decimal` as a JSON string. The mappers in `src/api/mappers.ts` (built on `parseWireDecimal` / `requireWireDecimal` in `src/api/decimals.ts`) convert each one where it enters the app: every `services/api.ts` method, the public ticker's direct fetches, and the trade stream in `useSSE`. A component therefore receives a `number` (or `number | null` where the wire may omit the field) and never calls `Number()` on wire data. Money and unit prices render with `formatUsd`, quantities and measurements with `formatQuantity` (`src/utils/numberFormat.ts`), so no displayed text depends on how the wire spells a number.
 - **Never commit `dist/` to git.** It's in `.gitignore`. If it gets force-added, run `git rm -r --cached dist/` to untrack it.
 - **UCOME B100 uses the shared orderbook.** `/app/marketplace?product=UCOME_B100` opens normal Listings/Orderbook/My Listings for the active Singapore market. Standard BID/ASK submissions carry typed B100 requirements/declarations; direct trades and matching check compatibility. Map, Market Watch and Forward Curve include B100 with honest no-data states. Earlier indicative offers and RFQs remain in history and are never silently promoted to orders.
 - **In-app navigation is URL-routed.** Every authenticated view is a nested route under `/app` (see Routing). New authenticated pages need a child route in `App.tsx` plus a `Page` value and `PAGE_SLUGS` entry in `types.ts` so the sidebar, session restore, and `data-dashboard-page` contract keep working.

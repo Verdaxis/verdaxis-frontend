@@ -1,5 +1,6 @@
 import type { AggregatedOrderbook, DeliveryPoint, MarketProduct, Product } from '../types';
 import { API_URL } from '../services/config';
+import { toAggregatedOrderbooks, toProducts } from '../api/mappers';
 import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { filterApprovedTradingPorts, normalizeTradingPortName } from '../utils/tradingPorts';
@@ -62,7 +63,7 @@ const buildTickerItems = (
   deliveryPoints: DeliveryPoint[],
 ): FuelPrice[] => {
   const activeProducts = products.filter(product => (
-    product.is_active && product.market_product && DEMO_PRODUCTS.includes(product.market_product)
+    product.is_active && product.market_product && (DEMO_PRODUCTS as readonly string[]).includes(product.market_product)
   ));
   const productOrder = new Map(activeProducts.map((product, index) => [product.market_product, index]));
   const activePorts = filterApprovedTradingPorts(deliveryPoints.filter(point => point.is_active));
@@ -111,9 +112,11 @@ export const fetchFuelPrices = async (signal?: AbortSignal): Promise<FuelPrice[]
   const [orderbookPayload, productsPayload, deliveryPointsPayload] = await Promise.all(
     responses.map(response => response.json()),
   );
+  // This public ticker reads the API directly (no auth, no client cache), so it
+  // converts the two wire shapes it receives here rather than in a component.
   return buildTickerItems(
-    Array.isArray(orderbookPayload) ? orderbookPayload : [],
-    Array.isArray(productsPayload) ? productsPayload : [],
+    toAggregatedOrderbooks(orderbookPayload),
+    toProducts(productsPayload),
     Array.isArray(deliveryPointsPayload) ? deliveryPointsPayload : [],
   );
 };

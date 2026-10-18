@@ -3,9 +3,30 @@ import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from
 import type { SupplierOffer, SupplierOfferCreateInput, SupplierOfferList, SupplierOfferListParams, SupplierOfferMyListParams, SupplierOfferUpdateInput } from '../types/fameSupplierOffer';
 import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferListQuery, SUPPLIER_OFFERS_CHANGED_EVENT } from './fameSupplierOffer';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
-import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot, OrderCreateInput, Trade, TradeCreateInput } from '../types';
+import type { AggregatedOrderbook, MapCompactMarket, OrderBookOrder, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot, OrderCreateInput, Trade, TradeCreateInput } from '../types';
 import { mapOrderbookTermsResponse, mapTradeTermsResponse } from './orderTerms';
-import { parseWireDecimal } from '../api/decimals';
+import {
+    toAggregatedOrderbooks,
+    toMapCompactMarkets,
+    toMapRecentAsks,
+    toOrderBookOrder,
+    toOrderBookOrders,
+    toPriceSummaries,
+    toProducts,
+    toReferencePriceItems,
+    toTrade,
+    toTradeTapeEntries,
+    toTrades,
+    mapWirePage,
+    toForwardCurveBoard,
+    toForwardCurveResponse,
+    toForwardCurveSlice,
+    toForwardCurveTable,
+    toInventoryItem,
+    toInventoryItems,
+    type MapRecentAsk,
+    type ReferencePriceItem,
+} from '../api/mappers';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -32,11 +53,16 @@ import type {
     MarketSupportStartInput,
 } from '../types/marketSupport';
 
+/**
+ * The port intelligence prices arrive as JSON numbers (`PortResponse.intelligence`
+ * is `number | null`), so this mapper needs no decimal boundary; it only lifts
+ * the intelligence block into the app's `Port` shape.
+ */
 export const mapPortResponse = (p: any): Port => ({
     ...p,
     location: { lat: p.lat, lng: p.lng },
-    priceMethanol: Number(p.intelligence?.methanol_price_avg ?? 0),
-    priceTrend: Number(p.intelligence?.price_trend ?? 0),
+    priceMethanol: p.intelligence?.methanol_price_avg ?? 0,
+    priceTrend: p.intelligence?.price_trend ?? 0,
     methanolSupply: 'Unknown',
     biofuelSupply: 'Unknown',
     details: {
@@ -45,30 +71,14 @@ export const mapPortResponse = (p: any): Port => ({
         ffaPrice: p.intelligence?.biofuel_price_avg ?? undefined,
         priceHistory: Array.isArray(p.details?.priceHistory) ? p.details.priceHistory : [],
         congestionLevel: p.intelligence?.congestion_level ?? 'Unknown',
-        avgWaitingTime: Number(p.details?.avgWaitingTime ?? 0),
-        activeBarges: Number(p.details?.activeBarges ?? 0),
+        avgWaitingTime: p.details?.avgWaitingTime ?? 0,
+        activeBarges: p.details?.activeBarges ?? 0,
         forecastSupply: p.details?.forecastSupply ?? 'Unknown',
         upcomingProjects: Array.isArray(p.details?.upcomingProjects) ? p.details.upcomingProjects : [],
         swapPrice: p.details?.swapPrice ?? undefined,
         lastDone: p.details?.lastDone ?? undefined,
     }
 });
-
-/**
- * Catalog product as the app consumes it. The wire sends `min_lot_size` as a
- * decimal string; this is the boundary that turns it into the `number` the
- * hand-written `Product` type declares (DRIFT-1, entry 1.8). An unusable value
- * becomes `NaN` so the order form keeps its existing "catalog minimum
- * unavailable" guard instead of accepting a bogus minimum.
- */
-const mapCatalogProduct = (raw: any): Product => ({
-    ...raw,
-    min_lot_size: parseWireDecimal(raw?.min_lot_size) ?? NaN,
-});
-
-const mapCatalogProducts = (raw: unknown): Product[] => (
-    Array.isArray(raw) ? raw.map(mapCatalogProduct) : []
-);
 
 const getHeaders = () => {
     const token = getAccessToken();
@@ -444,22 +454,7 @@ export interface OrderbookProductCounts {
     total: number;
 }
 
-export interface MapRecentAsk {
-    product_id: string;
-    product_name: string;
-    market_product: MarketProduct | string;
-    fuel_type: string;
-    delivery_point_id: string;
-    delivery_point_name: string;
-    region: string;
-    price_per_mt_usd: number | string;
-    remaining_quantity_mt: number | string;
-    created_at: string;
-    evidence_class: string;
-    source_kind: MarketSourceKind;
-    scope: MarketScope;
-    demo_status: MarketDemoStatus;
-}
+export type { MapRecentAsk } from '../api/mappers';
 
 export interface MapOrderbookSummary {
     groups: AggregatedOrderbook[];
@@ -777,26 +772,7 @@ export const api = {
         list: async (): Promise<InventoryItem[]> => {
             const res = await fetchWithTimeout(`${API_URL}/inventory`, { headers: getHeaders() });
             const data = await handleResponse(res);
-            return data.map((item: any) => {
-                let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
-                const currentStock = Number(item.current_stock_mt);
-                if (currentStock <= 0) {
-                    status = 'Out of Stock';
-                } else if (currentStock < 500) {
-                    status = 'Low Stock';
-                }
-
-                return {
-                    id: item.id,
-                    productName: item.product_name || item.fuel_type,
-                    portId: item.port_id,
-                    portName: item.port_id?.split('-')[1]?.toUpperCase() || item.port_id,
-                    currentStock: currentStock,
-                    incomingStock: Number(item.incoming_stock_mt) || 0,
-                    pricePerMt: Number(item.price_per_mt_usd) || 0,
-                    status: status
-                };
-            });
+            return toInventoryItems(data);
         },
         publish: async (itemId: string): Promise<any> => {
             const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}/publish`, {
@@ -838,23 +814,7 @@ export const api = {
                 body: JSON.stringify(payload)
             }, 30000);
             const data = await handleResponse(res);
-            let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
-            const currentStock = Number(data.current_stock_mt);
-            if (currentStock <= 0) {
-                status = 'Out of Stock';
-            } else if (currentStock < 500) {
-                status = 'Low Stock';
-            }
-            return {
-                id: data.id,
-                productName: data.product_name || data.fuel_type,
-                portId: data.port_id,
-                portName: data.port_id?.split('-')[1]?.toUpperCase() || data.port_id,
-                currentStock: currentStock,
-                incomingStock: Number(data.incoming_stock_mt) || 0,
-                pricePerMt: Number(data.price_per_mt_usd) || 0,
-                status: status
-            };
+            return toInventoryItem(data);
         }
     },
 
@@ -887,7 +847,8 @@ export const api = {
     catalog: {
         products: async (cacheOptions?: ReadCacheOptions): Promise<Product[]> => {
             const raw = await readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
-            return mapCatalogProducts(raw);
+            // `toProduct` reads `min_lot_size` through the decimal boundary.
+            return toProducts(raw);
         },
         deliveryPoints: async (cacheOptions?: ReadCacheOptions): Promise<DeliveryPoint[]> => {
             return readApi('catalog:delivery-points', '/catalog/delivery-points', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
@@ -906,7 +867,9 @@ export const api = {
                 availability_window: params.availability_window,
             });
             const path = `/orderbook/snapshot?${searchParams.toString()}`;
-            const response = await readApi<OrderBookSnapshot>(
+            // Read the body as the wire shape so the mapper can convert its
+            // decimals; the envelope fields are the same on both types.
+            const response = await readApi<any>(
                 `orderbook:${path}`,
                 path,
                 'orderbookSnapshot',
@@ -916,8 +879,8 @@ export const api = {
             );
             return {
                 ...response,
-                bids: mapOrderbookTermsResponse(response.bids),
-                asks: mapOrderbookTermsResponse(response.asks),
+                bids: toOrderBookOrders(mapOrderbookTermsResponse(response.bids)),
+                asks: toOrderBookOrders(mapOrderbookTermsResponse(response.asks)),
             };
         },
         list: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
@@ -930,7 +893,9 @@ export const api = {
             if (params?.availability) searchParams.append('availability_window', params.availability);
             const query = searchParams.toString();
             const path = `/orderbook${query ? `?${query}` : ''}`;
-            return mapOrderbookTermsResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
+            return toOrderBookOrders(mapOrderbookTermsResponse(
+                await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions),
+            ));
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
         listBids: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
@@ -943,7 +908,7 @@ export const api = {
             searchParams.append('limit', '100');
             const path = `/orderbook/bids?${searchParams.toString()}`;
             const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
-            return mapOrderbookTermsResponse(res.items ?? res);
+            return toOrderBookOrders(mapOrderbookTermsResponse(res.items ?? res));
         },
         // Paginated: returns { items, total, skip, limit }
         listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
@@ -957,7 +922,10 @@ export const api = {
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             const path = `/orderbook/bids?${searchParams.toString()}`;
-            return mapOrderbookTermsResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
+            return mapWirePage(
+                mapOrderbookTermsResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions)),
+                toOrderBookOrder,
+            );
         },
         // Backward-compatible: returns array
         listAsks: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
@@ -970,7 +938,7 @@ export const api = {
             searchParams.append('limit', '100');
             const path = `/orderbook/asks?${searchParams.toString()}`;
             const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
-            return mapOrderbookTermsResponse(res.items ?? res);
+            return toOrderBookOrders(mapOrderbookTermsResponse(res.items ?? res));
         },
         // Paginated: returns { items, total, skip, limit }
         listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
@@ -984,34 +952,47 @@ export const api = {
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             const path = `/orderbook/asks?${searchParams.toString()}`;
-            return mapOrderbookTermsResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
+            return mapWirePage(
+                mapOrderbookTermsResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions)),
+                toOrderBookOrder,
+            );
         },
-        myOrders: async (cacheOptions?: ReadCacheOptions) => {
+        myOrders: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').OwnedOrderBookOrder[]> => {
             const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
-            return mapOrderbookTermsResponse(response.items ?? response);
+            return toOrderBookOrders(mapOrderbookTermsResponse(response.items ?? response)) as import('../types').OwnedOrderBookOrder[];
         },
         create: async (data: OrderCreateInput) => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
-            return mapOrderbookTermsResponse(await mutateApi(invalidateTradeExecutionReads, '/orderbook', {
-                method: 'POST',
-                headers: {
-                    ...getHeaders(),
-                    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-                },
-                body: JSON.stringify(requestData),
-            }));
+            const raw: any = mapOrderbookTermsResponse(
+                await mutateApi(invalidateTradeExecutionReads, '/orderbook', {
+                    method: 'POST',
+                    headers: {
+                        ...getHeaders(),
+                        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+                    },
+                    body: JSON.stringify(requestData),
+                }),
+            );
+            const order: any = toOrderBookOrder(raw);
+            // `OrderResponse` carries no `trades`, so the order window's
+            // auto-matched panel is unreachable today. Convert a `trades` array
+            // here if a create ever returns one, rather than at the component.
+            if (Array.isArray(raw?.trades)) order.trades = toTrades(raw.trades);
+            return order;
         },
         update: async (id: string, data: any, idempotencyKey?: string) => {
-            return mapOrderbookTermsResponse(await mutateApi(invalidateTradeExecutionReads, `/orderbook/${id}`, {
-                method: 'PUT',
-                headers: {
-                    ...getHeaders(),
-                    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-                },
-                body: JSON.stringify(data),
-            }));
+            return toOrderBookOrder(mapOrderbookTermsResponse(
+                await mutateApi(invalidateTradeExecutionReads, `/orderbook/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        ...getHeaders(),
+                        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+                    },
+                    body: JSON.stringify(data),
+                }),
+            ));
         },
-        cancel: async (id: string, options?: { reason?: string; etag?: string; idempotencyKey?: string }) => {
+        cancel: async (id: string, options?: { reason?: string; etag?: string | null; idempotencyKey?: string }) => {
             if (getMarketSupportContextId() && !options?.etag) {
                 throw new ApiError(
                     'A current listing version is required before cancelling in the assisted workspace.',
@@ -1030,7 +1011,9 @@ export const api = {
             });
         },
         aggregated: async (cacheOptions?: ReadCacheOptions): Promise<AggregatedOrderbook[]> => {
-            return readApi('orderbook:aggregated', '/orderbook/aggregated', 'market', 'private', undefined, cacheOptions);
+            return toAggregatedOrderbooks(
+                await readApi('orderbook:aggregated', '/orderbook/aggregated', 'market', 'private', undefined, cacheOptions),
+            );
         },
         regions: async () => {
             return readApi('orderbook:regions', '/orderbook/regions', 'reference');
@@ -1055,11 +1038,20 @@ export const api = {
         },
         mapSummary: async (cacheOptions?: ReadCacheOptions): Promise<MapOrderbookSummary> => {
             const path = '/orderbook/map-summary';
-            return readApi(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
+            const summary = await readApi<MapOrderbookSummary>(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
+            return {
+                groups: toAggregatedOrderbooks(summary.groups),
+                recent_asks: toMapRecentAsks(summary.recent_asks),
+            };
         },
         compactMapSummary: async (cacheOptions?: ReadCacheOptions): Promise<MapCompactOrderbookSummary> => {
             const path = '/orderbook/map-summary/compact';
-            return readApi(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
+            const summary = await readApi<MapCompactOrderbookSummary>(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
+            return {
+                markets: toMapCompactMarkets(summary.markets),
+                demo_groups: toAggregatedOrderbooks(summary.demo_groups),
+                recent_asks: toMapRecentAsks(summary.recent_asks),
+            };
         },
     },
 
@@ -1075,9 +1067,10 @@ export const api = {
             if (params?.hours) searchParams.append('hours', String(params.hours));
             const query = searchParams.toString();
             const path = `/prices${query ? `?${query}` : ''}`;
-            return readApi(`prices:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            const response = await readApi<PriceDiscoveryResponse>(`prices:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return { ...response, summaries: toPriceSummaries(response.summaries) };
         },
-        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }, cacheOptions?: ReadCacheOptions): Promise<{ prices: Array<{ product_id?: string | null; delivery_point_id?: string | null; availability_window: string; fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }, cacheOptions?: ReadCacheOptions): Promise<{ prices: ReferencePriceItem[]; generated_at: string }> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -1090,26 +1083,29 @@ export const api = {
             if (params?.date_to) searchParams.append('date_to', params.date_to);
             const query = searchParams.toString();
             const path = `/prices/reference${query ? `?${query}` : ''}`;
-            return readApi(`prices:${path}`, path, 'reference', 'private', undefined, cacheOptions);
+            const response = await readApi<{ prices: ReferencePriceItem[]; generated_at: string }>(
+                `prices:${path}`, path, 'reference', 'private', undefined, cacheOptions,
+            );
+            return { ...response, prices: toReferencePriceItems(response.prices) };
         },
     },
 
     trades: {
         initiate: async (data: TradeCreateInput): Promise<Trade> => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
-            return mapTradeTermsResponse(await mutateApi(invalidateTradeExecutionReads, '/trades/', {
+            return toTrade(mapTradeTermsResponse(await mutateApi(invalidateTradeExecutionReads, '/trades/', {
                 method: 'POST',
                 headers: {
                     ...getHeaders(),
                     ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
                 },
                 body: JSON.stringify(requestData),
-            })) as Trade;
+            })));
         },
         // Backward-compatible: returns array
-        myTrades: async (cacheOptions?: ReadCacheOptions) => {
+        myTrades: async (cacheOptions?: ReadCacheOptions): Promise<Trade[]> => {
             const res: any = await readApi('trades:my', '/trades/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
-            return mapTradeTermsResponse(res.items ?? res);
+            return toTrades(mapTradeTermsResponse(res.items ?? res));
         },
         summary: async (cacheOptions?: ReadCacheOptions): Promise<TradeSummary> => {
             return readApi('trades:summary', '/trades/summary', 'private', 'private', { headers: getHeaders() }, cacheOptions);
@@ -1131,32 +1127,35 @@ export const api = {
                 searchParams.append('status_group', params.status_group);
             }
             const path = `/trades/my?${searchParams.toString()}`;
-            return mapTradeTermsResponse(await readApi(`trades:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions));
+            return mapWirePage(
+                mapTradeTermsResponse(await readApi(`trades:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions)),
+                toTrade,
+            );
         },
         confirm: async (tradeId: string, idempotencyKey?: string) => {
-            return mapTradeTermsResponse(await mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/confirm`, {
+            return toTrade(mapTradeTermsResponse(await mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/confirm`, {
                 method: 'PUT',
                 headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
-            }));
+            })));
         },
         decline: async (tradeId: string, idempotencyKey?: string) => {
-            return mapTradeTermsResponse(await mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/decline`, {
+            return toTrade(mapTradeTermsResponse(await mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/decline`, {
                 method: 'PUT',
                 headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
-            }));
+            })));
         },
         deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }, idempotencyKey?: string) => {
-            return mapTradeTermsResponse(await mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/deliver`, {
+            return toTrade(mapTradeTermsResponse(await mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/deliver`, {
                 method: 'PUT',
                 headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
                 body: JSON.stringify(data),
-            }));
+            })));
         },
         pay: async (tradeId: string, idempotencyKey?: string) => {
-            return mapTradeTermsResponse(await mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/pay`, {
+            return toTrade(mapTradeTermsResponse(await mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/pay`, {
                 method: 'POST',
                 headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
-            }));
+            })));
         },
     },
 
@@ -1285,7 +1284,9 @@ export const api = {
             searchParams.append('product_id', params.product_id);
             if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             const path = `/curves/forward?${searchParams.toString()}`;
-            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return toForwardCurveResponse(
+                await readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions),
+            );
         },
         board: async (params?: { availability_window?: string; focus_market_product?: string; focus_delivery_point_id?: string }, cacheOptions?: ReadCacheOptions): Promise<import('../types').ForwardCurveBoardResponse> => {
             const searchParams = new URLSearchParams();
@@ -1294,7 +1295,9 @@ export const api = {
             if (params?.focus_delivery_point_id) searchParams.append('focus_delivery_point_id', params.focus_delivery_point_id);
             const query = searchParams.toString();
             const path = `/curves/forward/board${query ? `?${query}` : ''}`;
-            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return toForwardCurveBoard(
+                await readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions),
+            );
         },
         table: async (params?: { windows?: string[] }, cacheOptions?: ReadCacheOptions): Promise<import('../types').ForwardCurveTableResponse> => {
             const searchParams = new URLSearchParams();
@@ -1303,7 +1306,9 @@ export const api = {
             });
             const query = searchParams.toString();
             const path = `/curves/forward/table${query ? `?${query}` : ''}`;
-            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return toForwardCurveTable(
+                await readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions),
+            );
         },
         slice: async (params: {
             market_product: string;
@@ -1315,7 +1320,9 @@ export const api = {
             searchParams.append('delivery_point_id', params.delivery_point_id);
             searchParams.append('availability_window', params.availability_window);
             const path = `/curves/forward/slice?${searchParams.toString()}`;
-            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return toForwardCurveSlice(
+                await readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions),
+            );
         },
         exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
             const searchParams = new URLSearchParams();
@@ -1437,7 +1444,10 @@ export const api = {
             sp.append('limit', String(params?.limit ?? 20));
             sp.append('skip', String(params?.skip ?? 0));
             const path = `/trade-tape?${sp.toString()}`;
-            return readApi(`trade-tape:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            const page = await readApi<{ items: unknown[]; total: number; market_hours: boolean }>(
+                `trade-tape:${path}`, path, 'market', 'private', undefined, cacheOptions,
+            );
+            return { ...page, items: toTradeTapeEntries(page.items) };
         },
     },
 

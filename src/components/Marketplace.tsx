@@ -1,5 +1,5 @@
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
-import { parseWireDecimal } from '../api/decimals';
+import { formatQuantity, formatUsd } from '../utils/numberFormat';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -221,9 +221,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     ));
     const marketProduct = isOrderbookMarketProduct(requestedProduct) ? requestedProduct : selectedMarketProduct;
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
-        if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window as AvailabilityWindow;
+        if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window;
         const stored = localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow);
-        return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
+        return stored ? (normalizeAvailabilityWindow(stored)) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({ locale }), [locale]);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -361,7 +361,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const cancellationRequestRef = useRef<{
         orderId: string;
         reason: string;
-        etag?: string;
+        etag?: string | null;
         idempotencyKey: string;
         authGeneration: number;
         supportContextId: string | null;
@@ -611,7 +611,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setMarketProduct(initialSlice.product);
         setPortInput(initialSlice.port);
         setStoredDeliveryPointId('');
-        setAvailability(initialSlice.window as AvailabilityWindow);
+        setAvailability(initialSlice.window);
         setCurrentSkip(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialSlice?.product, initialSlice?.port, initialSlice?.window]);
@@ -848,7 +848,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeNeedsRefresh(false);
         setTradeResult(null);
         setSelectedOrder(order);
-        setTradeQuantity(parseWireDecimal(order.remaining_quantity_mt) ?? NaN);
+        // The order boundary already converted `remaining_quantity_mt` to a number.
+        setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
         setTradeKycBlocked(false);
@@ -866,7 +867,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 ? await api.orderbook.myOrders({ force: true })
                 : await api.orderbook.myOrders();
             if (requestId !== latestMyOrdersRequest.current) return;
-            setMyOrders(Array.isArray(data) ? data : data.items ?? []);
+            // `/orderbook/my` answers with a bare array; `data.items` is the
+            // paginated fallback for an older backend and never resolves to `never`
+            // at runtime.
+            setMyOrders(Array.isArray(data) ? data : ((data as { items?: OrderBookOrder[] }).items ?? []));
         } catch (error) {
             if (requestId !== latestMyOrdersRequest.current) return;
             if (!force) setMyOrders([]);
@@ -1254,7 +1258,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             case 'volume':
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-slate-700 dark:text-slate-200 text-xs">
-                        {order.remaining_quantity_mt.toLocaleString()}
+                        {formatQuantity(order.remaining_quantity_mt)}
                     </td>
                 );
             case 'price': {
@@ -1262,9 +1266,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 return (
                     <td key={col} className="w-[160px] max-w-[160px] whitespace-nowrap px-4 py-2 font-mono text-xs xl:w-auto xl:max-w-none">
                         <BenchmarkPriceBlock
-                            priceUsd={Number(order.price_per_mt_usd)}
-                            benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
-                            deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
+                            priceUsd={order.price_per_mt_usd}
+                            benchmarkUsd={order.benchmark_price_per_mt_usd}
+                            deltaUsd={order.premium_discount_per_mt_usd}
                             benchmarkSource={order.benchmark_source}
                             contextUpdatedAt={order.updated_at}
                         />
@@ -1502,7 +1506,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <VerdaxisSelect
                                                 ariaLabel={t('marketplace.filter.window')}
                                                 value={availability}
-                                                onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                                onChange={(value) => setAvailability(value)}
                                                 options={[
                                                     { value: '', label: t('marketplace.filter.anyWindow') },
                                                     ...availabilityOptions.map(option => ({
@@ -1848,13 +1852,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                         {order.delivery_point_name || order.region}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                                        ${Number(order.price_per_mt_usd).toLocaleString(locale)}
+                                                        ${order.price_per_mt_usd.toLocaleString(locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {Number(order.quantity_mt).toLocaleString(locale)}
+                                                        {formatQuantity(order.quantity_mt, locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {Number(order.remaining_quantity_mt).toLocaleString(locale)}
+                                                        {formatQuantity(order.remaining_quantity_mt, locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
                                                         {formatDeliveryWindow(order, locale)}
@@ -2008,11 +2012,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             </div>
                                             <div>
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeResult.quantity_mt.toLocaleString(locale)} MT</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{formatQuantity(tradeResult.quantity_mt, locale)} MT</div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
-                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${tradeResult.price_per_mt_usd}/MT</div>
+                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${formatUsd(tradeResult.price_per_mt_usd)}/MT</div>
                                             </div>
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
@@ -2134,7 +2138,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.price')}</span>
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                                ${selectedOrder.price_per_mt_usd.toLocaleString()} / MT
+                                                ${formatUsd(selectedOrder.price_per_mt_usd)} / MT
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center">
@@ -2163,7 +2167,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
                                         </div>
                                         <p className="text-xs text-slate-400 mt-1 text-right">
-                                            {t('marketplace.modal.maxAvailable')} {selectedOrder.remaining_quantity_mt.toLocaleString()} MT
+                                            {t('marketplace.modal.maxAvailable')} {formatQuantity(selectedOrder.remaining_quantity_mt, locale)} MT
                                             {Number.isFinite(tradeQuantity) && tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
                                                 <span className="ml-2 text-emerald-500 font-bold">
                                                     {t('marketplace.modal.total')} ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
@@ -2174,7 +2178,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     {getBiofuelSpecification(selectedOrder.market_product) && <div className="text-sm text-slate-600 dark:text-slate-300">
                                         <p>{t(`${selectedOrder.market_product?.toLowerCase()}.contract`)}</p>
                                         <p>{selectedOrder.specification_standard}</p>
-                                        <p>{selectedOrder.carbon_intensity_gco2_mj ?? t('common.notAvailable')} gCO₂e/MJ · {selectedOrder.carbon_intensity_method}</p>
+                                        <p>{formatQuantity(selectedOrder.carbon_intensity_gco2_mj, locale) || t('common.notAvailable')} gCO₂e/MJ · {selectedOrder.carbon_intensity_method}</p>
                                     </div>}
                                     {selectedOrder.market_product === 'UCOME_B100' && <div className="space-y-4">
                                         {selectedOrder.fame_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>
@@ -2307,8 +2311,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 prefillMarketProduct={orderModalPrefill?.market_product || (marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined)}
                 prefillDeliveryPointId={orderModalPrefill?.delivery_point_id || currentSliceTarget?.deliveryPointId}
                 prefillAvailabilityWindow={orderModalPrefill?.availability_window || availability || undefined}
-                prefillQuantity={orderModalPrefill ? Number(orderModalPrefill.remaining_quantity_mt) : undefined}
-                prefillPrice={orderModalPrefill ? Number(orderModalPrefill.price_per_mt_usd) : undefined}
+                prefillQuantity={orderModalPrefill?.remaining_quantity_mt}
+                prefillPrice={orderModalPrefill?.price_per_mt_usd}
             />
         </div>
     );

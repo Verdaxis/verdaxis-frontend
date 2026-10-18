@@ -6,6 +6,8 @@ import type { DeliveryPoint, MapCompactMarket, Product } from '../types';
 import { computePortMarketData, getMarketProductMapPorts } from '../utils/buyerMapMarket';
 import { filterPortsByActiveDeliveryPoints, resolveApprovedMapPorts } from '../utils/marketPorts';
 
+// The compact-market shape as the map boundary produces it: every decimal is
+// already a number (see `toMapCompactMarket` in `src/api/mappers.ts`).
 const compactMarket = (overrides: Partial<MapCompactMarket> = {}): MapCompactMarket => ({
     product_id: 'product-bio-methanol',
     product_name: 'Bio Methanol',
@@ -20,11 +22,11 @@ const compactMarket = (overrides: Partial<MapCompactMarket> = {}): MapCompactMar
     demo_status: 'REAL_ONLY',
     bid_min_price: null,
     bid_max_price: null,
-    bid_total_quantity: '0',
+    bid_total_quantity: 0,
     bid_order_count: 0,
     ask_min_price: null,
     ask_max_price: null,
-    ask_total_quantity: '0',
+    ask_total_quantity: 0,
     ask_order_count: 0,
     spot_best_bid: null,
     spot_best_ask: null,
@@ -63,15 +65,15 @@ describe('BuyerMap market data', () => {
         expect(getMarketProductMapPorts('BIO_LNG', [product], [singapore, rotterdam], PORTS).map(port => port.name)).toEqual(['Rotterdam']);
         // A missing product or a missing lane list must not widen the restricted market.
         expect(getMarketProductMapPorts('BIO_LNG', [], [singapore, rotterdam], PORTS)).toEqual([]);
-        expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, available_delivery_point_ids: undefined }], [rotterdam], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, available_delivery_point_ids: undefined } as unknown as Product], [rotterdam], PORTS)).toEqual([]);
         expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, execution_mode: 'RFQ_ONLY' }], [rotterdam], PORTS)).toEqual([]);
     });
 
     it('does not borrow alcohol prices or volume when B100 is selected', () => {
         const market = compactMarket({
-            bid_max_price: '950', bid_total_quantity: '500', bid_order_count: 1,
-            ask_min_price: '1000', ask_total_quantity: '500', ask_order_count: 1,
-            spot_best_bid: '950', spot_best_ask: '1000',
+            bid_max_price: 950, bid_total_quantity: 500, bid_order_count: 1,
+            ask_min_price: 1000, ask_total_quantity: 500, ask_order_count: 1,
+            spot_best_bid: 950, spot_best_ask: 1000,
         });
 
         expect(computePortMarketData([market], 'Singapore', 'UCOME_B100')).toEqual({
@@ -83,30 +85,30 @@ describe('BuyerMap market data', () => {
     it('matches the legacy all-window golden for mixed REAL and DEMO rows', () => {
         const markets = [
             compactMarket({
-                bid_min_price: '900.00',
-                bid_max_price: '950.00',
-                bid_total_quantity: '3000.00',
+                bid_min_price: 900.00,
+                bid_max_price: 950.00,
+                bid_total_quantity: 3000.00,
                 bid_order_count: 3,
-                ask_min_price: '1000.00',
-                ask_max_price: '1100.00',
-                ask_total_quantity: '4000.00',
+                ask_min_price: 1000.00,
+                ask_max_price: 1100.00,
+                ask_total_quantity: 4000.00,
                 ask_order_count: 4,
-                spot_best_bid: '950.00',
-                spot_best_ask: '1000.20',
+                spot_best_bid: 950.00,
+                spot_best_ask: 1000.20,
             }),
             compactMarket({
                 evidence_class: 'DEMO',
                 source_kind: 'DEMO_SEED',
                 demo_status: 'DEMO_ONLY',
-                bid_min_price: '800.00',
-                bid_max_price: '960.00',
-                bid_total_quantity: '500.00',
+                bid_min_price: 800.00,
+                bid_max_price: 960.00,
+                bid_total_quantity: 500.00,
                 bid_order_count: 1,
-                ask_min_price: '990.00',
-                ask_max_price: '1200.00',
-                ask_total_quantity: '750.00',
+                ask_min_price: 990.00,
+                ask_max_price: 1200.00,
+                ask_total_quantity: 750.00,
                 ask_order_count: 2,
-                spot_best_bid: '940.10',
+                spot_best_bid: 940.10,
             }),
         ];
 
@@ -144,13 +146,13 @@ describe('BuyerMap market data', () => {
             product_name: productName,
             market_product: marketProduct,
             fuel_type: fuelType,
-            bid_min_price: String(700 + index),
-            bid_max_price: String(700 + index),
-            bid_total_quantity: '100',
+            bid_min_price: 700 + index,
+            bid_max_price: 700 + index,
+            bid_total_quantity: 100,
             bid_order_count: 1,
-            ask_min_price: String(720 + index),
-            ask_max_price: String(720 + index),
-            ask_total_quantity: '100',
+            ask_min_price: 720 + index,
+            ask_max_price: 720 + index,
+            ask_total_quantity: 100,
             ask_order_count: 1,
         }));
 
@@ -176,18 +178,18 @@ describe('BuyerMap market data', () => {
                 evidence_class: 'DEMO',
                 source_kind: 'DEMO_SEED',
                 demo_status: 'DEMO_ONLY',
-                bid_min_price: '780',
-                bid_max_price: '780',
-                bid_total_quantity: '500',
+                bid_min_price: 780,
+                bid_max_price: 780,
+                bid_total_quantity: 500,
                 bid_order_count: 1,
-                spot_best_bid: '780',
+                spot_best_bid: 780,
             }),
             compactMarket({
-                ask_min_price: '1100',
-                ask_max_price: '1100',
-                ask_total_quantity: '500',
+                ask_min_price: 1100,
+                ask_max_price: 1100,
+                ask_total_quantity: 500,
                 ask_order_count: 1,
-                spot_best_ask: '1100',
+                spot_best_ask: 1100,
             }),
         ];
 
@@ -205,16 +207,16 @@ describe('BuyerMap market data', () => {
 
     it('keeps the SPOT midpoint separate from all-window extrema', () => {
         const market = compactMarket({
-            bid_min_price: '900',
-            bid_max_price: '950',
-            bid_total_quantity: '2000',
+            bid_min_price: 900,
+            bid_max_price: 950,
+            bid_total_quantity: 2000,
             bid_order_count: 2,
-            ask_min_price: '520',
-            ask_max_price: '1010',
-            ask_total_quantity: '3000',
+            ask_min_price: 520,
+            ask_max_price: 1010,
+            ask_total_quantity: 3000,
             ask_order_count: 3,
-            spot_best_bid: '950',
-            spot_best_ask: '1000',
+            spot_best_bid: 950,
+            spot_best_ask: 1000,
         });
 
         const result = computePortMarketData([market], 'Singapore');
@@ -231,13 +233,13 @@ describe('BuyerMap market data', () => {
         const market = compactMarket({
             product_name: 'e-Methanol',
             market_product: 'E_METHANOL',
-            bid_min_price: '800',
-            bid_max_price: '850',
-            bid_total_quantity: '1000',
+            bid_min_price: 800,
+            bid_max_price: 850,
+            bid_total_quantity: 1000,
             bid_order_count: 1,
-            ask_min_price: '900',
-            ask_max_price: '950',
-            ask_total_quantity: '1500',
+            ask_min_price: 900,
+            ask_max_price: 950,
+            ask_total_quantity: 1500,
             ask_order_count: 2,
         });
 
@@ -254,18 +256,18 @@ describe('BuyerMap market data', () => {
                 delivery_point_id: 'dp-ningbo',
                 delivery_point_name: 'Ningbo',
                 region: 'Shanghai',
-                ask_min_price: '100',
-                ask_max_price: '110',
-                ask_total_quantity: '9999',
+                ask_min_price: 100,
+                ask_max_price: 110,
+                ask_total_quantity: 9999,
                 ask_order_count: 9,
             }),
             compactMarket({
                 delivery_point_id: 'dp-shanghai',
                 delivery_point_name: 'Shanghai',
                 region: 'China',
-                ask_min_price: '700',
-                ask_max_price: '720',
-                ask_total_quantity: '1500',
+                ask_min_price: 700,
+                ask_max_price: 720,
+                ask_total_quantity: 1500,
                 ask_order_count: 2,
             }),
         ];
