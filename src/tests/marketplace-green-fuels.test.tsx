@@ -569,6 +569,24 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByText('Current slice').parentElement?.textContent).toContain('0 matching orders');
   });
 
+  it('starts a fresh listings lifecycle and clears a refresh warning on workspace re-entry', async () => {
+    const view = renderWithProviders(<Marketplace />);
+    await screen.findByRole('button', { name: /lift ask/i });
+    listAsksPaged.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+    await screen.findByRole('alert');
+    const client = view.queryClient;
+    view.rerender(<div>another workspace</div>);
+    let finish!: (value: any) => void;
+    listAsksPaged.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    view.rerender(<Marketplace />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
+    await waitFor(() => expect(finish).toBeDefined());
+    await act(async () => { finish({ items: [], total: 0, skip: 0, limit: 8 }); });
+    expect(view.queryClient).toBe(client);
+  });
+
   it('suppresses unknown backend English behind the Chinese listings fallback', async () => {
     await i18n.changeLanguage('zh');
     const backendError = new Error('Sensitive backend diagnostic in English');

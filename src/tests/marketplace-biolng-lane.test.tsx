@@ -1,3 +1,4 @@
+import { createQueryTestWrapper } from './test-utils';
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -52,6 +53,7 @@ function LocationProbe() {
 
 /** Mounts the real slice route shape: /app/m/:product/:port/:window plus the root. */
 function renderSlice(path: string, slice: MarketSlice | null) {
+    const { Wrapper } = createQueryTestWrapper();
     return render(
         <I18nextProvider i18n={i18n}>
             <MemoryRouter initialEntries={[path]}>
@@ -61,6 +63,7 @@ function renderSlice(path: string, slice: MarketSlice | null) {
                 </Routes>
             </MemoryRouter>
         </I18nextProvider>,
+        { wrapper: Wrapper },
     );
 }
 

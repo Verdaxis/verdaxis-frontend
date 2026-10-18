@@ -29,6 +29,25 @@ const makeSnapshot = (bids: unknown[] = [], asks: unknown[] = [], generatedAt = 
   asks,
 });
 
+describe('orderbook pre-Query re-entry contract', () => {
+  it('returns through the same provider with a new loading lifecycle and no tooltip', async () => {
+    let finish!: (value: ReturnType<typeof makeSnapshot>) => void;
+    snapshot.mockResolvedValueOnce(makeSnapshot([], [{ id: 'ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 915,
+      remaining_quantity_mt: 500, availability_window: 'SPOT', certifications: [] }]));
+    const view = renderWithProviders(<OrderBook {...MARKET} />);
+    await screen.findByRole('group', { name: /Ask.*915/ });
+    const client = view.queryClient;
+    view.rerender(<div>another workspace</div>);
+    snapshot.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    view.rerender(<OrderBook {...MARKET} />);
+    expect(screen.queryByText('$915.00')).toBeNull();
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    await act(async () => { finish(makeSnapshot()); });
+    expect(view.queryClient).toBe(client);
+    view.unmount();
+  });
+});
+
 describe('orderbook inspection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
