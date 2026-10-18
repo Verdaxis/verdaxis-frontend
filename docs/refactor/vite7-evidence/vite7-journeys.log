@@ -1,0 +1,34 @@
+
+> verdaxis-exchange@0.0.0 smoke:journeys
+> python3 scripts/journeys/run_journeys.py --backend "${VERDAXIS_BACKEND_TREE:-work/journeys-backend}"
+
+[journeys] building frontend bundle...
+[journeys] starting disposable PostgreSQL...
+CREATE ROLE
+CREATE EXTENSION
+[journeys] starting disposable backend...
+[journeys] serving bundle at http://127.0.0.1:54269 and running browser phase...
+  [PASS] public-landing-light diff=0.0832%
+  [PASS] public-how-it-works-light diff=0.0883%
+  [PASS] marketplace-buyer-dark diff=0.0295%
+  [PASS] marketplace-buyer-light diff=0.0295%
+  [PASS] orderbook-buyer-dark diff=0.0306%
+  [PASS] trades-supplier-dark diff=0.0295%
+  [PASS] map-buyer-dark diff=0.0295%
+  [PASS] map-buyer-light diff=0.0295%
+  [PASS] admin-users-dark diff=0.0295%
+  [PASS] login-success landed on DASHBOARD at http://127.0.0.1:54269/app/home; errors: []
+  [PASS] login-wrong-password url=http://127.0.0.1:54269/login
+  [PASS] marketplace-browse-filter-paginate initial rows=2; B30 rows=2; Singapore rows=2; no second page (fewer than 9 rows); orderbook tab rendered; my orders tab rendered
+  [PASS] marketplace-deep-link-slice B30 chip active=1; port=''; url=http://127.0.0.1:54269/app/m/b30/singapore/spot
+  [PASS] place-bid BID 500 MT at $700 placed from the order window; new my-orders rows=1; HTTP 200
+  [PASS] place-ask ASK 500 MT at $900 placed with declarations from the order window; new my-orders rows=1; HTTP 200
+  [PASS] trade-take-confirm-deliver-pay trade 751f146c confirmed -> delivered -> paid; prefilled quantity=200; buyer blotter shows trade=True
+  [PASS] notifications-list-mark-read badge before=1; seeded aria tail='Order update: Journeys unread reminder. Read'; server unread=3
+  [PASS] map-ports-eca-overlay canvas=1, /ports calls=1, eca chunks=1, seeded ports=8; errors=[]
+  [PASS] public-landing landing rendered 4549 chars
+  [PASS] public-content-page how-it-works rendered 2673 chars
+JOURNEYS_JSON:[{"name": "public-landing-light", "diffRatio": 0.000832, "passed": true}, {"name": "public-how-it-works-light", "diffRatio": 0.000883, "passed": true}, {"name": "marketplace-buyer-dark", "diffRatio": 0.000295, "passed": true}, {"name": "marketplace-buyer-light", "diffRatio": 0.000295, "passed": true}, {"name": "orderbook-buyer-dark", "diffRatio": 0.000306, "passed": true}, {"name": "trades-supplier-dark", "diffRatio": 0.000295, "passed": true}, {"name": "map-buyer-dark", "diffRatio": 0.000295, "passed": true}, {"name": "map-buyer-light", "diffRatio": 0.000295, "passed": true}, {"name": "admin-users-dark", "diffRatio": 0.000295, "passed": true}, {"name": "login-success", "passed": true, "detail": "landed on DASHBOARD at http://127.0.0.1:54269/app/home; errors: []"}, {"name": "login-wrong-password", "passed": true, "detail": "url=http://127.0.0.1:54269/login"}, {"name": "marketplace-browse-filter-paginate", "passed": true, "detail": "initial rows=2; B30 rows=2; Singapore rows=2; no second page (fewer than 9 rows); orderbook tab rendered; my orders tab rendered"}, {"name": "marketplace-deep-link-slice", "passed": true, "detail": "B30 chip active=1; port=''; url=http://127.0.0.1:54269/app/m/b30/singapore/spot"}, {"name": "place-bid", "passed": true, "detail": "BID 500 MT at $700 placed from the order window; new my-orders rows=1; HTTP 200"}, {"name": "place-ask", "passed": true, "detail": "ASK 500 MT at $900 placed with declarations from the order window; new my-orders rows=1; HTTP 200"}, {"name": "trade-take-confirm-deliver-pay", "passed": true, "detail": "trade 751f146c confirmed -> delivered -> paid; prefilled quantity=200; buyer blotter shows trade=True"}, {"name": "notifications-list-mark-read", "passed": true, "detail": "badge before=1; seeded aria tail='Order update: Journeys unread reminder. Read'; server unread=3"}, {"name": "map-ports-eca-overlay", "passed": true, "detail": "canvas=1, /ports calls=1, eca chunks=1, seeded ports=8; errors=[]"}, {"name": "public-landing", "passed": true, "detail": "landing rendered 4549 chars"}, {"name": "public-content-page", "passed": true, "detail": "how-it-works rendered 2673 chars"}]
+
+[journeys] report: /home/verdaxis-test/.verdaxis-journeys/run-20261017-235049/journeys-report.json
+[journeys] all journeys passed

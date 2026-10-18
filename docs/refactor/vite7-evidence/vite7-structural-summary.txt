@@ -1,0 +1,42 @@
+{
+  "pages": 53,
+  "chunks": 147,
+  "normalizedHtmlChanges": [],
+  "routeChanges": [
+    {
+      "name": "landing",
+      "before": 343308,
+      "after": 341219,
+      "delta": -2089,
+      "percent": -0.6084915003437108
+    },
+    {
+      "name": "marketplace",
+      "before": 305028,
+      "after": 302815,
+      "delta": -2213,
+      "percent": -0.725507166555206
+    },
+    {
+      "name": "intelligence-map",
+      "before": 792060,
+      "after": 789837,
+      "delta": -2223,
+      "percent": -0.28066055601848605
+    },
+    {
+      "name": "command-center",
+      "before": 244043,
+      "after": 242770,
+      "delta": -1273,
+      "percent": -0.5216293849854337
+    },
+    {
+      "name": "compliance",
+      "before": 229729,
+      "after": 228335,
+      "delta": -1394,
+      "percent": -0.6068019274884762
+    }
+  ]
+}

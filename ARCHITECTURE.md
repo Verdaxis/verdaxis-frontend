@@ -2,7 +2,7 @@
 
 ## Scope and stack
 
-This repository is the Verdaxis React single-page application. It serves localized public pages and the protected buyer/supplier platform. The stack is React 19, TypeScript, Vite 6, react-router-dom 7, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, i18next, and Vitest.
+This repository is the Verdaxis React single-page application. It serves localized public pages and the protected buyer/supplier platform. The stack is React 19, TypeScript, Vite 7 (Node 24), react-router-dom 7, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, i18next, and Vitest.
 
 ## Runtime topology
 
@@ -218,6 +218,12 @@ inlines neither the fonts nor the brand images (`build.assetsInlineLimit` opts
 asset on it), so the images stay separate hashed files under `/assets/`;
 `src/tests/brand-assets.test.ts` guards the
 pixel sizes, the descriptor-to-file match and the fallbacks.
+
+Vite 7 keeps the Vite 6 browser target explicitly (`es2020`, Edge 88,
+Firefox 78, Chrome 87, Safari 14), rather than adopting the newer Baseline
+2025 default. The three build plugins, manual chunk groups and asset inlining
+policy are unchanged. `package.json` requires Node `24.x` (also the Vercel
+build override); CI, the release workflow and the Docker builder use Node 24.
 
 ## Run commands
 

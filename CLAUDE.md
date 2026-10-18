@@ -8,7 +8,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 
 ## Tech Stack
 
-- **Framework:** React 19 + TypeScript, bundled with Vite 6
+- **Framework:** React 19 + TypeScript, bundled with Vite 7 (Node 24)
 - **Routing:** react-router-dom v7 (BrowserRouter, all routes defined in `App.tsx`)
 - **Styling:** Tailwind CSS with `darkMode: 'class'`, custom `verdaxis` color tokens in `tailwind.config.js`
 - **State Management:** React Context (Auth, Theme, Copilot, Notifications) -- no Redux/Zustand
