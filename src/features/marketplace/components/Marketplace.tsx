@@ -1,85 +1,52 @@
+import { ListingsTable } from './ListingsTable';
+import { MarketplaceHeader } from './MarketplaceHeader';
+import { MarketplaceTabs } from './MarketplaceTabs';
+import { MarketplaceFilters } from './MarketplaceFilters';
+import { TakeTradeDialog } from './TakeTradeDialog';
+import { MarketDepthPanel } from './MarketDepthPanel';
+import { MyListingsPanel } from './MyListingsPanel';
+import { CancelOrderDialog } from './CancelOrderDialog';
+import { MarketplaceHistory } from './MarketplaceHistory';
 import { useMarketplaceSelection } from '../hooks/useMarketplaceSelection';
 import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
-import { formatQuantity, formatUsd } from '../../../utils/numberFormat';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
-    Loader2,
-    MapPin,
-    Shield,
-    Calendar,
-    RefreshCw,
-    Plus,
-    AlertCircle,
-    AlertTriangle,
-    CheckCircle2,
-    ClipboardList,
-    Trash2,
-    Star,
-    Ship,
-    X,
-    XCircle,
-    ChevronDown,
-} from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { ApiError, ApiOutcomeUnknownError, api, isKycRequiredError } from '../../../services/api';
 import type { PaginatedResult } from '../../../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, ORDERBOOK_MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../../../types';
+import { Port, OrderBookOrder, MarketProduct, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../../../types';
 import { getAuthGeneration } from '../../../services/authToken';
 import { getMarketSupportContextId } from '../../../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../../../utils/idempotencyKey';
-import { PORTS } from '../../../data';
 import { OrderPlaceModal } from '../../../components/OrderPlaceModal';
-import { KycRequiredNotice } from '../../../components/kyc/KycRequiredNotice';
-import { Pagination } from '../../../components/ui/Pagination';
-import {
-    getFuelRowClasses,
-    getFuelBadgeClasses,
-    getFuelStickyBg,
-    getStatusConfig,
-    formatExpiry,
-    formatDeliveryWindow,
-} from '../../../utils/fuel';
 import { useNamespace } from '../../../hooks/useNamespace';
 import { useDashboardContentReady } from '../../../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../../../hooks/usePublicMarketRefresh';
-import {
-    formatAvailabilityWindow,
-    getAvailabilityWindowOptions,
-    normalizeAvailabilityWindow,
-    SPOT_WINDOW,
-} from '../../../utils/availabilityWindow';
-import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct, isOrderbookProduct } from '../../../utils/marketProduct';
-import { isApprovedTradingPortName } from '../../../utils/tradingPorts';
-import { getMarketProductMapPorts } from '../../../utils/buyerMapMarket';
-import { isSlicePortAllowed, sliceToPath, type MarketSlice } from '../../../utils/sliceUrl';
-import { MARKETPLACE_SELECTION_STORAGE_KEYS } from '../../../utils/marketplaceSelection';
+import { formatMarketProduct, isOrderbookMarketProduct, isOrderbookProduct } from '../../../utils/marketProduct';
+import { type MarketSlice } from '../../../utils/sliceUrl';
 import { useWatchlist } from '../../../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../../../utils/watchlist';
-import { VerdaxisSelect } from '../../../components/ui/VerdaxisSelect';
-import { OrderBook } from '../../../components/OrderBook';
-import { TradeTape } from '../../../components/TradeTape';
-import { BenchmarkPriceBlock } from '../../../components/trading/BenchmarkPriceBlock';
-import { CompliancePriceHint } from '../../../components/trading/CompliancePriceHint';
 import i18n from '../../../i18n';
 import { analytics } from '../../../services/analytics';
 import { useMarketSupport } from '../../../context/MarketSupportContext';
-import { ConfirmModal } from '../../../components/ui/ConfirmModal';
-import { FameRfqWorkspace } from '../../../components/rfq/FameRfqWorkspace';
-import { SupplierOffersWorkspace } from '../../../components/supplier/SupplierOffersWorkspace';
 import type { FameOrderBidTerms } from '../../../types/fameOrder';
-import { FameOrderFields, readFameOrderTerms, validateFameOrderTerms, readFameOrderAcknowledgements } from '../../../components/fame/FameOrderFields';
-import { FameOrderTermsDetails } from '../../../components/fame/FameOrderTermsDetails';
-import type { LngOrderTerms, LngOrderTermsView } from '../../../types/lngOrder';
-import {
-    LngOrderFields, initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms, readLngOrderAcknowledgements,
-} from '../../../components/lng/LngOrderFields';
-import { LngOrderTermsDetails, lngAskSummary } from '../../../components/lng/LngOrderTermsDetails';
+import { readFameOrderTerms, validateFameOrderTerms, readFameOrderAcknowledgements } from '../../../components/fame/FameOrderFields';
+import type { LngOrderTerms } from '../../../types/lngOrder';
+import { initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms, readLngOrderAcknowledgements } from '../../../components/lng/LngOrderFields';
 
 // ─── Role Config ──────────────────────────────────────────────────
-type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
+export type MarketplaceColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
 
-interface RoleConfigEntry {
+type ColumnId = MarketplaceColumnId;
+
+export interface MarketplaceRolePresentation {
+    subtitleKey: string;
+    primaryAction: { labelKey: string; side: 'BID' | 'ASK' };
+    counterAction: { labelKey: string };
+    columns: ColumnId[];
+}
+
+interface RoleConfigEntry extends MarketplaceRolePresentation {
     fetchOrders: (params?: {
         region?: string;
         delivery_point_id?: string;
@@ -90,11 +57,7 @@ interface RoleConfigEntry {
         skip?: number;
         limit?: number;
     }, cacheOptions?: { force?: boolean }) => Promise<PaginatedResult<any>>;
-    subtitleKey: string;
-    primaryAction: { labelKey: string; side: 'BID' | 'ASK' };
-    counterAction: { labelKey: string };
     defaultSort: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
-    columns: ColumnId[];
 }
 
 const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
@@ -118,7 +81,6 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 
 // ─── Product chip options ─────────────────────────────────────────
 const ALL_MARKET_PRODUCTS = 'All';
-const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS];
 const PAGE_SIZE = 8;
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -135,19 +97,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const { t: tRfq } = useNamespace('rfq');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const { trackedSliceKeys, pinnedOrderIds, toggleSlice, togglePin } = useWatchlist();
-
-    // ─── Column header labels (inside component to access t()) ────
-    const COLUMN_HEADERS: Record<ColumnId, string> = {
-        fuel: t('marketplace.col.fuel'),
-        grade: t('marketplace.col.grade'),
-        volume: t('marketplace.col.volume'),
-        price: t('marketplace.col.price'),
-        window: t('marketplace.col.window'),
-        expiry: t('marketplace.col.expiry'),
-        cert: t('marketplace.col.cert'),
-        status: t('marketplace.col.status'),
-        action: t('marketplace.col.action'),
-    };
 
     // ─── Data state ───────────────────────────────────────────────
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
@@ -186,7 +135,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const b100TradingEnabled = Boolean(b100Product && isOrderbookProduct(b100Product));
     const bioLngProduct = catalogProducts.find(product => product.market_product === 'BIO_LNG');
     const bioLngTradingEnabled = Boolean(bioLngProduct && isOrderbookProduct(bioLngProduct));
-    const { role, requestedProduct, marketTab, isHistorySelected, fameTab, setMarketTab, portInput, storedDeliveryPointId, resolvedPort, resolvedDeliveryPointId, laneAllowedPortNames, marketProduct, availability, availabilityOptions, filtersExpanded, setFiltersExpanded, currentSkip, setCurrentSkip, sortBy, setSortBy, setAvailability, portOptions, sliceSummary, clearMarketFilters, handlePortChange, handleProductChipClick, handleSortChange } = useMarketplaceSelection({
+    const {
+        role, marketTab, isHistorySelected, fameTab, setMarketTab,
+        portInput, resolvedPort, resolvedDeliveryPointId, marketProduct, availability,
+        availabilityOptions, filtersExpanded, setFiltersExpanded, currentSkip, setCurrentSkip,
+        sortBy, setAvailability, portOptions, sliceSummary, clearMarketFilters,
+        handlePortChange, handleProductChipClick, handleSortChange,
+    } = useMarketplaceSelection({
         initialPort, initialSlice, viewMode, userRole: user?.role, ready, locale, t,
         deliveryPoints, deliveryPointsStatus, catalogProducts,
     });
@@ -943,197 +898,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     if (!ready) return null;
 
-    // ─── Column renderer ──────────────────────────────────────────
-    const renderCell = (col: ColumnId, order: OrderBookOrder): React.ReactNode => {
-        switch (col) {
-            case 'fuel': {
-                const badgeClasses = getFuelBadgeClasses(order.fuel_type);
-                const stickyBg = getFuelStickyBg(order.fuel_type);
-                return (
-                    <td key={col} className={`px-4 py-2 sticky left-0 z-20 ${stickyBg} whitespace-nowrap min-w-[180px]`}>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
-                                {getOrderDisplayName(order, t('marketplace.unknownProduct'))}
-                            </span>
-                            {order.is_verdaxis_verified && (
-                                <Shield size={12} className="text-emerald-500 flex-shrink-0" />
-                            )}
-                            {order.off_spec && (
-                                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                                    {t('marketplace.grade.offSpec')}
-                                </span>
-                            )}
-                            {order.is_demo_listing && (
-                                <span
-                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
-                                    title={t('marketplace.demo.tooltip')}
-                                >
-                                    <AlertCircle size={11} />
-                                    {t('marketplace.demo.label')}
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-1 mt-0.5">
-                            <MapPin size={10} className="text-slate-400 flex-shrink-0" />
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
-                                {order.delivery_point_name || order.region}
-                            </span>
-                        </div>
-                        <div className="mt-1 space-y-1 text-xs text-slate-600 dark:text-slate-300 xl:hidden">
-                            <p>{formatDeliveryWindow(order, locale)}</p>
-                            {configBase.columns.includes('expiry') && (
-                                <div>{t('marketplace.col.expiry')}: {formatExpiry(order, locale)}</div>
-                            )}
-                            {configBase.columns.includes('grade') && (
-                                <details className="max-w-[220px] whitespace-normal">
-                                    <summary className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
-                                        {t('marketplace.col.grade')}
-                                    </summary>
-                                    <p className="mt-1">{order.certification_declared ? t('marketplace.cert.declared') : t('marketplace.cert.missing')}</p>
-                                    {order.certifications.length > 0 && <p>{order.certifications.join(', ')}</p>}
-                                </details>
-                            )}
-                        </div>
-                    </td>
-                );
-            }
-            case 'grade':
-                return (
-                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
-                        <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
-                            {order.certification_declared ? t('marketplace.cert.declared') : t('marketplace.cert.missing')}
-                        </span>
-                    </td>
-                );
-            case 'volume':
-                return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-slate-700 dark:text-slate-200 text-xs">
-                        {formatQuantity(order.remaining_quantity_mt)}
-                    </td>
-                );
-            case 'price': {
-                const overlay = order.side === 'ASK' ? complianceOverlays[order.id] : null;
-                return (
-                    <td key={col} className="w-[160px] max-w-[160px] whitespace-nowrap px-4 py-2 font-mono text-xs xl:w-auto xl:max-w-none">
-                        <BenchmarkPriceBlock
-                            priceUsd={order.price_per_mt_usd}
-                            benchmarkUsd={order.benchmark_price_per_mt_usd}
-                            deltaUsd={order.premium_discount_per_mt_usd}
-                            benchmarkSource={order.benchmark_source}
-                            contextUpdatedAt={order.updated_at}
-                        />
-                        {overlay && (
-                            <CompliancePriceHint overlay={overlay} assumptions={overlayAssumptions} />
-                        )}
-                    </td>
-                );
-            }
-            case 'window':
-                return (
-                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 text-xs text-slate-600 dark:text-slate-300 xl:table-cell">
-                        {formatDeliveryWindow(order, locale)}
-                    </td>
-                );
-            case 'expiry':
-                return (
-                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
-                        {formatExpiry(order, locale)}
-                    </td>
-                );
-            case 'cert':
-                return (
-                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
-                        <div className="flex flex-wrap gap-1">
-                            {order.certifications.map(cert => (
-                                <span
-                                    key={cert}
-                                    className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1 py-0.5 rounded"
-                                >
-                                    {cert}
-                                </span>
-                            ))}
-                        </div>
-                    </td>
-                );
-            case 'status': {
-                const statusCfg = getStatusConfig(order.status, t);
-                return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${statusCfg.bg} ${statusCfg.text}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
-                            {statusCfg.label}
-                        </span>
-                    </td>
-                );
-            }
-            case 'action': {
-                const catalogAllowsExecution = order.market_product === 'UCOME_B100' ? b100TradingEnabled
-                    : order.market_product === 'BIO_LNG' ? bioLngTradingEnabled
-                        : true;
-                const isExecutable = catalogAllowsExecution && (order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED');
-                const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
-                const isPinned = pinnedOrderIds.has(order.id);
-                return (
-                    <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
-                        <div className="flex flex-col items-end gap-2">
-                            {order.is_demo_listing || (isExecutable && !isMarketSupportActive) ? (
-                                <button
-                                    type="button"
-                                    data-tour="marketplace-listing-action"
-                                    onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
-                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
-                                >
-                                    {t(order.is_demo_listing ? 'marketplace.demo.view' : configBase.counterAction.labelKey)}
-                                </button>
-                            ) : (
-                                <span className="text-xs text-slate-400 font-medium">
-                                    {!catalogAllowsExecution ? t(catalogError ? 'marketplace.b100.catalogError' : 'marketplace.b100.catalogUnavailable') : order.status === 'FILLED'
-                                        ? t('marketplace.status.filled')
-                                        : order.status === 'PARTIALLY_FILLED'
-                                            ? t('marketplace.status.partial')
-                                            : t('marketplace.status.closed')}
-                                </span>
-                            )}
-                            {pinnable && !isMarketSupportActive && (
-                                <button
-                                    type="button"
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        await togglePin(order.id);
-                                    }}
-                                    aria-pressed={isPinned}
-                                    aria-label={isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
-                                    title={isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
-                                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
-                                >
-                                    <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
-                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.watchListing')}
-                                </button>
-                            )}
-                        </div>
-                    </td>
-                );
-            }
-            default:
-                return <td key={col} />;
-        }
-    };
-
-    // ─── Skeleton rows ────────────────────────────────────────────
-    const SkeletonRows = () => (
-        <>
-            {[...Array(4)].map((_, i) => (
-                <tr key={i} className="border-b border-slate-200/50 dark:border-slate-700/50">
-                    {configBase.columns.map((col, ci) => (
-                        <td key={ci} className={`px-4 py-3 ${col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' : ''}`}>
-                            <div className="animate-pulse bg-slate-200 dark:bg-slate-700 rounded h-4 w-full" />
-                        </td>
-                    ))}
-                </tr>
-            ))}
-        </>
-    );
-
     // ─── Render ───────────────────────────────────────────────────
     return (
         <div
@@ -1143,264 +907,64 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             data-tour-window={isHistorySelected ? '' : availability}
             data-tour-tab={marketTab}
         >
-            {/* Header */}
-            <div className={`flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] ${isHistorySelected ? '' : 'max-h-[50%] overflow-y-auto overscroll-contain'}`}>
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                        <div>
-                            <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
-                            <p className="text-slate-500 mt-1 text-sm">{t(isHistorySelected ? 'marketplace.b100.historyDescription' : configBase.subtitleKey)}</p>
-                        </div>
-                        {!isHistorySelected && <div className="flex items-center gap-3">
-                            <button
-                                type="button"
-                                data-tour="marketplace-primary-action"
-                                onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
-                            >
-                                <Plus size={16} />
-                                <span>{t(configBase.primaryAction.labelKey)}</span>
-                            </button>
-                            {marketProduct === 'UCOME_B100' && <button type="button" onClick={() => setMarketTab('history_offers')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 dark:border-slate-600 dark:text-slate-300">{t('marketplace.b100.history')}</button>}
-                            {marketTab !== 'orderbook' && <button
-                                type="button"
-                                onClick={() => {
-                                    void loadCatalogProducts(true);
-                                    void fetchProductCounts(true);
-                                    if (marketTab === 'market') void fetchListings(true, currentSkip, true);
-                                }}
-                                className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
-                            >
-                                <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                                <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
-                            </button>}
-                            {!isMarketSupportActive && <button
-                                type="button"
-                                onClick={async () => {
-                                    if (!currentSliceTarget) return;
-                                    await toggleSlice(currentSliceTarget);
-                                }}
-                                disabled={!currentSliceTarget}
-                                aria-pressed={isCurrentSliceTracked}
-                                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
-                            >
-                                <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
-                                <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
-                            </button>}
-                        </div>}
-                    </div>
-                    {/* Unified filter rail */}
-                    <div className="v-glass p-3 mb-3 relative z-[90]">
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                    <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.ucomeRfq.products')}</span>
-                                        <span className="text-xs text-slate-400">{t('marketplace.b100.productsHint')}</span>
-                                    </div>
-                                    <div className="flex flex-1 flex-wrap gap-2" data-tour="marketplace-product-filters">
-                                        {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                            const isActive = isHistorySelected ? productCode === 'UCOME_B100' : marketProduct === productCode;
-                                            const count = productCode === ALL_MARKET_PRODUCTS ? 0 : (marketProductCounts[productCode] || 0);
-                                            const label = productCode === ALL_MARKET_PRODUCTS ? t('marketplace.filter.allProducts') : formatMarketProduct(productCode);
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    key={productCode}
-                                                    data-tour={productCode === ORDERBOOK_MARKET_PRODUCTS[0] ? 'marketplace-product-sample' : undefined}
-                                                    data-market-product={productCode}
-                                                    aria-pressed={isActive}
-                                                    onClick={() => handleProductChipClick(productCode)}
-                                                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
-                                                        isActive
-                                                            ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
-                                                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-                                                    }`}
-                                                >
-                                                    {label}{!isHistorySelected && count > 0 ? ` (${count})` : ''}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+            <MarketplaceHeader
+                isHistorySelected={isHistorySelected}
+                t={t}
+                configBase={configBase}
+                setOrderModalSide={setOrderModalSide}
+                marketProduct={marketProduct}
+                setMarketTab={setMarketTab}
+                marketTab={marketTab}
+                loadCatalogProducts={loadCatalogProducts}
+                fetchProductCounts={fetchProductCounts}
+                fetchListings={fetchListings}
+                currentSkip={currentSkip}
+                refreshing={refreshing}
+                isMarketSupportActive={isMarketSupportActive}
+                currentSliceTarget={currentSliceTarget}
+                toggleSlice={toggleSlice}
+                isCurrentSliceTracked={isCurrentSliceTracked}
+            >
+            <MarketplaceFilters
+                t={t}
+                isHistorySelected={isHistorySelected}
+                marketProduct={marketProduct}
+                marketProductCounts={marketProductCounts}
+                handleProductChipClick={handleProductChipClick}
+                filtersExpanded={filtersExpanded}
+                setFiltersExpanded={setFiltersExpanded}
+                portInput={portInput}
+                handlePortChange={handlePortChange}
+                portOptions={portOptions}
+                availability={availability}
+                setAvailability={setAvailability}
+                availabilityOptions={availabilityOptions}
+                sortBy={sortBy}
+                handleSortChange={handleSortChange}
+                currentSliceCount={currentSliceCount}
+                sliceSummary={sliceSummary}
+            />
 
-                                {!isHistorySelected && <button
-                                    type="button"
-                                    data-tour="marketplace-filter-toggle"
-                                    aria-expanded={filtersExpanded}
-                                    aria-controls="marketplace-advanced-filters"
-                                    onClick={() => setFiltersExpanded((expanded) => !expanded)}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                                >
-                                    <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
-                                    <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
-                                </button>}
-                            </div>
+            <MarketplaceTabs
+                isHistorySelected={isHistorySelected}
+                isMarketSupportActive={isMarketSupportActive}
+                t={t}
+                setMarketTab={setMarketTab}
+                user={user}
+                fameTab={fameTab}
+                marketTab={marketTab}
+                role={role}
+            />
 
-                            {!isHistorySelected && filtersExpanded && (
-                                <>
-                                    <div id="marketplace-advanced-filters" data-tour="marketplace-advanced-filters" className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.port')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.port')}
-                                                value={portInput}
-                                                onChange={handlePortChange}
-                                                options={portOptions}
-                                                triggerTourId="marketplace-port-select"
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.window')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.window')}
-                                                value={availability}
-                                                onChange={(value) => setAvailability(value)}
-                                                options={[
-                                                    { value: '', label: t('marketplace.filter.anyWindow') },
-                                                    ...availabilityOptions.map(option => ({
-                                                        value: option.value,
-                                                        label: option.label,
-                                                        tourId: option.value === SPOT_WINDOW ? 'marketplace-window-option-spot' : undefined,
-                                                    })),
-                                                ]}
-                                                triggerTourId="marketplace-window-select"
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.sortBy')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.sortBy')}
-                                                value={sortBy}
-                                                onChange={handleSortChange}
-                                                options={[
-                                                    { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
-                                                    { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
-                                                    { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
-                                                    { value: 'newest', label: t('marketplace.sort.newest') },
-                                                ]}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.currentSlice')}</div>
-                                            <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {currentSliceCount.toLocaleString()} {t(currentSliceCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
-                                            </div>
-                                            <div className="mt-1 text-xs text-slate-400">{sliceSummary}</div>
-                                            <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                {t('marketplace.metrics.currentSliceHint')}
-                                            </div>
-                                        </div>
-                                    </div>
+            </MarketplaceHeader>
 
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                                {sliceSummary}
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
-                                            <span className="font-bold uppercase tracking-[0.14em]">{t('marketplace.legend.title')}</span>
-                                            <span className="ml-2">{t('marketplace.legend.body')}</span>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {isHistorySelected && !isMarketSupportActive && <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label={t('marketplace.b100.history')}>
-                        <button type="button" onClick={() => setMarketTab('market')} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold dark:border-slate-600">{t('marketplace.b100.backToMarket')}</button>
-                        {[
-                            { key: 'history_offers' as const, label: 'marketplace.b100.legacyOffers' },
-                            { key: 'history_rfqs' as const, label: 'marketplace.b100.legacyRequests' },
-                            ...(user?.role === 'SUPPLIER' ? [{ key: 'history_my_offers' as const, label: 'marketplace.b100.myLegacyOffers' }] : []),
-                        ].map((tab) => <button key={tab.key} type="button" aria-pressed={fameTab === tab.key} onClick={() => setMarketTab(tab.key)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${fameTab === tab.key ? 'border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white' : 'border-transparent text-slate-500'}`}>{t(tab.label)}</button>)}
-                    </div>}
-
-                    {/* Tab Switcher: Market | Orderbook | My Listings */}
-                    {!isHistorySelected && <><div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
-                        <div
-                            className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
-                            style={{
-                                left: marketTab === 'market'
-                                    ? '2px'
-                                    : marketTab === 'orderbook'
-                                        ? 'calc(33.333% + 1px)'
-                                        : 'calc(66.666% + 1px)',
-                                width: 'calc(33.333% - 2px)',
-                            }}
-                        />
-                        <button
-                            data-tour="marketplace-tab-market"
-                            aria-pressed={marketTab === 'market'}
-                            onClick={() => setMarketTab('market')}
-                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
-                                marketTab === 'market'
-                                    ? 'text-slate-900 dark:text-white'
-                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                            }`}
-                        >
-                            {t('marketplace.tab.market')}
-                        </button>
-                        <button
-                            data-tour="marketplace-tab-orderbook"
-                            aria-pressed={marketTab === 'orderbook'}
-                            onClick={() => setMarketTab('orderbook')}
-                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
-                                marketTab === 'orderbook'
-                                    ? 'text-slate-900 dark:text-white'
-                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                            }`}
-                        >
-                            {t('marketplace.tab.listings')}
-                        </button>
-                        <button
-                            data-tour="marketplace-tab-my-orders"
-                            aria-pressed={marketTab === 'my_orders'}
-                            onClick={() => setMarketTab('my_orders')}
-                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
-                                marketTab === 'my_orders'
-                                    ? 'text-slate-900 dark:text-white'
-                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                            }`}
-                        >
-                            <span className="flex items-center gap-1 justify-center">
-                                <ClipboardList size={12} />
-                                {t('marketplace.tab.myOrders')}
-                            </span>
-                        </button>
-                    </div>
-
-                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-                        {marketTab === 'market'
-                            ? t(role === 'BUYER' ? 'marketplace.viewHint.listings.buyer' : 'marketplace.viewHint.listings.supplier')
-                            : marketTab === 'orderbook'
-                                ? t('marketplace.viewHint.orderbook')
-                                : t('marketplace.viewHint.myOrders')}
-                    </p></>}
-
-                </div>
-            </div>
-
-            {isHistorySelected && <div className="px-4 pb-8 lg:px-10"><div className="mx-auto max-w-7xl">
-                {isMarketSupportActive ? <div role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{t('marketplace.ucomeRfq.supportUnavailable')}</div>
-                    : fameTab === 'history_rfqs' ? <FameRfqWorkspace key={`${user?.id}:${user?.organization_id}`} embedded historyOnly />
-                        : <SupplierOffersWorkspace
-                            key={`${fameTab}:${user?.id}:${user?.organization_id}`}
-                            mine={fameTab === 'history_my_offers' && user?.role === 'SUPPLIER'}
-                            historyOnly
-                            onRequestQuote={() => undefined}
-                            onEdit={() => undefined}
-                            onPostSupply={() => undefined}
-                        />}
-
-            </div></div>}
+            <MarketplaceHistory
+                isHistorySelected={isHistorySelected}
+                isMarketSupportActive={isMarketSupportActive}
+                fameTab={fameTab}
+                user={user}
+                t={t}
+            />
 
             {/* Error state */}
             {!isHistorySelected && marketTab === 'market' && error && !loading && !hasLoadedListings && (
@@ -1431,619 +995,112 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             )}
 
-            {!isHistorySelected && marketTab === 'orderbook' && (
-                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
-                    <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
-                        <div
-                            data-tour="marketplace-market-scope"
-                            className="mb-3 flex-none rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/80"
-                            aria-label={t('marketScope.title')}
-                        >
-                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                                <div className="min-w-0">
-                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                        {t('marketScope.title')}
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-                                        {orderbookRequiresExactSlice ? t('marketScope.body') : t(marketScopeReadyCopyKey)}
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[720px]">
-                                    {orderbookSliceRequirements.map((requirement) => {
-                                        const Icon = requirement.complete ? CheckCircle2 : XCircle;
-                                        return (
-                                            <div
-                                                key={requirement.key}
-                                                aria-label={`${requirement.label}: ${requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')} (${requirement.value})`}
-                                                className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2 ${
-                                                    requirement.complete
-                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
-                                                        : 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
-                                                }`}
-                                            >
-                                                <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
-                                                <div className="min-w-0">
-                                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">
-                                                        {requirement.label}
-                                                    </div>
-                                                    <div className="mt-0.5 truncate text-sm font-bold">
-                                                        {requirement.value}
-                                                    </div>
-                                                </div>
-                                                <span className="sr-only">
-                                                    {requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="min-h-0 flex-1 overflow-hidden" data-tour="marketplace-orderbook-panel">
-                            {isCatalogScopeResolving ? (
-                                <div className="v-card p-8 flex h-full min-h-0 items-center justify-center text-slate-400">
-                                    <Loader2 size={24} className="animate-spin" />
-                                </div>
-                            ) : orderbookRequiresExactSlice ? (
-                                <div className="v-card p-8 flex h-full min-h-0 flex-col items-center justify-center text-center">
-                                    <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
-                                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
-                                    <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
-                                </div>
-                            ) : (
-                                <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,0.62fr)_minmax(360px,0.38fr)]">
-                                    <OrderBook
-                                        key={`${marketProduct}:${resolvedDeliveryPointId}:${availability}`}
-                                        marketProduct={marketProduct}
-                                        executionMode={marketProduct === 'UCOME_B100' ? b100Product?.execution_mode
-                                            : marketProduct === 'BIO_LNG' ? bioLngProduct?.execution_mode
-                                                : undefined}
-                                        region={resolvedPort || undefined}
-                                        deliveryPointId={resolvedDeliveryPointId || undefined}
-                                        availability={availability || undefined}
-                                        actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
-                                        onLevelClick={handleOrderbookLevelClick}
-                                    />
-                                    <TradeTape
-                                        marketProduct={marketProduct}
-                                        availability={availability || undefined}
-                                        deliveryPointId={resolvedDeliveryPointId || undefined}
-                                        region={resolvedDeliveryPointId ? undefined : resolvedPort || undefined}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <MarketDepthPanel
+                isHistorySelected={isHistorySelected}
+                marketTab={marketTab}
+                t={t}
+                orderbookRequiresExactSlice={orderbookRequiresExactSlice}
+                marketScopeReadyCopyKey={marketScopeReadyCopyKey}
+                orderbookSliceRequirements={orderbookSliceRequirements}
+                isCatalogScopeResolving={isCatalogScopeResolving}
+                marketProduct={marketProduct}
+                resolvedDeliveryPointId={resolvedDeliveryPointId}
+                availability={availability}
+                resolvedPort={resolvedPort}
+                role={role}
+                b100Product={b100Product}
+                bioLngProduct={bioLngProduct}
+                handleOrderbookLevelClick={handleOrderbookLevelClick}
+            />
 
-            {/* My Listings tab: user's outstanding orders */}
-            {!isHistorySelected && marketTab === 'my_orders' && (
-                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
-                    <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
-                        {myOrdersError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}
-                        {myOrdersLoading ? (
-                            <div className="flex items-center justify-center py-20 text-slate-400">
-                                <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
-                            </div>
-                        ) : outstandingMyOrders.length === 0 ? (
-                            <div className="text-center py-20">
-                                <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('marketplace.myOrders.empty.none.title')}</h3>
-                                <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
-                                    {role === 'SUPPLIER'
-                                        ? t('marketplace.myOrders.empty.none.supplier')
-                                        : t('marketplace.myOrders.empty.none.buyer')}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
-                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
-                                >
-                                    {role === 'SUPPLIER' ? t('marketplace.btn.placeAsk') : t('marketplace.btn.placeBid')}
-                                </button>
-                            </div>
-                        ) : filteredMyOrders.length === 0 ? (
-                            <div className="text-center py-20">
-                                <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('marketplace.myOrders.empty.filtered.title')}</h3>
-                                <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
-                                    {t('marketplace.myOrders.empty.filtered.body', { slice: sliceSummary })}
-                                </p>
-                                {hasActiveSliceFilters && (
-                                    <button
-                                        onClick={clearMarketFilters}
-                                        className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 transition-colors font-medium text-sm"
-                                    >
-                                        {t('marketplace.btn.clear')}
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="min-h-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-auto">
-                                <table className="w-full min-w-[980px] border-collapse text-sm">
-                                    <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
-                                        <tr>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('myTrades.col.side')}</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.myOrders.delivery')}</th>
-                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.price')}</th>
-                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.myOrders.quantity')}</th>
-                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.myOrders.remaining')}</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.col.window')}</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.col.status')}</th>
-                                            <th className="text-center px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.col.action')}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredMyOrders.map((order) => {
-                                            const isBid = order.side === 'BID';
-                                            const filled = order.status === 'FILLED' || order.status === 'CANCELLED' || order.status === 'EXPIRED';
-                                            return (
-                                                <tr
-                                                    key={order.id}
-                                                    className={`border-t border-slate-100 dark:border-slate-700 ${filled ? 'opacity-50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-                                                >
-                                                    <td className="px-3 py-2">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                                                            isBid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                                                        }`}>
-                                                            {order.side}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">
-                                                        {getOrderDisplayName(order, t('marketplace.unknownProduct'))}
-                                                        {order.fame_terms && <details className="mt-2 max-w-xl whitespace-normal text-xs">
-                                                            <summary className="cursor-pointer text-slate-500">{t('marketplace.b100.orderTerms')}</summary>
-                                                            <div className="mt-3"><FameOrderTermsDetails terms={order.fame_terms} /></div>
-                                                        </details>}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">
-                                                        {order.delivery_point_name || order.region}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                                        ${order.price_per_mt_usd.toLocaleString(locale)}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {formatQuantity(order.quantity_mt, locale)}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {formatQuantity(order.remaining_quantity_mt, locale)}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
-                                                        {formatDeliveryWindow(order, locale)}
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
-                                                            order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
-                                                            order.status === 'PARTIALLY_FILLED' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
-                                                            order.status === 'FILLED' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
-                                                            'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500'
-                                                        }`}>
-                                                            {getStatusConfig(order.status, t).label}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-2 text-center">
-                                                        {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (!isMarketSupportActive || order.creation_method === 'MARKET_SUPPORT') && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleCancelOrder(order)}
-                                                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                                title={t('marketplace.cancel.order')}
-                                                            >
-                                                                <Trash2 size={12} />
-                                                                {t('marketplace.btn.cancel')}
-                                                            </button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                        <div className="flex-none flex justify-end pt-3">
-                            <button
-                                onClick={() => fetchMyOrders(true)}
-                                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                            >
-                                <RefreshCw size={12} /> {t('marketplace.btn.refresh')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <MyListingsPanel
+                isHistorySelected={isHistorySelected}
+                marketTab={marketTab}
+                myOrdersError={myOrdersError}
+                myOrdersLoading={myOrdersLoading}
+                outstandingMyOrders={outstandingMyOrders}
+                filteredMyOrders={filteredMyOrders}
+                role={role}
+                setOrderModalSide={setOrderModalSide}
+                sliceSummary={sliceSummary}
+                hasActiveSliceFilters={hasActiveSliceFilters}
+                clearMarketFilters={clearMarketFilters}
+                locale={locale}
+                t={t}
+                isMarketSupportActive={isMarketSupportActive}
+                handleCancelOrder={handleCancelOrder}
+                fetchMyOrders={fetchMyOrders}
+            />
 
-            {/* Market tab: listings table */}
-            {!isHistorySelected && marketTab === 'market' && (!error || hasLoadedListings) && (
-                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
-                    <div className="h-full min-h-0 max-w-7xl mx-auto">
-                        <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
-                            <div className="min-h-0 flex-1 overflow-auto">
-                            <table className="w-full min-w-[680px] border-collapse text-sm xl:min-w-[900px]">
-                                <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
-                                    <tr>
-                                        {configBase.columns.map((col) => (
-                                            <th
-                                                key={col}
-                                                className={`${col === 'action' ? 'text-right' : 'text-left'} px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
-                                                    col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' :
-                                                    col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' :
-                                                    col === 'action' ? 'sticky right-0 z-40 min-w-[108px] bg-slate-100 text-right shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] dark:bg-slate-800' : ''
-                                                }`}
-                                            >
-                                                {COLUMN_HEADERS[col]}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {loading ? (
-                                        <SkeletonRows />
-                                    ) : filteredListings.length > 0 ? (
-                                        filteredListings.map(order => (
-                                            <React.Fragment key={order.id}>
-                                                <tr
-                                                    data-order-id={order.id}
-                                                    data-tour="marketplace-listing-row"
-                                                    className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
-                                                >
-                                                    {configBase.columns.map(col => renderCell(col, order))}
-                                                </tr>
-                                                {order.market_product === 'BIO_LNG' && order.lng_terms && (
-                                                    <tr className="border-b border-sky-100 bg-sky-50/40 dark:border-sky-950/40 dark:bg-sky-950/10">
-                                                        <td colSpan={configBase.columns.length} className="px-4 py-2 align-top">
-                                                            <details>
-                                                                <summary className="cursor-pointer text-xs font-medium text-slate-500 dark:text-slate-400">{t('marketplace.bioLng.orderTerms')}</summary>
-                                                                <div className="mt-3 max-w-3xl"><LngOrderTermsDetails terms={order.lng_terms} /></div>
-                                                            </details>
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </React.Fragment>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={configBase.columns.length} className="py-16 text-center">
-                                                <Ship className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                                                <h3 className="text-lg font-bold text-slate-500">{t('marketplace.empty.title')}</h3>
-                                                <p className="text-slate-400 mt-1 text-sm max-w-md mx-auto">
-                                                    {role === 'BUYER'
-                                                        ? t('marketplace.empty.buyer')
-                                                        : t('marketplace.empty.supplier')}
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                            </div>
-                            {/* Pagination */}
-                            {!loading && totalCount > 0 && (
-                                <div className="flex-none border-t border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-900">
-                                    <Pagination
-                                        total={totalCount}
-                                        skip={currentSkip}
-                                        limit={PAGE_SIZE}
-                                        onPageChange={handlePageChange}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ListingsTable
+                isHistorySelected={isHistorySelected}
+                marketTab={marketTab}
+                error={error}
+                hasLoadedListings={hasLoadedListings}
+                configBase={configBase}
+                loading={loading}
+                filteredListings={filteredListings}
+                highlightedOrderId={highlightedOrderId}
+                t={t}
+                role={role}
+                locale={locale}
+                complianceOverlays={complianceOverlays}
+                overlayAssumptions={overlayAssumptions}
+                b100TradingEnabled={b100TradingEnabled}
+                bioLngTradingEnabled={bioLngTradingEnabled}
+                pinnedOrderIds={pinnedOrderIds}
+                isMarketSupportActive={isMarketSupportActive}
+                openTradeModal={openTradeModal}
+                catalogError={catalogError}
+                togglePin={togglePin}
+                totalCount={totalCount}
+                currentSkip={currentSkip}
+                handlePageChange={handlePageChange}
+            />
 
-            {/* ─── Trade Confirmation Modal ─────────────────────────── */}
-            {!isHistorySelected && selectedOrder && tradeState !== 'idle' && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' || selectedOrder.market_product === 'BIO_LNG' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
-                        {tradeState === 'success' ? (
-                            <div className="p-8 flex flex-col items-center text-center">
-                                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                    <CheckCircle2 size={24} />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
-                                    {tradeResult?.status === 'PENDING_CONFIRMATION'
-                                        ? t('marketplace.modal.tradeInitiated')
-                                        : t('marketplace.modal.tradeRecorded')}
-                                </h3>
-                                {tradeResult && (
-                                    <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.product')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeResult.product_name || (typeof tradeResult.market_product === 'string' ? tradeResult.market_product : tradeResult.fuel_type)}</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.filter.port')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeResult.delivery_point_name || tradeResult.region}</div>
-                                            </div>
-                                            <div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{formatQuantity(tradeResult.quantity_mt, locale)} MT</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
-                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${formatUsd(tradeResult.price_per_mt_usd)}/MT</div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                            <span className="text-xs text-slate-400">{t('marketplace.modal.total')}</span>
-                                            <span className="text-base font-bold text-slate-900 dark:text-white">
-                                                ${(tradeResult.quantity_mt * tradeResult.price_per_mt_usd).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                            {t('marketplace.modal.status')}: {tradeResult.status.replaceAll('_', ' ')}
-                                        </div>
-                                    </div>
-                                )}
-                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
-                                    {tradeResult?.status === 'PENDING_CONFIRMATION'
-                                        ? role === 'BUYER'
-                                            ? t('marketplace.modal.tradeInitiated.buyer')
-                                            : t('marketplace.modal.tradeInitiated.supplier')
-                                        : t('marketplace.modal.tradeRecorded.body', {
-                                            status: tradeResult?.status.replaceAll('_', ' '),
-                                        })}
-                                </p>
-                            </div>
-                        ) : tradeState === 'outcome_unknown' ? (
-                            <div className="p-8 flex flex-col items-center text-center">
-                                <div className="p-4 bg-amber-500/10 rounded-full mb-4">
-                                    <AlertTriangle size={28} className="text-amber-500" />
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.outcomeUnknown.title')}</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
-                                <button
-                                    type="button"
-                                    onClick={() => { void confirmTrade(); }}
-                                    className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300"
-                                >
-                                    {t('marketplace.btn.retrySafely')}
-                                </button>
-                                <button type="button" onClick={closeTradeModal} className="px-6 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-lg hover:bg-slate-600 transition-colors">
-                                    {t('marketplace.btn.cancel')}
-                                </button>
-                            </div>
-                        ) : tradeState === 'error' ? (
-                            <div className="p-8 flex flex-col items-center text-center">
-                                <div className="p-4 bg-red-500/10 rounded-full mb-4">
-                                    <AlertCircle size={28} className="text-red-500" />
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
-                                {tradeError && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>}
-                                {tradeKycBlocked && <KycRequiredNotice className="mb-4 w-full" />}
-                                {tradeNeedsRefresh && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            closeTradeModal();
-                                            void fetchProductCounts(true);
-                                            if (marketTab === 'market') void fetchListings(false, currentSkip, true);
-                                        }}
-                                        className="mb-3 w-full rounded-lg border border-emerald-500 px-3 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-300"
-                                    >
-                                        {t('marketplace.modal.refreshReview')}
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={closeTradeModal}
-                                    className="px-6 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-lg hover:bg-slate-600 transition-colors"
-                                >
-                                    {t('marketplace.btn.cancel')}
-                                </button>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Header */}
-                                <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-[#334155] dark:text-white">
-                                            {t(configBase.counterAction.labelKey)}
-                                        </h3>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            {getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))} &middot; {selectedOrder.region}
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        aria-label={t('marketplace.modal.close')}
-                                        data-tour="trade-modal-close"
-                                        onClick={closeTradeModal}
-                                        disabled={tradeState === 'submitting'}
-                                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        <X size={20} />
-                                    </button>
-                                </div>
-
-                                <div className="p-6 space-y-5">
-                                    {selectedOrder.is_demo_listing && (
-                                        <div data-tour="trade-demo-warning" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                                            <div className="flex items-start gap-2">
-                                                <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
-                                                <div>
-                                                    <div className="text-sm font-bold">{t('marketplace.demo.modalTitle')}</div>
-                                                    <p className="mt-1 text-xs leading-5">{t('marketplace.demo.modalBody')}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Order summary */}
-                                    <div data-tour="trade-modal-summary" className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
-                                            <span className="flex items-center gap-2 text-right font-bold text-slate-800 dark:text-slate-200">
-                                                {selectedOrder.is_demo_listing && (
-                                                    <AlertCircle size={14} className="text-amber-500" aria-label={t('marketplace.demo.label')} />
-                                                )}
-                                                {getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.price')}</span>
-                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                                ${formatUsd(selectedOrder.price_per_mt_usd)} / MT
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.location')}</span>
-                                            <span className="font-bold text-slate-800 dark:text-slate-200">
-                                                {selectedOrder.delivery_point_name || selectedOrder.region}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Quantity input */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
-                                        <div className="relative">
-                                            <input
-                                                type="number"
-                                                value={Number.isFinite(tradeQuantity) ? tradeQuantity : ''}
-                                                onChange={(e) => setTradeQuantity(Number(e.target.value))}
-                                                max={selectedOrder.remaining_quantity_mt}
-                                                min={0.01}
-                                                step={0.01}
-                                                aria-label={t('marketplace.modal.quantity')}
-                                                disabled={tradeState === 'reviewing' || tradeState === 'submitting' || selectedOrder.is_demo_listing}
-                                                className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-400"
-                                            />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
-                                        </div>
-                                        <p className="text-xs text-slate-400 mt-1 text-right">
-                                            {t('marketplace.modal.maxAvailable')} {formatQuantity(selectedOrder.remaining_quantity_mt, locale)} MT
-                                            {Number.isFinite(tradeQuantity) && tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
-                                                <span className="ml-2 text-emerald-500 font-bold">
-                                                    {t('marketplace.modal.total')} ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
-                                                </span>
-                                            )}
-                                        </p>
-                                    </div>
-                                    {getBiofuelSpecification(selectedOrder.market_product) && <div className="text-sm text-slate-600 dark:text-slate-300">
-                                        <p>{t(`${selectedOrder.market_product?.toLowerCase()}.contract`)}</p>
-                                        <p>{selectedOrder.specification_standard}</p>
-                                        <p>{formatQuantity(selectedOrder.carbon_intensity_gco2_mj, locale) || t('common.notAvailable')} gCO₂e/MJ · {selectedOrder.carbon_intensity_method}</p>
-                                    </div>}
-                                    {selectedOrder.market_product === 'UCOME_B100' && <div className="space-y-4">
-                                        {selectedOrder.fame_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>
-                                            <summary className="cursor-pointer text-sm font-bold">{t('marketplace.b100.orderTerms')}</summary>
-                                            <div className="mt-4"><FameOrderTermsDetails terms={selectedOrder.fame_terms} /></div>
-                                        </details>}
-                                        <form ref={tradeTermsForm} aria-label={t('marketplace.b100.takerTerms')} hidden={tradeState !== 'confirming'} onSubmit={event => { event.preventDefault(); reviewTrade(); }}>
-                                            <FameOrderFields side={selectedOrder.side === 'ASK' ? 'BID' : 'ASK'} initial={initialBuyerTerms} pending={tradeState !== 'confirming'} />
-                                        </form>
-                                        {tradeState === 'reviewing' && tradeFameInput?.fame_terms && <section className="rounded-lg border border-emerald-200 p-4 dark:border-emerald-900">
-                                            <h4 className="mb-3 text-sm font-bold">{t('marketplace.b100.takerTerms')}</h4>
-                                            <FameOrderTermsDetails terms={tradeFameInput.fame_terms} />
-                                            <p className="mt-3 text-xs text-slate-500">{t('marketplace.b100.reviewTerms')}</p>
-                                        </section>}
-                                        {tradeError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{tradeError}</p>}
-                                    </div>}
-                                    {selectedOrder.market_product === 'BIO_LNG' && <div className="space-y-4">
-                                        {selectedOrder.lng_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>
-                                            <summary className="cursor-pointer text-sm font-bold">{t('marketplace.bioLng.orderTerms')}</summary>
-                                            <div className="mt-4"><LngOrderTermsDetails terms={selectedOrder.lng_terms} /></div>
-                                        </details>}
-                                        <form ref={tradeLngTermsForm} aria-label={t('marketplace.bioLng.takerTerms')} hidden={tradeState !== 'confirming'} onSubmit={event => { event.preventDefault(); reviewTrade(); }}>
-                                            <LngOrderFields side={selectedOrder.side === 'ASK' ? 'BID' : 'ASK'} initial={initialLngTaker} pending={tradeState !== 'confirming'} />
-                                        </form>
-                                        {tradeState === 'reviewing' && tradeLngInput?.lng_terms && <section className="rounded-lg border border-emerald-200 p-4 dark:border-emerald-900">
-                                            <h4 className="mb-3 text-sm font-bold">{t('marketplace.bioLng.takerTerms')}</h4>
-                                            <LngOrderTermsDetails terms={tradeLngInput.lng_terms} />
-                                            <p className="mt-3 text-xs text-slate-500">{t('marketplace.bioLng.reviewTerms')}</p>
-                                        </section>}
-                                        {tradeError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{tradeError}</p>}
-                                    </div>}
-                                    {tradeState === 'reviewing' && (
-                                        <div data-tour="trade-final-warning" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-                                            <div className="flex items-start gap-2">
-                                                <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
-                                                <div>
-                                                    <div className="font-bold">{t('marketplace.confirm.title')}</div>
-                                                    <p className="mt-1 text-xs leading-5">{t('marketplace.confirm.body')}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Actions */}
-                                <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
-                                    <button
-                                        type="button"
-                                        onClick={tradeState === 'reviewing' ? () => setTradeState('confirming') : closeTradeModal}
-                                        disabled={tradeState === 'submitting'}
-                                        className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {tradeState === 'reviewing' ? t('marketplace.btn.back') : t('marketplace.btn.cancel')}
-                                    </button>
-                                    {selectedOrder.is_demo_listing ? (
-                                        <button
-                                            type="button"
-                                            disabled
-                                            data-tour="trade-demo-disabled-button"
-                                            className="px-6 py-2.5 bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-lg flex items-center gap-2 disabled:cursor-not-allowed dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30"
-                                        >
-                                            <AlertCircle size={18} />
-                                            <span>{t('marketplace.demo.disabledButton')}</span>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={tradeState === 'reviewing' ? confirmTrade : reviewTrade}
-                                            data-tour={tradeState === 'reviewing' ? 'trade-final-confirm-button' : 'trade-review-button'}
-                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
-                                            className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                                            <span>
-                                                {tradeState === 'submitting'
-                                                    ? t('marketplace.btn.submitting')
-                                                    : tradeState === 'reviewing'
-                                                        ? t('marketplace.btn.confirmFinal')
-                                                        : t('marketplace.btn.confirm')}
-                                            </span>
-                                        </button>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
+            <TakeTradeDialog
+                isHistorySelected={isHistorySelected}
+                selectedOrder={selectedOrder}
+                tradeState={tradeState}
+                tradeResult={tradeResult}
+                t={t}
+                locale={locale}
+                role={role}
+                tradeError={tradeError}
+                confirmTrade={confirmTrade}
+                closeTradeModal={closeTradeModal}
+                tradeKycBlocked={tradeKycBlocked}
+                tradeNeedsRefresh={tradeNeedsRefresh}
+                fetchProductCounts={fetchProductCounts}
+                marketTab={marketTab}
+                fetchListings={fetchListings}
+                currentSkip={currentSkip}
+                configBase={configBase}
+                tradeQuantity={tradeQuantity}
+                setTradeQuantity={setTradeQuantity}
+                tradeTermsForm={tradeTermsForm}
+                tradeLngTermsForm={tradeLngTermsForm}
+                reviewTrade={reviewTrade}
+                initialBuyerTerms={initialBuyerTerms}
+                initialLngTaker={initialLngTaker}
+                tradeFameInput={tradeFameInput}
+                tradeLngInput={tradeLngInput}
+                setTradeState={setTradeState}
+            />
 
             {/* ─── Order Placement Modal ────────────────────────────── */}
-            <ConfirmModal
-                isOpen={!isHistorySelected && Boolean(pendingCancellation)}
-                onClose={closeCancellationModal}
-                onConfirm={() => { void confirmCancelOrder(); }}
-                title={t('marketplace.cancel.title')}
-                message={t(cancellationOutcomeUnknown ? 'marketplace.cancel.outcomeUnknown' : 'marketplace.cancel.message')}
-                confirmText={t(cancellationOutcomeUnknown ? 'marketplace.cancel.retrySafely' : 'marketplace.cancel.confirm')}
-                variant="danger"
-                isLoading={cancellationLoading}
-                confirmDisabled={!cancellationOutcomeUnknown && cancellationReason.trim().length < 3}
-            >
-                <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    {t('marketplace.cancel.reasonLabel')}
-                    <textarea
-                        aria-label={t('marketplace.cancel.reasonLabel')}
-                        autoFocus
-                        rows={3}
-                        maxLength={500}
-                        value={cancellationReason}
-                        disabled={cancellationLoading || cancellationOutcomeUnknown}
-                        onChange={(event) => setCancellationReason(event.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-                    />
-                </label>
-            </ConfirmModal>
+            <CancelOrderDialog
+                isHistorySelected={isHistorySelected}
+                pendingCancellation={pendingCancellation}
+                closeCancellationModal={closeCancellationModal}
+                confirmCancelOrder={confirmCancelOrder}
+                t={t}
+                cancellationOutcomeUnknown={cancellationOutcomeUnknown}
+                cancellationLoading={cancellationLoading}
+                cancellationReason={cancellationReason}
+                setCancellationReason={setCancellationReason}
+            />
+
             <OrderPlaceModal
                 isOpen={orderModalSide !== null && !isHistorySelected}
                 onClose={() => {

@@ -23,7 +23,7 @@ interface MarketplaceSelectionOptions {
     initialPort?: Port | null;
     initialSlice?: MarketSlice | null;
     viewMode?: ViewMode;
-    userRole?: string;
+    userRole?: string | null;
     ready: boolean;
     locale: string;
     t: TFunction;
@@ -46,7 +46,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     }, [isExactSliceRoute, location.pathname, location.search, navigate]);
     const historyView = new URLSearchParams(location.search).get('view');
     const requestedView = historyView;
-    const marketTab = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
+    const marketTab: 'market' | 'orderbook' | 'my_orders' = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
     const isHistorySelected = requestedProduct === 'UCOME_B100'
         && ['history_offers', 'history_my_offers', 'history_rfqs', 'requests'].includes(historyView ?? '');
     const role: ViewMode = userRole === 'ADMIN'
@@ -104,7 +104,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
 
     const defaultSort = role === 'SUPPLIER' ? 'price_desc' : 'price_asc';
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>(() => defaultSort);
-    const fameTab = requestedView === 'history_rfqs' || requestedView === 'requests' ? 'history_rfqs' : requestedView === 'history_my_offers' ? 'history_my_offers' : 'history_offers';
+    const fameTab: 'history_offers' | 'history_my_offers' | 'history_rfqs' = requestedView === 'history_rfqs' || requestedView === 'requests' ? 'history_rfqs' : requestedView === 'history_my_offers' ? 'history_my_offers' : 'history_offers';
     const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'history_offers' | 'history_my_offers' | 'history_rfqs') => {
         const next = new URLSearchParams(location.search);
         if (tab === 'market') next.delete('view');
