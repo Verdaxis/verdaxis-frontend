@@ -1,0 +1,18 @@
+ci-install	0	npm ci --legacy-peer-deps
+ci-tests	0	npm test
+ci-phase0	0	node --test scripts/phase0-request-manifest.test.mjs
+ci-openapi	0	npm run check:openapi
+ci-api-types	0	npm run check:api-types
+ci-artifact-tests	0	npm run test:artifact-check
+ci-openapi-tests	0	npm run test:openapi-source
+ci-release-tests	0	npm run test:release-smoke
+ci-typecheck	0	npm run typecheck
+ci-i18n	0	npm run i18n:check
+ci-build-staging	0	npm run build:staging
+ci-check-staging	0	npm run build:check:staging
+ci-build-prod	0	npm run build:prod
+ci-check-prod	0	npm run build:check
+build-comparison	1	node outputs/vite7-compare.mjs
+measurement-build	0	VITE_MAPBOX_PUBLIC_TOKEN=pk.measurement-only npm run build
+budget-report	0	node scripts/check-build-artifacts.mjs --report --root dist
+journeys	0	npm run smoke:journeys
