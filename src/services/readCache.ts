@@ -40,7 +40,20 @@ const removeOldestValue = () => {
     if (oldestKey !== undefined) values.delete(oldestKey);
 };
 
-export const invalidateReadCache = (...resourcePrefixes: string[]): void => {
+export type ReadInvalidationCause = 'explicit' | 'event' | 'mutation-start' | 'mutation-settled' | 'scope-clear';
+export interface ReadInvalidation {
+    prefixes: readonly string[];
+    cause: ReadInvalidationCause;
+}
+const invalidationListeners = new Set<(event: ReadInvalidation) => void>();
+
+export const subscribeReadInvalidations = (listener: (event: ReadInvalidation) => void): (() => void) => {
+    invalidationListeners.add(listener);
+    return () => { invalidationListeners.delete(listener); };
+};
+
+export const invalidateReadCacheWithCause = (cause: ReadInvalidationCause, ...resourcePrefixes: string[]): void => {
+    for (const listener of invalidationListeners) listener({ prefixes: resourcePrefixes, cause });
     if (resourcePrefixes.length === 0) {
         values.clear();
         pending.clear();
@@ -58,6 +71,10 @@ export const invalidateReadCache = (...resourcePrefixes: string[]): void => {
             pending.delete(key);
         }
     }
+};
+
+export const invalidateReadCache = (...resourcePrefixes: string[]): void => {
+    invalidateReadCacheWithCause('explicit', ...resourcePrefixes);
 };
 
 export const setReadCachePrincipal = (userId?: string | null, organizationId?: string | null): void => {

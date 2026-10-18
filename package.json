@@ -36,6 +36,7 @@
     "smoke:release": "python3 scripts/smoke_release.py"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.90.21",
     "@testing-library/dom": "^10.4.1",
     "gsap": "^3.14.2",
     "i18next": "^25.8.18",

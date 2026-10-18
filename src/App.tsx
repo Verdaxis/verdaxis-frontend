@@ -290,6 +290,8 @@ const pathToPage = (pathname: string): Page => {
   }
 };
 
+const DashboardQueryProvider = lazy(() => import('./lib/query/QueryProvider').then(module => ({ default: module.QueryProvider })));
+
 const DashboardLayout: React.FC = () => {
   const { user } = useAuth();
   const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
@@ -654,7 +656,9 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
                             <RequireOrganization>
                                 <RequireProfile>
                                     <MobileDesktopGate>
-                                        <DashboardLayout />
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <DashboardQueryProvider><DashboardLayout /></DashboardQueryProvider>
+                                        </Suspense>
                                     </MobileDesktopGate>
                                 </RequireProfile>
                             </RequireOrganization>

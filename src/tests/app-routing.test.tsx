@@ -299,7 +299,7 @@ describe('app routing', () => {
       ];
       for (const [path, marker, page] of cases) {
         const view = renderApp(path);
-        expect(await screen.findByTestId(marker)).toBeTruthy();
+        expect(await screen.findByTestId(marker, {}, { timeout: 5000 })).toBeTruthy();
         expect(dashboardPageAttr()).toBe(page);
         expect(sessionStorage.getItem('verdaxis_currentPage')).toBe(page);
         view.unmount();
@@ -317,7 +317,7 @@ describe('app routing', () => {
       ];
       for (const [path, marker, page] of cases) {
         const view = renderApp(path);
-        expect(await screen.findByTestId(marker)).toBeTruthy();
+        expect(await screen.findByTestId(marker, {}, { timeout: 5000 })).toBeTruthy();
         expect(dashboardPageAttr()).toBe(page);
         view.unmount();
       }
