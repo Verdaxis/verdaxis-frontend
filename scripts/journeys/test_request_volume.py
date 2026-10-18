@@ -32,7 +32,27 @@ class RequestVolumeTests(unittest.TestCase):
         tracker = volume.StreamTracker()
         tracker.event('a', 'orderbook', ('a',), 'open')
         tracker.event('b', 'orderbook', ('b',), 'open')
-        self.assertEqual(tracker.maxima, {'orderbook:public': 2})
+        self.assertEqual(tracker.maxima, {'orderbook:default:public': 2})
+
+    def test_connection_ceiling_is_per_browser_context(self):
+        for contexts, passed in [(('buyer', 'supplier'), True), (('buyer', 'buyer'), False)]:
+            with self.subTest(contexts=contexts):
+                tracker = volume.StreamTracker()
+                for index, context in enumerate(contexts):
+                    tracker.event((context, str(index)), 'orderbook', None, 'open')
+                candidate = self.baseline()
+                candidate['samples'][0]['scenarios']['browse']['stream_maxima'] = tracker.maxima
+                errors = volume.compare(self.baseline(), candidate, enforce_stream_ceiling=True)
+                self.assertEqual(not errors, passed, errors)
+
+    def test_context_teardown_removes_only_its_physical_connections(self):
+        tracker = volume.StreamTracker()
+        tracker.event(('a', '1'), 'orderbook', None, 'open')
+        tracker.event(('b', '1'), 'orderbook', None, 'open')
+        tracker.close_context('a')
+        self.assertEqual(tracker.active_count, 1)
+        tracker.close_context('b')
+        self.assertEqual(tracker.active_count, 0)
 
     def test_forwarded_request_is_counted_once(self):
         ledger = volume.RequestLedger()

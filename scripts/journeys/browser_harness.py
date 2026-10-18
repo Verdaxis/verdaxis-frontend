@@ -15,8 +15,8 @@ Two rules matter for every run:
 """
 import json
 import os
-import uuid
 import time
+import uuid
 from urllib.parse import urlsplit
 
 from .request_volume import STREAM_ROUTES, RequestLedger, StreamTracker
@@ -357,6 +357,7 @@ class Harness:
                     self.streams_after_close += evidence['remaining']
         self.context.unroute_all(behavior='ignoreErrors')
         self.context.close()
+        self.tracker.close_context(self.context_id)
         self.closed = True
         self.stream_maxima = dict(self.tracker.maxima)
         self.streams_after_close = self.tracker.active_count

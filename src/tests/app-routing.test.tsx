@@ -301,7 +301,7 @@ describe('app routing', () => {
         const view = renderApp(path);
         expect(await screen.findByTestId(marker, {}, { timeout: 5000 })).toBeTruthy();
         expect(dashboardPageAttr()).toBe(page);
-        expect(sessionStorage.getItem('verdaxis_currentPage')).toBe(page);
+        await waitFor(() => expect(sessionStorage.getItem('verdaxis_currentPage')).toBe(page));
         view.unmount();
       }
     });

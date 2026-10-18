@@ -22,10 +22,21 @@ class StreamTracker:
         if event != 'open':
             self.active.pop(identity, None)
             return
-        key = channel + ':' + ('public' if channel != 'trades' else json.dumps(scope, separators=(',', ':')))
+        # Each browser context owns its physical connections. Aggregate all
+        # contexts' evidence, but never combine their independent ceilings.
+        context = identity[0] if isinstance(identity, tuple) else 'default'
+        accepted_scope = 'public' if channel != 'trades' else json.dumps(scope, separators=(',', ':'))
+        key = f'{channel}:{context}:{accepted_scope}'
         self.active[identity] = key
         count = sum(value == key for value in self.active.values())
         self.maxima[key] = max(self.maxima.get(key, 0), count)
+
+    def close_context(self, context):
+        # BrowserContext.close closes native sources even if a document was
+        # replaced before its async binding delivered a final close event.
+        for identity in list(self.active):
+            if isinstance(identity, tuple) and identity[0] == context:
+                self.active.pop(identity)
 
     @property
     def active_count(self):
