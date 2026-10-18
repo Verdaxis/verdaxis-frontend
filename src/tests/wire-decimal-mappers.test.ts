@@ -1,3 +1,4 @@
+import type { NormalizedOrderWire, NormalizedTradeWire } from '../api/mappers';
 import { describe, expect, it } from 'vitest';
 
 import type {
@@ -440,17 +441,17 @@ describe('wire decimal mappers: absent, empty and malformed values', () => {
     it('makes a required decimal NaN in every unusable form, as Number() did for a malformed one', () => {
         for (const wire of [null, undefined, '', 'abc']) {
             expect(requireWireDecimal(wire), String(wire)).toBeNaN();
-            const order = toOrderBookOrder({ ...WIRE_ORDER, quantity_mt: wire } as WireOrder);
+            const order = toOrderBookOrder({ ...WIRE_ORDER, fame_terms: null, lng_terms: null, quantity_mt: wire } as NormalizedOrderWire);
             expect(order.quantity_mt, String(wire)).toBeNaN();
         }
         // A real zero stays a zero.
         expect(requireWireDecimal('0.00')).toBe(0);
-        expect(toOrderBookOrder({ ...WIRE_ORDER, quantity_mt: '0.00' } as WireOrder).quantity_mt).toBe(0);
+        expect(toOrderBookOrder({ ...WIRE_ORDER, fame_terms: null, lng_terms: null, quantity_mt: '0.00' } as NormalizedOrderWire).quantity_mt).toBe(0);
     });
 
     it('leaves a field the wire omits absent for a nullable app field', () => {
         const { final_total_usd: _omitted, ...withoutTotal } = WIRE_TRADE as any;
-        expect(toTrade(withoutTotal as WireTrade).final_total_usd).toBeNull();
+        expect(toTrade(withoutTotal as NormalizedTradeWire).final_total_usd).toBeNull();
     });
 
     it('keeps a NaN quantity out of a sum instead of inventing a value', () => {

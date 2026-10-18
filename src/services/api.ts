@@ -399,7 +399,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     return responseBody;
 };
 
-type ReadCacheOptions = { force?: boolean };
+export type ReadCacheOptions = { cacheOwner?: 'legacy' | 'query'; force?: boolean; signal?: AbortSignal };
 
 const readApi = <T = any>(
     resourceKey: string,
@@ -409,12 +409,14 @@ const readApi = <T = any>(
     options?: RequestInit,
     cacheOptions?: ReadCacheOptions,
 ): Promise<T> => {
+    const requestOptions = cacheOptions?.signal ? { ...options, signal: cacheOptions.signal } : options;
+    if (cacheOptions?.cacheOwner === 'query') return fetchApi(path, requestOptions) as Promise<T>;
     const effectiveScope = isPublicMarketReadRequest(path, options?.method) ? 'public' : scope;
     return cachedRead(
         resourceKey,
         effectiveScope,
         READ_CACHE_TTL_MS[freshness],
-        () => fetchApi(path, options) as Promise<T>,
+        () => fetchApi(path, requestOptions) as Promise<T>,
         cacheOptions?.force,
     );
 };
@@ -754,13 +756,20 @@ export const api = {
             }, 30000);
             return handleResponse(res);
         },
-        pricingOverlay: async (orderIds: string[]): Promise<PricingOverlayResponse> => {
+        pricingOverlay: async (orderIds: string[], cacheOptions?: ReadCacheOptions): Promise<PricingOverlayResponse> => {
+            const generation = getAuthGeneration();
+            const support = getMarketSupportContextId();
             const res = await fetchWithTimeout(`${API_URL}/compliance/pricing-overlay`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({ order_ids: orderIds }),
+                signal: cacheOptions?.signal,
             });
-            return handleResponse(res);
+            const result = await handleResponse(res);
+            if (generation !== getAuthGeneration() || support !== getMarketSupportContextId()) {
+                throw new DOMException('Request scope changed', 'AbortError');
+            }
+            return result;
         },
         fuels: async () => {
             const res = await fetchWithTimeout(`${API_URL}/compliance/fuels`);
