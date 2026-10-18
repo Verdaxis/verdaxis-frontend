@@ -139,10 +139,20 @@ export const mapWirePage = <T>(page: T, map: (record: any) => unknown): T => {
     } as T;
 };
 
+/**
+ * The product-terms layer (`src/services/orderTerms.ts`) replaces `fame_terms`,
+ * `lng_terms` and their trade snapshots with the app shapes before a mapper
+ * runs. Their generated wire type still describes the raw, pre-normalized form,
+ * so this re-describes the wire record for the mapper's return assertion. It
+ * returns the same object, so no property is added or dropped.
+ */
+const withMappedTerms = <Wire, Terms>(wire: Wire): Omit<Wire, keyof Terms> & Terms =>
+    wire as unknown as Omit<Wire, keyof Terms> & Terms;
+
 // ─── Orders ─────────────────────────────────────────────────────────
 
 export const toOrderBookOrder = (wire: WireOrder): OrderBookOrder => ({
-    ...wire,
+    ...withMappedTerms<WireOrder, Pick<OrderBookOrder, 'fame_terms' | 'lng_terms'>>(wire),
     quantity_mt: requireWireDecimal(wire.quantity_mt),
     remaining_quantity_mt: requireWireDecimal(wire.remaining_quantity_mt),
     price_per_mt_usd: requireWireDecimal(wire.price_per_mt_usd),
@@ -170,7 +180,7 @@ export const toOrderBookOrders = (value: unknown): OrderBookOrder[] =>
 // ─── Trades ─────────────────────────────────────────────────────────
 
 export const toTrade = (wire: WireTrade): Trade => ({
-    ...wire,
+    ...withMappedTerms<WireTrade, Pick<Trade, 'fame_terms_snapshot' | 'lng_terms_snapshot'>>(wire),
     quantity_mt: requireWireDecimal(wire.quantity_mt),
     price_per_mt_usd: requireWireDecimal(wire.price_per_mt_usd),
     final_quantity_mt: parseWireDecimal(wire.final_quantity_mt),
