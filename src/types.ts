@@ -1,3 +1,4 @@
+import type { WireOrder, WireOwnedOrder, WireTrade, WireMarketSourceKind, WireExecutionEligibility, WireProduct, WireDeliveryPoint, WireNotification, WirePriceSummary } from './api/contract';
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
@@ -105,15 +106,7 @@ export interface TraceEvent {
     status: 'Verified' | 'Pending';
 }
 
-export interface Notification {
-    id: string;
-    type: 'SYSTEM' | 'ORDER_UPDATE' | 'DIRECT_ORDER' | 'DIRECT_ORDER_OFFER' | 'USER_STATUS';
-    title: string;
-    message: string;
-    data?: any;
-    is_read: boolean;
-    created_at: string;
-}
+export type Notification = WireNotification;
 
 export interface MarketWatchItem {
     pair: string;
@@ -137,42 +130,23 @@ export type ExecutionEligibilityReason =
  * Whether the signed-in user may execute trades. `NOT_APPLICABLE` covers
  * platform admins and users without an organization; they are not gated.
  */
-export interface ExecutionEligibility {
-    eligible: boolean;
-    reason: ExecutionEligibilityReason;
-    grace_expires_at: string | null;
-}
+export type ExecutionEligibility = WireExecutionEligibility;
 
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
 // ============== Catalog Types ==============
-export type ProductExecutionMode = 'ORDERBOOK' | 'RFQ_ONLY';
+export type ProductExecutionMode = WireProduct['execution_mode'];
 
-export interface Product {
-    id: string;
-    name: string;
-    market_product?: MarketProduct;
-    fuel_type: string;
-    fuel_grade: string;
-    unit: string;
+export interface Product extends Omit<WireProduct, 'min_lot_size'> {
     min_lot_size: number;
-    spec_description?: string;
-    is_active: boolean;
-    execution_mode?: ProductExecutionMode;
-    available_delivery_point_ids?: string[];
 }
 
-export interface DeliveryPoint {
-    id: string;
-    name: string;
-    region: string;
-    timezone?: string;
-    is_active: boolean;
-}
+export type DeliveryPoint = WireDeliveryPoint;
 
 // ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio' | 'B30' | 'B100';
-export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Q1 2027' | 'Q2 2027' | 'Q3 2027' | 'Q4 2027' | 'Forward 2028' | 'Forward 2029' | 'Forward 2030';
+/** Wire window code; legacy labels are normalized only at existing boundaries. */
+export type AvailabilityWindow = WireOrder['availability_window'];
 
 export const ORDERBOOK_MARKET_PRODUCTS = [
     'BIO_METHANOL',
@@ -190,14 +164,7 @@ export const MARKET_PRODUCTS = ORDERBOOK_MARKET_PRODUCTS;
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
-export type MarketSourceKind =
-    | 'CONFIRMED_TRADE'
-    | 'LIVE_ORDER'
-    | 'DEMO_SEED'
-    | 'BENCHMARK_REFERENCE'
-    | 'MIXED_SOURCE'
-    | 'NO_DATA'
-    | 'UNKNOWN';
+export type MarketSourceKind = WireMarketSourceKind;
 
 export type MarketScope = 'DELIVERY_POINT' | 'REGION' | 'PRODUCT' | 'UNKNOWN';
 export type MarketDemoStatus = 'REAL_ONLY' | 'DEMO_ONLY' | 'MIXED' | 'UNKNOWN' | 'NOT_APPLICABLE';
@@ -276,24 +243,21 @@ export interface TradeCreateInput {
     idempotency_key?: string;
 }
 
-export interface OrderBookOrder {
+type OwnedOrderFields = Pick<WireOwnedOrder, 'organization_id' | 'updated_at' | 'trade_count' | 'creation_method' | 'etag' | 'vessel_id'>;
+
+// Compatibility view: existing public consumers still accept owner metadata.
+// Only `/orderbook/my` guarantees these fields (see `OwnedOrderBookOrder`).
+export interface OrderBookOrder extends Partial<OwnedOrderFields>, Pick<WireOrder, 'unknown_count' | 'source_kind' | 'scope' | 'demo_status' | 'version' | 'terms_digest' | 'product_id' | 'product_name' | 'fuel_grade' | 'is_crossed' | 'certification_declared' | 'is_demo_listing' | 'msds_available'> {
     id: string;
-    terms_digest?: string;
-    version?: number;
-    organization_id?: string; // Only in "my" view
     side: OrderSide;
     // Product/DeliveryPoint FK fields (new model)
-    product_id?: string;
-    product_name?: string;
     delivery_point_id?: string;
     delivery_point_name?: string;
     // Denormalized fields from product/delivery_point (always present in API responses)
     market_product?: MarketProduct;
     fuel_type: string;
-    fuel_grade: FuelGrade;
     region: string;
     port_id?: string;
-    vessel_id?: string;
     quantity_mt: number;
     remaining_quantity_mt: number;
     price_per_mt_usd: number;
@@ -304,12 +268,10 @@ export interface OrderBookOrder {
     is_verdaxis_verified: boolean;
     carbon_intensity_gco2_mj?: number | null;
     carbon_intensity_method?: string | null;
-    certification_declared?: boolean;
     certification_scheme?: string | null;
     specification_standard?: string | null;
     fame_terms?: FameOrderPublicTerms | null;
     lng_terms?: LngOrderTermsView | null;
-    msds_available?: boolean;
     feedstock?: string | null;
     origin?: string | null;
     off_spec?: boolean;
@@ -317,17 +279,13 @@ export interface OrderBookOrder {
     benchmark_price_per_mt_usd?: number | null;
     benchmark_source?: string | null;
     premium_discount_per_mt_usd?: number | null;
-    is_crossed?: boolean;
     tier_label: TierLabel;
     status: OrderBookStatus;
     expires_at?: string;
     created_at: string;
-    is_demo_listing?: boolean;
-    updated_at?: string;
-    trade_count?: number; // Only in "my" view
-    creation_method?: 'SELF_SERVICE' | 'MARKET_SUPPORT' | string;
-    etag?: string;
 }
+
+export type OwnedOrderBookOrder = OrderBookOrder & OwnedOrderFields;
 
 export interface OrderBookSnapshot {
     market_product: MarketProduct;
@@ -341,7 +299,7 @@ export interface OrderBookSnapshot {
     asks: OrderBookOrder[];
 }
 
-export interface Trade {
+export interface Trade extends Pick<WireTrade, 'unknown_count' | 'source_kind' | 'scope' | 'demo_status'> {
     id: string;
     bid_order_id?: string;
     ask_order_id?: string;
@@ -371,7 +329,7 @@ export interface Trade {
     product_name?: string;
     delivery_point_id?: string;
     delivery_point_name?: string;
-    availability_window?: string; // Canonical API code; legacy labels are normalized at display boundaries.
+    availability_window?: WireTrade['availability_window']; // The mapper normalizes wire null to undefined.
     market_product?: string | Product;
     fuel_type: string;
     fuel_grade?: FuelGrade;
@@ -428,12 +386,11 @@ export interface MapCompactMarket {
 }
 
 // ============== Price Discovery Types ==============
-export interface PriceSummary {
+export interface PriceSummary extends Pick<WirePriceSummary, 'product_name' | 'availability_window' | 'real_trade_count_24h' | 'demo_trade_count_24h' | 'unknown_trade_count_24h' | 'is_reference'> {
     market_product?: MarketProduct | string | null;
     product_id?: string | null;
     delivery_point_id?: string | null;
     delivery_point_name?: string | null;
-    availability_window?: string | null;
     fuel_type: string;
     region: string;
     last_price: number | null;
@@ -442,15 +399,11 @@ export interface PriceSummary {
     low_24h: number | null;
     volume_24h: number;
     trade_count_24h: number;
-    real_trade_count_24h?: number;
-    demo_trade_count_24h?: number;
-    unknown_trade_count_24h?: number;
     price_change_pct: number | null;
     last_trade_at: string | null;
     source_kind?: MarketSourceKind;
     scope?: MarketScope;
     demo_status?: MarketDemoStatus;
-    is_reference?: boolean;
     observed_at?: string | null;
 }
 

@@ -13,11 +13,9 @@
  * - A decimal the wire may omit or send as `null` becomes `number | null`, so
  *   `value ?? fallback` at a caller still means "no value".
  *
- * The wire types differ from the app types in other, non-decimal ways
- * (provenance, optionality, the availability and product vocabularies). Those
- * are DRIFT-2 to DRIFT-7 and belong to step 5c, so a mapper narrows only where
- * the two shapes would otherwise not line up, and names the field it does that
- * for.
+ * Non-decimal fields follow the generated contract where the app does not
+ * deliberately normalize them. Remaining vocabulary casts belong to other
+ * response families; see the drift record for the resolved order metadata.
  */
 
 import { parseWireDecimal, requireWireDecimal } from './decimals';
@@ -143,12 +141,6 @@ export const mapWirePage = <T>(page: T, map: (record: any) => unknown): T => {
 
 // ─── Orders ─────────────────────────────────────────────────────────
 
-/**
- * `fuel_grade`, `availability_window` and `market_product` are narrowed unions
- * in the app and bare strings on the wire (DRIFT-3.8, DRIFT-6 and the market
- * vocabulary); step 5c owns those three. The casts here keep the boundary
- * type-honest without claiming anything new about them.
- */
 export const toOrderBookOrder = (wire: WireOrder): OrderBookOrder => ({
     ...wire,
     quantity_mt: requireWireDecimal(wire.quantity_mt),
@@ -157,8 +149,8 @@ export const toOrderBookOrder = (wire: WireOrder): OrderBookOrder => ({
     carbon_intensity_gco2_mj: parseWireDecimal(wire.carbon_intensity_gco2_mj),
     benchmark_price_per_mt_usd: parseWireDecimal(wire.benchmark_price_per_mt_usd),
     premium_discount_per_mt_usd: parseWireDecimal(wire.premium_discount_per_mt_usd),
-    fuel_grade: wire.fuel_grade as OrderBookOrder['fuel_grade'],
-    availability_window: wire.availability_window as OrderBookOrder['availability_window'],
+    fuel_grade: wire.fuel_grade,
+    availability_window: wire.availability_window,
     market_product: wire.market_product as OrderBookOrder['market_product'],
     source_kind: wire.source_kind,
     scope: wire.scope,
@@ -188,9 +180,9 @@ export const toTrade = (wire: WireTrade): Trade => ({
     commission_amount_usd: parseWireDecimal(wire.commission_amount_usd),
     commission_fee_per_mt_usd: parseWireDecimal(wire.commission_fee_per_mt_usd),
     fuel_grade: wire.fuel_grade as Trade['fuel_grade'],
-    source_kind: wire.source_kind as never,
-    scope: wire.scope as never,
-    demo_status: wire.demo_status as never,
+    source_kind: wire.source_kind,
+    scope: wire.scope,
+    demo_status: wire.demo_status,
     // The wire marks the identity prose fields nullable; the app omits them.
     bid_order_id: wire.bid_order_id ?? undefined,
     ask_order_id: wire.ask_order_id ?? undefined,
@@ -465,9 +457,6 @@ const cellDecimals = <T extends WireForwardCurveBoardCell | WireForwardCurveMark
 export const toForwardCurveBoardCell = (wire: WireForwardCurveBoardCell): ForwardCurveBoardCell => ({
     ...wire,
     ...cellDecimals(wire),
-    // The provenance vocabularies (`*_source_kind`, `scope`, `demo_status`)
-    // carry the wire's `LIVE_INVENTORY` member the app unions never learned
-    // (DRIFT-3.4); step 5c owns them.
     ...provenanceVocabulary(wire),
     market_product: wire.market_product as ForwardCurveBoardCell['market_product'],
     // The wire marks the prose fields optional; the app type declares them.
@@ -583,9 +572,6 @@ export const toForwardCurveSliceEvidencePoint = (
     low_price_per_mt_usd: parseWireDecimal(wire.low_price_per_mt_usd),
     high_price_per_mt_usd: parseWireDecimal(wire.high_price_per_mt_usd),
     quantity_mt: parseWireDecimal(wire.quantity_mt),
-    // `source_kind` is the wire's MarketSourceKind, whose `LIVE_INVENTORY`
-    // member the app union never learned (DRIFT-3.4). Step 5c owns that
-    // vocabulary; this cast only keeps the boundary type-honest.
     source_kind: wire.source_kind as ForwardCurveSliceEvidencePoint['source_kind'],
 });
 

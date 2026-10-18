@@ -957,9 +957,9 @@ export const api = {
                 toOrderBookOrder,
             );
         },
-        myOrders: async (cacheOptions?: ReadCacheOptions): Promise<OrderBookOrder[]> => {
+        myOrders: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').OwnedOrderBookOrder[]> => {
             const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
-            return toOrderBookOrders(mapOrderbookTermsResponse(response.items ?? response));
+            return toOrderBookOrders(mapOrderbookTermsResponse(response.items ?? response)) as import('../types').OwnedOrderBookOrder[];
         },
         create: async (data: OrderCreateInput) => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
@@ -992,7 +992,7 @@ export const api = {
                 }),
             ));
         },
-        cancel: async (id: string, options?: { reason?: string; etag?: string; idempotencyKey?: string }) => {
+        cancel: async (id: string, options?: { reason?: string; etag?: string | null; idempotencyKey?: string }) => {
             if (getMarketSupportContextId() && !options?.etag) {
                 throw new ApiError(
                     'A current listing version is required before cancelling in the assisted workspace.',

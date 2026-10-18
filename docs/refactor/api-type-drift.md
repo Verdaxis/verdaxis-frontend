@@ -4,7 +4,7 @@ Step 5a generated the backend wire types and added compile-time contract tests
 between them and the hand-written frontend types. That comparison produced this
 list of places where the two sides do not agree. **Step 5b resolved DRIFT-1 (the
 decimals) and DRIFT-7.3/7.4 (the commissions) at one decimal boundary; the
-remaining entries are step 5c's work.** This file is the record for all of them,
+step 5c resolved the remaining named entries without runtime changes.** This file is the record for all of them,
 and it must be updated in the same commit as any change that makes an entry
 stale.
 
@@ -35,13 +35,13 @@ tracker decision 67, which lets the backend respell a decimal).
 | Id | Difference | Entries | Step |
 |---|---|---|---|
 | DRIFT-1 | Decimals typed `number`, sent as JSON strings | 11 (resolved) | 5b |
-| DRIFT-2 | `unknown_count` on the wire, absent from the app | 2 | 5c |
-| DRIFT-3 | Provenance fields missing or wrongly optional | 8 | 5c |
-| DRIFT-4 | Owner-view fields folded into the public interface | 5 | 5c |
-| DRIFT-5 | The `User` profile | 8 | 5c |
-| DRIFT-6 | Availability windows: display labels against canonical codes | 3 | 5c |
-| DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **35** | |
+| DRIFT-2 | Required `unknown_count` derived from the wire | 2 (resolved) | 5c |
+| DRIFT-3 | Provenance and order metadata derived from the wire | 8 (resolved) | 5c |
+| DRIFT-4 | Owner metadata derived; public compatibility retained | 5 (resolved) | 5c |
+| DRIFT-5 | Auth profile and eligibility derived from the wire | 8 (resolved) | 5c |
+| DRIFT-6 | Window types derive the wire string; labels unchanged | 3 (resolved) | 5c |
+| DRIFT-7 | Named price, catalog and notification shapes aligned | 11 (resolved) | 5b/5c |
+| | **Open** | **0** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -269,206 +269,88 @@ screen changes.
   `FeeSchedule`, `Subscription.seller_fee_per_mt_usd`,
   `fleetIntelligence.avg_consumption_mt`, the product-analytics money fields) are
   still `string | number` in the app types and still coerce at their consumers.
-  They are not in DRIFT-1 and stay for step 5c.
+  They are not among the named DRIFT-2 through DRIFT-7 entries and remain follow-up work.
 
 ---
 
-## DRIFT-2 — `unknown_count` on the wire, absent from the app
+## DRIFT-2 — resolved in step 5c
 
-The wire always sends `unknown_count` on orders and trades. Neither
-`OrderBookOrder` nor `Trade` declares it, so no component can show how much of a
-market picture is unattributable. No consumer reads it: nothing in `src/` mentions
-the field.
-
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 2.1 `OrderBookOrder` | absent | `number` | `src/types.ts:279-330` |
-| 2.2 `Trade` | absent | `number` | `src/types.ts:344-381` |
-
-Consumers: none. Step 5b decides whether the UI should surface it (the market
-provenance vocabulary elsewhere in the app already counts real/demo/unknown
-elsewhere, for example `ForwardCurveBoardDepthLevel.unknown_order_count`).
+Orders and trades now derive the required `unknown_count` from their wire types.
+The existing mapper spreads already retain the field. No request, screen or
+branch changes. Founder decision: whether and where to display this count.
 
 ---
 
-## DRIFT-3 — Provenance fields missing or wrongly optional
+## DRIFT-3 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 3.1 `OrderBookOrder.source_kind`, `scope`, `demo_status` | absent | required enum | `src/types.ts:279-330` |
-| 3.2 `OrderBookOrder.version`, `terms_digest` | optional | required | `src/types.ts:281-282` |
-| 3.3 `Trade.source_kind`, `scope`, `demo_status` | absent | required enum | `src/types.ts:344-381` |
-| 3.4 `MarketSourceKind` | 7 members, no `LIVE_INVENTORY` | 8 members | `src/types.ts:193-200` |
-| 3.5 `creation_method` | `'SELF_SERVICE' \| 'MARKET_SUPPORT' \| string` (the literal members are erased by `\| string`) | `string`; the spec's `OrderCreationMethod` enum is unused by the response | `src/types.ts:328` |
-| 3.6 `product_id`, `product_name`, `is_crossed`, `certification_declared`, `is_demo_listing`, `msds_available` | optional | required | `src/types.ts:286-287,304,307,320,325` |
-| 3.7 `certifications` | required `string[]` | optional | `src/types.ts:303` |
-| 3.8 `fuel_grade` | `FuelGrade` (4 grades) | `string` | `src/types.ts:293` |
+Orders and trades derive their provenance from the wire; the source vocabulary now
+includes `LIVE_INVENTORY`. Required order metadata and the free-string fuel grade
+also derive from the wire. Creation method is a plain string, as the response is.
+`certifications` stays required in the **mapped app shape**: `toOrderBookOrder`
+already turns the optional wire field into `[]`. No consumer must shape it again.
 
-Consumers:
-
-- `src/components/Marketplace.tsx:836,1099` derive a `demo_status`-shaped value
-  from `order.is_demo_listing` because the wire's own `demo_status` is not on the
-  hand-written type.
-- `src/components/Marketplace.tsx:931,1872` branch on `order.creation_method`,
-  which only exists because `OrderBookOrder` folds the owner view in (DRIFT-4).
-- `src/components/ForwardCurveWorkspace.tsx:231,232,704,1256` and
-  `src/components/map/MarketWatchTicker.tsx:135-145` read `source_kind` /
-  `demo_status` from *other* types that do declare them. They are the precedent
-  for how order and trade provenance should be surfaced.
-- The order snapshot's own `source_kind`, `scope` and `demo_status`
-  (`src/types.ts:337-339`) have no reader at all: `src/components/OrderBook.tsx`
-  uses only `bids`, `asks` and `generated_at` (`:153,159,167`).
+No safety guard was removed: a required string may still be empty, and a required
+version may still be invalid. Analytics keeps its existing `DEMO`/`LIVE` values;
+using the new provenance for labels or analytics needs a founder decision.
 
 ---
 
-## DRIFT-4 — Owner-view fields folded into the public interface
+## DRIFT-4 — resolved in step 5c
 
-`OrderResponse` (public) carries no ownership fields. `OrderMyResponse` (owner)
-adds `organization_id` and `updated_at` as required, plus `trade_count`,
-`creation_method`, `etag` and `vessel_id`. The frontend has one
-`OrderBookOrder` interface with all of them optional, so a component cannot tell
-which view it holds.
+Owner metadata derives from `WireOwnedOrder`, including nullable `etag` and
+`vessel_id`. `OwnedOrderBookOrder` requires the owner fields, and `/orderbook/my`
+now declares that result. The existing mapper remains the only shaping boundary.
 
-| Entry | Hand-written | Wire (owner view) | Wire (public) | Declared at |
-|---|---|---|---|---|
-| 4.1 `organization_id` | `string \| undefined` | required `string` | absent | `src/types.ts:283` |
-| 4.2 `trade_count` | `number \| undefined` | required `number` | absent | `src/types.ts:327` |
-| 4.3 `etag` | `string \| undefined` | `string \| null \| undefined` | absent | `src/types.ts:329` |
-| 4.4 `updated_at` | `string \| undefined` | required `string` | absent | `src/types.ts:326` |
-| 4.5 `vessel_id` | `string \| undefined` | `string \| null \| undefined` | absent | `src/types.ts:296` |
-
-Consumers:
-
-- `src/components/Marketplace.tsx:316-318,865-866` — the "My Listings" tab stores
-  `/orderbook/my` results as `OrderBookOrder[]`, which is the fold in practice.
-- `src/components/Marketplace.tsx:931,940,954` — the assisted-workspace cancel
-  path requires `etag` and `creation_method` on the order it is cancelling; the
-  public wire shape has neither.
-- `src/components/Marketplace.tsx:1268` — `order.updated_at` as
-  `contextUpdatedAt`.
-- `src/components/Marketplace.tsx:1872` — `creation_method` gates the cancel
-  action.
-- `organization_id` has **no** reader on an order: every
-  `user.organization_id` use (`src/components/CommandCenter.tsx:70`,
-  `src/components/MyTrades.tsx:76,89,154,159,160`,
-  `src/components/TradeNotifier.tsx:77`, `src/components/DataAnalytics.tsx:100`,
-  `src/components/Marketplace.tsx:368,392,876,1007,1638,1640`) reads the auth
-  profile, not the order.
+Founder decision: fully separate public and owner consumers. Until approved,
+`OrderBookOrder` retains a documented optional compatibility view of those fields.
+The public price cell's `updated_at` read and assisted-cancel guards stay unchanged.
+No UI, request, mapper output or branch changes.
 
 ---
 
-## DRIFT-5 — The `User` profile
+## DRIFT-5 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 5.1 `email_verified` | `boolean \| undefined` | **absent from `UserResponse`** | `src/context/AuthContext.tsx:26` |
-| 5.2 `referral_code` | absent | `string \| null \| undefined` | — |
-| 5.3 `role` | required `UserRole \| null` | optional `UserRole \| null` | `src/context/AuthContext.tsx:20` |
-| 5.4 `first_name`, `last_name` | required `string \| null` | optional `string \| null` | `src/context/AuthContext.tsx:18-19` |
-| 5.5 `kyc_status` | optional `string` | required `string` | `src/context/AuthContext.tsx:27` |
-| 5.6 `must_change_password` | optional `boolean` | required `boolean` | `src/context/AuthContext.tsx:29` |
-| 5.7 `execution_eligibility` | optional `ExecutionEligibility \| null` | optional, not nullable | `src/context/AuthContext.tsx:28` |
-| 5.8 `ExecutionEligibility.grace_expires_at` | required `string \| null` | optional `string \| null` | `src/types.ts:143` |
+`User` and `ExecutionEligibility` now alias their generated wire shapes. This
+removes the nonexistent `email_verified`, adds `referral_code`, and corrects all
+profile field presence and eligibility nullability. The admin queue's distinct
+`email_verified` is unchanged.
 
-`email_verified` is the audit's finding 4.2: `/api/auth/me` can never set it.
-`AdminDashboard.tsx:51,73,114,115,182,1034` also uses an `email_verified` field,
-but that is the admin review-queue DTO (`AdminUserEntry`, wire type has it) and is
-not drift.
-
-Consumers:
-
-- 5.1/5.2: `src/context/AuthContext.tsx:26` (declaration), `:56-73`
-  (`parseUserProfile`, which neither validates nor populates it), `:186` (the
-  single call site). Nothing reads `user.email_verified`.
-- 5.2: `src/components/ReferralsTab.tsx:47,60` re-fetches the code from
-  `/referrals/my-code` (`src/services/api.ts:1473`) because the profile does not
-  carry it. `src/pages/RegisterPage.tsx:17,38,114` and
-  `src/components/public/PublicLanguageWrapper.tsx:11,15,17,21` handle the inbound
-  `?ref=` code separately.
-- 5.7/5.8: `src/types.ts:140-144` and every reader of
-  `user.execution_eligibility` — `src/components/OrderPlaceModal.tsx`,
-  `src/components/Marketplace.tsx` (execution gate) and the KYC banner flow. The
-  `| null` is defensive only.
+The login profile validator remains unchanged: relaxing it for omitted names,
+role or organization could suppress its fallback `/auth/me` request. That is a
+behavior change, not a type correction. KYC guards and the referral-code fetch
+also stay unchanged. Founder decision: relax that validator or reuse the profile
+referral code only in a separate behavior/request change.
 
 ---
 
-## DRIFT-6 — Availability windows: display labels against canonical codes
+## DRIFT-6 — resolved in step 5c
 
-`AvailabilityWindow` (`src/types.ts:175`) is the *display* vocabulary:
-`'Spot'`, `'Q1 2026'`, `'Forward 2027'`. The wire sends canonical codes
-(`SPOT`, `2026-Q1`, `2026-04`, `2026-CAL`) as a `string` with a pattern, and the
-backend normalizes legacy labels on input only. `src/utils/availabilityWindow.ts`
-does the display conversion. No type connects the two.
+`AvailabilityWindow` now derives the wire string instead of enumerating dated
+display labels. The trade field admits the wire's nullable optional value, while
+its existing mapper still normalizes null to undefined. Canonical-to-label casts
+in App and Marketplace are removed; they emitted no JavaScript. All existing
+normalization, option generation and display formatting stay unchanged.
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 6.1 `AvailabilityWindow` | display labels; no `SPOT`, no `2026-Q3` | canonical-code `string` | `src/types.ts:175` |
-| 6.2 `OrderBookOrder.availability_window` | `AvailabilityWindow` | `string` | `src/types.ts:300` |
-| 6.3 `Trade.availability_window` | `string \| undefined` | `string \| null \| undefined` | `src/types.ts:374` |
-
-Consumers that cast a canonical code into the label union:
-
-- `src/App.tsx:439` — `sidebarMarketSlice?.window as AvailabilityWindow \| undefined`
-- `src/components/Marketplace.tsx:223` — `initialSlice.window as AvailabilityWindow`
-- `src/components/Marketplace.tsx:225` — `normalizeAvailabilityWindow(stored) as AvailabilityWindow`
-- `src/components/Marketplace.tsx:613` — `setAvailability(initialSlice.window as AvailabilityWindow)`
-- `src/components/Marketplace.tsx:1504` — `onChange` value cast to `AvailabilityWindow`
-
-Consumers that rely on the display conversion instead of the type:
-`src/utils/fuel.ts:133`, `src/utils/watchlist.ts:35`,
-`src/utils/tradeAnalytics.ts:87`, `src/components/MyTrades.tsx:506`,
-`src/components/OrderBook.tsx:344,595`, `src/components/SupplierDemandFeed.tsx:107`,
-`src/components/TradeHistoryPage.tsx:64`, `src/components/WatchlistPage.tsx:150`,
-`src/components/supplier/SupplierOfferDetails.tsx:41`,
-`src/components/map/IntelligencePanel.tsx:52,57`,
-`src/components/ForwardCurveWorkspace.tsx:323,543,595,1076,1184,1204`,
-`src/components/admin/product-analytics/MarketplaceTab.tsx:89,146,241`,
-`src/components/admin/product-analytics/AnalyticsFilterRail.tsx:155`,
-`src/components/market-support/MarketSupportFinalConfirmation.tsx:81`,
-`src/components/public/PriceTicker.tsx:126`,
-`src/components/map/MarketWatchTicker.tsx:162`,
-`src/components/OrderPlaceModal.tsx:53,142,150,299,349`.
-
-The typed label list is also the source of the quarterly churn the audit notes:
-`getAvailabilityWindowOptions` (`src/utils/availabilityWindow.ts:182-225`)
-generates windows from the current date, so the union in `src/types.ts:175` will
-need a new member each year while the wire vocabulary never changes.
+Founder decision: the display vocabulary and legacy-label policy. No labels,
+request values or runtime branches change in this step.
 
 ---
 
-## DRIFT-7 — Remaining differences on the named wire shapes
+## DRIFT-7 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 7.1 `PriceSummary.product_name` | absent | required `string` | `src/types.ts:431-455` |
-| 7.2 `real_trade_count_24h`, `demo_trade_count_24h`, `unknown_trade_count_24h`, `availability_window`, `is_reference` | optional | required | `src/types.ts:436,445-447,453` |
-| 7.3 ~~`Trade.commission_rate_pct`~~ | **resolved in 5b**: now required `number`, converted by `toTrade` | required `string` | `src/types.ts:360` |
-| 7.4 ~~`Trade.commission_amount_usd`~~ | **resolved in 5b**: now `number \| null` (optional), converted by `toTrade`; `commission_fee_per_mt_usd` likewise | `string \| null` (optional) | `src/types.ts:361-362` |
-| 7.5 `Product.execution_mode` | optional `'ORDERBOOK' \| 'RFQ_ONLY'` | required `string` | `src/types.ts:161` |
-| 7.6 `Product.available_delivery_point_ids` | optional `string[]` | required `string[]` | `src/types.ts:162` |
-| 7.7 `Product.market_product` | optional `MarketProduct` | `string \| null` (optional) | `src/types.ts:154` |
-| 7.8 `Product.spec_description` | optional `string` | `string \| null` (optional) | `src/types.ts:159` |
-| 7.9 `DeliveryPoint.timezone` | optional `string` | `string \| null` (optional) | `src/types.ts:169` |
-| 7.10 `Notification.type` | 5-literal union | `string` | `src/types.ts:110` |
-| 7.11 `Notification.data` | optional `any` | required `Record<string, unknown>` | `src/types.ts:113` |
+Price summaries derive their required identity/count/reference fields. Products
+derive all non-decimal fields, delivery points and notifications alias the wire.
+Notification payloads are a required nullable unknown-valued map, no longer `any`.
+The existing catalog mapper still converts decimals and normalizes description
+null to undefined; no component reshapes the data.
 
-Consumers:
-
-- 7.1/7.2: `src/components/map/MarketWatchTicker.tsx:128,130,135-145,162,182`
-  reads the price summary for the ticker; it shows no product name because the
-  type does not carry one.
-- 7.3/7.4 (resolved): the trade boundary converts all three commission fields,
-  and the `string | number` union is gone. The admin commission summary reads
-  `/orders/admin/commissions/summary` through `api.admin.commissionSummary`,
-  which still returns the raw body; that route is not in DRIFT-7's table and
-  keeps its own decimal handling until step 5c maps it.
-- 7.5/7.6/7.7: `src/components/Marketplace.tsx` product pickers and
-  `src/components/OrderPlaceModal.tsx:520-570` gate order submission on
-  `execution_mode` and `available_delivery_point_ids`; both are optional in the
-  type and always present on the wire, so the guards carry dead branches.
-- 7.10/7.11: `src/components/NotificationBell.tsx` and the notification toaster.
-  `data` is `any`, so its payload shape is unchecked; the wire types it as an
-  object map.
+No runtime guard is removed: catalog guards also handle an absent product,
+empty lanes, unknown execution modes or stale/malformed responses. Keeping them
+preserves fail-closed behavior. Founder decision: whether to display summary
+product names or change handling for future catalog/notification strings.
+Commission entries 7.3/7.4 remain resolved by step 5b. Shipping/freight decimal
+families and the unused port/auto-match cleanup are follow-up scope, not entries
+in DRIFT-2 through DRIFT-7; this step does not change their behavior.
 
 ---
 
@@ -483,5 +365,21 @@ Consumers:
 3. A step that resolves an entry deletes the corresponding `DRIFT-n` block
    from `src/api/contract.test-d.ts` and the row here, and adds a positive pin
    (both sides of the shape plus the mapper that joins them) to the resolved
-   section. DRIFT-1 and 7.3/7.4 are the resolved entries so far; step 5c owns
-   the rest.
+   section. All named entries are now resolved; compatibility and product
+   decisions are listed below.
+
+## Founder decisions — no UI or request changes made here
+
+1. **Unknown counts:** whether and where to show order/trade `unknown_count`.
+2. **Provenance:** whether order/trade labels or analytics should use the richer
+   provenance fields instead of the existing `is_demo_listing` mapping.
+3. **Public/owner views:** whether to remove owner metadata from public consumers,
+   including the public price cell's `updated_at` context. The compatibility type
+   remains optional; `/orderbook/my` has a required owner result.
+4. **Auth:** whether to accept omitted profile fields in the login fast path or
+   reuse its referral code. Both can change requests, so neither changes here.
+5. **Windows:** display-label vocabulary and the policy for legacy labels. The
+   existing formatter, generated options and request codes remain unchanged.
+6. **Catalog/notifications:** presentation of price-summary product names and
+   handling of future free-string execution modes or notification types. Current
+   guards and fallback rendering remain unchanged.

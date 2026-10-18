@@ -35,7 +35,7 @@ index.html
                     -> production or staging API
 ```
 
-`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable. `src/api/` holds the decimal boundary: `decimals.ts` converts one wire decimal, `mappers.ts` maps each wire shape to its app type, and `contract.ts` names the generated wire types the mappers read.
+`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable. `src/api/` holds the decimal boundary: `decimals.ts` converts one wire decimal, `mappers.ts` maps each wire shape to its app type, and `contract.ts` names the generated wire types the mappers read. Non-decimal auth, catalog, notification and order metadata types derive from those aliases; `OwnedOrderBookOrder` requires owner metadata for `/orderbook/my`, while `OrderBookOrder` keeps an optional compatibility view pending the public/owner consumer decision.
 
 ## Route and workspace rules
 

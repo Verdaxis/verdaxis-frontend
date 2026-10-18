@@ -17,6 +17,7 @@ vi.mock('../services/api', () => ({
 vi.mock('../components/NewsFeed', () => ({ NewsFeed: () => <div data-testid="news-feed" /> }));
 vi.mock('../components/map/ComplianceEstimatorCard', () => ({ ComplianceEstimatorCard: () => <div data-testid="compliance-estimator" /> }));
 
+// Preserve legacy alcohol responses without lane lists to test the fallback.
 const products: Product[] = [
   ['BIO_METHANOL', 'Bio Methanol'],
   ['E_METHANOL', 'e-Methanol'],
@@ -34,7 +35,7 @@ const products: Product[] = [
   is_active: true,
   execution_mode: 'ORDERBOOK',
   ...(marketProduct === 'UCOME_B100' ? { available_delivery_point_ids: ['dp-singapore'] } : {}),
-}));
+} as unknown as Product));
 const ucomeProduct = products[4];
 const singapore: Port = {
   id: 'map-singapore', catalogDeliveryPointId: 'dp-singapore', name: 'Singapore',
@@ -105,7 +106,7 @@ describe('IntelligencePanel market references', () => {
   });
 
   it('requires explicit B100 coverage before requesting a selected port curve', async () => {
-    vi.mocked(api.catalog.products).mockResolvedValue([{ ...ucomeProduct, available_delivery_point_ids: undefined }]);
+    vi.mocked(api.catalog.products).mockResolvedValue([{ ...ucomeProduct, available_delivery_point_ids: undefined } as unknown as Product]);
     openPanel(singapore, 'UCOME_B100');
 
     expect(await screen.findByText('No active orderbook products available.')).toBeTruthy();

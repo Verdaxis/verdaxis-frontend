@@ -65,7 +65,7 @@ describe('BuyerMap market data', () => {
         expect(getMarketProductMapPorts('BIO_LNG', [product], [singapore, rotterdam], PORTS).map(port => port.name)).toEqual(['Rotterdam']);
         // A missing product or a missing lane list must not widen the restricted market.
         expect(getMarketProductMapPorts('BIO_LNG', [], [singapore, rotterdam], PORTS)).toEqual([]);
-        expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, available_delivery_point_ids: undefined }], [rotterdam], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, available_delivery_point_ids: undefined } as unknown as Product], [rotterdam], PORTS)).toEqual([]);
         expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, execution_mode: 'RFQ_ONLY' }], [rotterdam], PORTS)).toEqual([]);
     });
 
