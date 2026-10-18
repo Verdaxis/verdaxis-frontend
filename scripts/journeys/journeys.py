@@ -171,7 +171,9 @@ def journey_marketplace_browse(harness, state):
         button = page.get_by_role('button', name='2', exact=True).first
         button.evaluate('(button) => button.click()')
         page.wait_for_timeout(900)
-        assert any(row['params'].get('skip') == '8' for row in harness.ledger.records[-8:] if row['route'] == '/api/orderbook/asks'), 'reset case did not start on page 2'
+        current_ids = set(page.locator('[data-order-id]').evaluate_all(
+            '(rows) => rows.map(row => row.dataset.orderId)'))
+        assert current_ids == second_ids, 'reset case did not start on page 2'
         marker = len(harness.ledger.records)
         action()
         page.wait_for_timeout(900)
