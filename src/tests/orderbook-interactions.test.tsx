@@ -1,8 +1,9 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { OrderBook } from '../components/OrderBook';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { queuePublicMarketRefresh } from '../services/publicMarketSync';
 
 const { snapshot } = vi.hoisted(() => ({ snapshot: vi.fn() }));
@@ -30,22 +31,87 @@ const makeSnapshot = (bids: unknown[] = [], asks: unknown[] = [], generatedAt = 
 });
 
 describe('orderbook pre-Query re-entry contract', () => {
-  it('returns through the same provider with a new loading lifecycle and no tooltip', async () => {
-    let finish!: (value: ReturnType<typeof makeSnapshot>) => void;
-    snapshot.mockResolvedValueOnce(makeSnapshot([], [{ id: 'ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 915,
-      remaining_quantity_mt: 500, availability_window: 'SPOT', certifications: [] }]));
-    const view = renderWithProviders(<OrderBook {...MARKET} />);
-    await screen.findByRole('group', { name: /Ask.*915/ });
-    const client = view.queryClient;
-    view.rerender(<div>another workspace</div>);
-    snapshot.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    view.rerender(<OrderBook {...MARKET} />);
-    expect(screen.queryByText('$915.00')).toBeNull();
+  afterEach(() => vi.useRealTimers());
+
+  it.each(['closed before entry', 'closed after success'] as const)('keeps a catalog-disabled slice closed at +5 seconds: %s', async scenario => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    snapshot.mockReset();
+    snapshot.mockResolvedValue(makeSnapshot([], [{ id: 'typed-ask', side: 'ASK', market_product: 'UCOME_B100',
+      price_per_mt_usd: 1100, remaining_quantity_mt: 500, availability_window: 'SPOT', certifications: [] }]));
+    let executionMode: 'ORDERBOOK' | 'RFQ_ONLY' = scenario === 'closed after success' ? 'ORDERBOOK' : 'RFQ_ONLY';
+    function Workspace() {
+      const navigate = useNavigate();
+      return <><button onClick={() => navigate('/away')}>leave workspace</button>
+        <button onClick={() => navigate('/book')}>return workspace</button>
+        <Routes><Route path="/book" element={<OrderBook {...MARKET} marketProduct="UCOME_B100" executionMode={executionMode} />} />
+          <Route path="/away" element={<div>another workspace</div>} /></Routes></>;
+    }
+    const view = renderWithProviders(<Workspace />, { route: '/book' });
+    if (scenario === 'closed after success') await screen.findByRole('group', { name: /Ask.*1,100/ });
+    else expect(screen.getByRole('status').textContent).toBe('Orderbook trading is unavailable for this product.');
+    const calls = snapshot.mock.calls.length;
+    fireEvent.click(screen.getByText('leave workspace'));
+    executionMode = 'RFQ_ONLY';
+    act(() => vi.advanceTimersByTime(5000));
+    fireEvent.click(screen.getByText('return workspace'));
+    expect(screen.getByRole('status').textContent).toBe('Orderbook trading is unavailable for this product.');
+    expect(screen.queryByRole('group', { name: /Ask.*1,100/ })).toBeNull();
     expect(screen.queryByRole('tooltip')).toBeNull();
-    await act(async () => { finish(makeSnapshot()); });
-    expect(view.queryClient).toBe(client);
+    expect(snapshot).toHaveBeenCalledTimes(calls);
     view.unmount();
   });
+
+  it.each(['success', 'initial failure', 'failed refresh'] as const)(
+    'returns to the same key at +5 seconds after %s with a fresh loading lifecycle', async scenario => {
+      vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+      snapshot.mockReset();
+      const depth = makeSnapshot([], [{ id: 'ask', side: 'ASK', market_product: 'BIO_METHANOL',
+        price_per_mt_usd: 915, remaining_quantity_mt: 500, availability_window: 'SPOT', certifications: [] }]);
+      if (scenario === 'initial failure') snapshot.mockRejectedValueOnce(new Error('initial unavailable'));
+      else snapshot.mockResolvedValueOnce(depth);
+      function Workspace() {
+        const navigate = useNavigate();
+        return <><button onClick={() => navigate('/away')}>leave workspace</button>
+          <button onClick={() => navigate('/book')}>return workspace</button>
+          <Routes><Route path="/book" element={<OrderBook {...MARKET} />} />
+            <Route path="/away" element={<div>another workspace</div>} /></Routes></>;
+      }
+      const view = renderWithProviders(<Workspace />, { route: '/book' });
+      const client = view.queryClient;
+      if (scenario === 'initial failure') await screen.findByRole('alert');
+      else {
+        const level = await screen.findByRole('group', { name: /Ask.*915/ });
+        fireEvent.focus(level);
+        expect(screen.getByRole('tooltip')).toBeTruthy();
+        if (scenario === 'failed refresh') {
+          snapshot.mockRejectedValueOnce(new Error('refresh unavailable'));
+          fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+          await screen.findByRole('alert');
+          expect(screen.getByRole('group', { name: /Ask.*915/ })).toBeTruthy();
+        }
+      }
+      const before = snapshot.mock.calls.length;
+      fireEvent.click(screen.getByText('leave workspace'));
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      act(() => vi.advanceTimersByTime(5000));
+      expect(snapshot).toHaveBeenCalledTimes(before);
+      let finish!: (value: ReturnType<typeof makeSnapshot>) => void;
+      snapshot.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+      fireEvent.click(screen.getByText('return workspace'));
+      expect(screen.getByRole('status').textContent).toMatch(/loading/i);
+      expect(screen.queryByRole('group', { name: /Ask.*915/ })).toBeNull();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(before + 1));
+      expect(snapshot).toHaveBeenLastCalledWith({ market_product: 'BIO_METHANOL',
+        delivery_point_id: MARKET.deliveryPointId, availability_window: 'SPOT' }, { force: false });
+      await act(async () => { finish(depth); });
+      expect(await screen.findByRole('group', { name: /Ask.*915/ })).toBeTruthy();
+      expect(view.queryClient).toBe(client);
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      view.unmount();
+    });
 });
 
 describe('orderbook inspection', () => {

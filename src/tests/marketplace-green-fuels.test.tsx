@@ -1,6 +1,6 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
@@ -569,22 +569,94 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByText('Current slice').parentElement?.textContent).toContain('0 matching orders');
   });
 
-  it('starts a fresh listings lifecycle and clears a refresh warning on workspace re-entry', async () => {
-    const view = renderWithProviders(<Marketplace />);
-    await screen.findByRole('button', { name: /lift ask/i });
-    listAsksPaged.mockRejectedValueOnce(new Error('Refresh unavailable'));
-    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
-    await screen.findByRole('alert');
-    const client = view.queryClient;
-    view.rerender(<div>another workspace</div>);
-    let finish!: (value: any) => void;
-    listAsksPaged.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-    view.rerender(<Marketplace />);
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
-    await waitFor(() => expect(finish).toBeDefined());
-    await act(async () => { finish({ items: [], total: 0, skip: 0, limit: 8 }); });
-    expect(view.queryClient).toBe(client);
+  describe('pre-Query route re-entry at +5 seconds', () => {
+    afterEach(() => vi.useRealTimers());
+
+    function Workspace({ product }: { product?: string }) {
+      const navigate = useNavigate();
+      return <><button onClick={() => navigate('/away')}>leave workspace</button>
+        <button onClick={() => navigate(`/market${product ? `?product=${product}` : ''}`)}>return workspace</button>
+        <Routes><Route path="/market" element={<Marketplace />} />
+          <Route path="/away" element={<div>another workspace</div>} /></Routes></>;
+    }
+
+    it.each(['success', 'initial failure', 'failed refresh'] as const)(
+      'resets local listings and warning after %s without replacing the application client', async scenario => {
+        vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+        if (scenario === 'initial failure') listAsksPaged.mockRejectedValueOnce(new Error('Initial unavailable'));
+        const view = renderWithProviders(<Workspace />, { route: '/market' });
+        const client = view.queryClient;
+        if (scenario === 'initial failure') await screen.findByRole('alert');
+        else {
+          await screen.findByRole('button', { name: /lift ask/i });
+          if (scenario === 'failed refresh') {
+            listAsksPaged.mockRejectedValueOnce(new Error('Refresh unavailable'));
+            fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+            await screen.findByRole('alert');
+            expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+          }
+        }
+        const before = listAsksPaged.mock.calls.length;
+        fireEvent.click(screen.getByText('leave workspace'));
+        act(() => vi.advanceTimersByTime(5000));
+        expect(listAsksPaged).toHaveBeenCalledTimes(before);
+        let finish!: (value: typeof listingsResponse) => void;
+        listAsksPaged.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+        fireEvent.click(screen.getByText('return workspace'));
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
+        await waitFor(() => expect(finish).toBeDefined());
+        expect(document.querySelectorAll('[data-tour="marketplace-listings-table"] .animate-pulse').length).toBeGreaterThan(0);
+        await act(async () => { finish(listingsResponse); });
+        expect(await screen.findByRole('button', { name: /lift ask/i })).toBeTruthy();
+        expect(view.queryClient).toBe(client);
+        expect(screen.queryByRole('alert')).toBeNull();
+        view.unmount();
+      });
+
+    it.each(['UCOME_B100', 'BIO_LNG'] as const)('rechecks %s catalog across all +5-second re-entry outcomes', async product => {
+      for (const scenario of ['success', 'initial failure', 'failure after success'] as const) {
+        vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+        const b100 = { ...listingsResponse.items[0], market_product: product,
+          product_name: product === 'UCOME_B100' ? 'UCOME B100' : 'Bio LNG', fuel_type: product === 'UCOME_B100' ? 'FAME' : 'LNG' };
+        listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [b100] });
+        const catalog = [{ id: 'typed-product', market_product: product, execution_mode: 'ORDERBOOK',
+          is_active: true, available_delivery_point_ids: ['dp-1'] }];
+        products.mockResolvedValue(catalog);
+        if (scenario === 'initial failure') products.mockRejectedValueOnce(new Error('Catalog unavailable'));
+        const view = renderWithProviders(<Workspace product={product} />, { route: `/market?product=${product}` });
+        const client = view.queryClient;
+        const unavailable = 'Could not check trading availability. Select Refresh to try again.';
+        if (scenario === 'initial failure') {
+          await screen.findByText(unavailable);
+          expect(screen.queryByRole('button', { name: 'Lift Ask' })).toBeNull();
+        } else {
+          await screen.findByRole('button', { name: 'Lift Ask' });
+          if (scenario === 'failure after success') {
+            products.mockRejectedValueOnce(new Error('Catalog refresh unavailable'));
+            fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+            await screen.findByText(unavailable);
+            expect(screen.queryByRole('button', { name: 'Lift Ask' })).toBeNull();
+          }
+        }
+        const before = products.mock.calls.length;
+        fireEvent.click(screen.getByText('leave workspace'));
+        act(() => vi.advanceTimersByTime(5000));
+        expect(products).toHaveBeenCalledTimes(before);
+        let finishCatalog!: (value: typeof catalog) => void;
+        products.mockImplementationOnce(() => new Promise(resolve => { finishCatalog = resolve; }));
+        fireEvent.click(screen.getByText('return workspace'));
+        await waitFor(() => expect(finishCatalog).toBeDefined());
+        expect(screen.queryByRole('button', { name: 'Lift Ask' })).toBeNull();
+        expect(screen.queryByText(unavailable)).toBeNull();
+        await act(async () => { finishCatalog(catalog); });
+        expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
+        expect(products).toHaveBeenCalledTimes(before + 1);
+        expect(view.queryClient).toBe(client);
+        view.unmount();
+        localStorage.clear();
+      }
+    });
   });
 
   it('suppresses unknown backend English behind the Chinese listings fallback', async () => {
