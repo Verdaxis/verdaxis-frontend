@@ -63,7 +63,7 @@ const buildTickerItems = (
   deliveryPoints: DeliveryPoint[],
 ): FuelPrice[] => {
   const activeProducts = products.filter(product => (
-    product.is_active && product.market_product && DEMO_PRODUCTS.includes(product.market_product)
+    product.is_active && product.market_product && (DEMO_PRODUCTS as readonly string[]).includes(product.market_product)
   ));
   const productOrder = new Map(activeProducts.map((product, index) => [product.market_product, index]));
   const activePorts = filterApprovedTradingPorts(deliveryPoints.filter(point => point.is_active));

@@ -4,7 +4,7 @@ Step 5a generated the backend wire types and added compile-time contract tests
 between them and the hand-written frontend types. That comparison produced this
 list of places where the two sides do not agree. **Step 5b resolved DRIFT-1 (the
 decimals) and DRIFT-7.3/7.4 (the commissions) at one decimal boundary; the
-remaining entries are step 5c's work.** This file is the record for all of them,
+step 5c resolved the remaining named entries without runtime changes.** This file is the record for all of them,
 and it must be updated in the same commit as any change that makes an entry
 stale.
 
@@ -40,8 +40,8 @@ tracker decision 67, which lets the backend respell a decimal).
 | DRIFT-4 | Owner metadata derived; public compatibility retained | 5 (resolved) | 5c |
 | DRIFT-5 | Auth profile and eligibility derived from the wire | 8 (resolved) | 5c |
 | DRIFT-6 | Window types derive the wire string; labels unchanged | 3 (resolved) | 5c |
-| DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **9** | |
+| DRIFT-7 | Named price, catalog and notification shapes aligned | 11 (resolved) | 5b/5c |
+| | **Open** | **0** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -269,7 +269,7 @@ screen changes.
   `FeeSchedule`, `Subscription.seller_fee_per_mt_usd`,
   `fleetIntelligence.avg_consumption_mt`, the product-analytics money fields) are
   still `string | number` in the app types and still coerce at their consumers.
-  They are not in DRIFT-1 and stay for step 5c.
+  They are not among the named DRIFT-2 through DRIFT-7 entries and remain follow-up work.
 
 ---
 
@@ -336,39 +336,21 @@ request values or runtime branches change in this step.
 
 ---
 
-## DRIFT-7 — Remaining differences on the named wire shapes
+## DRIFT-7 — resolved in step 5c
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 7.1 `PriceSummary.product_name` | absent | required `string` | `src/types.ts:431-455` |
-| 7.2 `real_trade_count_24h`, `demo_trade_count_24h`, `unknown_trade_count_24h`, `availability_window`, `is_reference` | optional | required | `src/types.ts:436,445-447,453` |
-| 7.3 ~~`Trade.commission_rate_pct`~~ | **resolved in 5b**: now required `number`, converted by `toTrade` | required `string` | `src/types.ts:360` |
-| 7.4 ~~`Trade.commission_amount_usd`~~ | **resolved in 5b**: now `number \| null` (optional), converted by `toTrade`; `commission_fee_per_mt_usd` likewise | `string \| null` (optional) | `src/types.ts:361-362` |
-| 7.5 `Product.execution_mode` | optional `'ORDERBOOK' \| 'RFQ_ONLY'` | required `string` | `src/types.ts:161` |
-| 7.6 `Product.available_delivery_point_ids` | optional `string[]` | required `string[]` | `src/types.ts:162` |
-| 7.7 `Product.market_product` | optional `MarketProduct` | `string \| null` (optional) | `src/types.ts:154` |
-| 7.8 `Product.spec_description` | optional `string` | `string \| null` (optional) | `src/types.ts:159` |
-| 7.9 `DeliveryPoint.timezone` | optional `string` | `string \| null` (optional) | `src/types.ts:169` |
-| 7.10 `Notification.type` | 5-literal union | `string` | `src/types.ts:110` |
-| 7.11 `Notification.data` | optional `any` | required `Record<string, unknown>` | `src/types.ts:113` |
+Price summaries derive their required identity/count/reference fields. Products
+derive all non-decimal fields, delivery points and notifications alias the wire.
+Notification payloads are a required nullable unknown-valued map, no longer `any`.
+The existing catalog mapper still converts decimals and normalizes description
+null to undefined; no component reshapes the data.
 
-Consumers:
-
-- 7.1/7.2: `src/components/map/MarketWatchTicker.tsx:128,130,135-145,162,182`
-  reads the price summary for the ticker; it shows no product name because the
-  type does not carry one.
-- 7.3/7.4 (resolved): the trade boundary converts all three commission fields,
-  and the `string | number` union is gone. The admin commission summary reads
-  `/orders/admin/commissions/summary` through `api.admin.commissionSummary`,
-  which still returns the raw body; that route is not in DRIFT-7's table and
-  keeps its own decimal handling until step 5c maps it.
-- 7.5/7.6/7.7: `src/components/Marketplace.tsx` product pickers and
-  `src/components/OrderPlaceModal.tsx:520-570` gate order submission on
-  `execution_mode` and `available_delivery_point_ids`; both are optional in the
-  type and always present on the wire, so the guards carry dead branches.
-- 7.10/7.11: `src/components/NotificationBell.tsx` and the notification toaster.
-  `data` is `any`, so its payload shape is unchecked; the wire types it as an
-  object map.
+No runtime guard is removed: catalog guards also handle an absent product,
+empty lanes, unknown execution modes or stale/malformed responses. Keeping them
+preserves fail-closed behavior. Founder decision: whether to display summary
+product names or change handling for future catalog/notification strings.
+Commission entries 7.3/7.4 remain resolved by step 5b. Shipping/freight decimal
+families and the unused port/auto-match cleanup are follow-up scope, not entries
+in DRIFT-2 through DRIFT-7; this step does not change their behavior.
 
 ---
 
@@ -383,5 +365,21 @@ Consumers:
 3. A step that resolves an entry deletes the corresponding `DRIFT-n` block
    from `src/api/contract.test-d.ts` and the row here, and adds a positive pin
    (both sides of the shape plus the mapper that joins them) to the resolved
-   section. DRIFT-1 and 7.3/7.4 are the resolved entries so far; step 5c owns
-   the rest.
+   section. All named entries are now resolved; compatibility and product
+   decisions are listed below.
+
+## Founder decisions — no UI or request changes made here
+
+1. **Unknown counts:** whether and where to show order/trade `unknown_count`.
+2. **Provenance:** whether order/trade labels or analytics should use the richer
+   provenance fields instead of the existing `is_demo_listing` mapping.
+3. **Public/owner views:** whether to remove owner metadata from public consumers,
+   including the public price cell's `updated_at` context. The compatibility type
+   remains optional; `/orderbook/my` has a required owner result.
+4. **Auth:** whether to accept omitted profile fields in the login fast path or
+   reuse its referral code. Both can change requests, so neither changes here.
+5. **Windows:** display-label vocabulary and the policy for legacy labels. The
+   existing formatter, generated options and request codes remain unchanged.
+6. **Catalog/notifications:** presentation of price-summary product names and
+   handling of future free-string execution modes or notification types. Current
+   guards and fallback rendering remain unchanged.

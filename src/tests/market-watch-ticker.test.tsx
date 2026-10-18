@@ -51,6 +51,11 @@ const CATALOG_PRODUCTS: Product[] = [{
 }];
 
 const makeSummary = (overrides: Record<string, unknown> = {}) => ({
+  product_name: 'Bio Methanol',
+  real_trade_count_24h: 2,
+  demo_trade_count_24h: 0,
+  unknown_trade_count_24h: 0,
+  is_reference: false,
   market_product: 'BIO_METHANOL',
   delivery_point_id: 'dp-singapore-uuid',
   delivery_point_name: 'Singapore',

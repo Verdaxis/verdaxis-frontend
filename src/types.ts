@@ -1,4 +1,4 @@
-import type { WireOrder, WireOwnedOrder, WireTrade, WireMarketSourceKind, WireExecutionEligibility } from './api/contract';
+import type { WireOrder, WireOwnedOrder, WireTrade, WireMarketSourceKind, WireExecutionEligibility, WireProduct, WireDeliveryPoint, WireNotification, WirePriceSummary } from './api/contract';
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
@@ -106,15 +106,7 @@ export interface TraceEvent {
     status: 'Verified' | 'Pending';
 }
 
-export interface Notification {
-    id: string;
-    type: 'SYSTEM' | 'ORDER_UPDATE' | 'DIRECT_ORDER' | 'DIRECT_ORDER_OFFER' | 'USER_STATUS';
-    title: string;
-    message: string;
-    data?: any;
-    is_read: boolean;
-    created_at: string;
-}
+export type Notification = WireNotification;
 
 export interface MarketWatchItem {
     pair: string;
@@ -143,29 +135,13 @@ export type ExecutionEligibility = WireExecutionEligibility;
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
 // ============== Catalog Types ==============
-export type ProductExecutionMode = 'ORDERBOOK' | 'RFQ_ONLY';
+export type ProductExecutionMode = WireProduct['execution_mode'];
 
-export interface Product {
-    id: string;
-    name: string;
-    market_product?: MarketProduct;
-    fuel_type: string;
-    fuel_grade: string;
-    unit: string;
+export interface Product extends Omit<WireProduct, 'min_lot_size'> {
     min_lot_size: number;
-    spec_description?: string;
-    is_active: boolean;
-    execution_mode?: ProductExecutionMode;
-    available_delivery_point_ids?: string[];
 }
 
-export interface DeliveryPoint {
-    id: string;
-    name: string;
-    region: string;
-    timezone?: string;
-    is_active: boolean;
-}
+export type DeliveryPoint = WireDeliveryPoint;
 
 // ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio' | 'B30' | 'B100';
@@ -410,12 +386,11 @@ export interface MapCompactMarket {
 }
 
 // ============== Price Discovery Types ==============
-export interface PriceSummary {
+export interface PriceSummary extends Pick<WirePriceSummary, 'product_name' | 'availability_window' | 'real_trade_count_24h' | 'demo_trade_count_24h' | 'unknown_trade_count_24h' | 'is_reference'> {
     market_product?: MarketProduct | string | null;
     product_id?: string | null;
     delivery_point_id?: string | null;
     delivery_point_name?: string | null;
-    availability_window?: string | null;
     fuel_type: string;
     region: string;
     last_price: number | null;
@@ -424,15 +399,11 @@ export interface PriceSummary {
     low_24h: number | null;
     volume_24h: number;
     trade_count_24h: number;
-    real_trade_count_24h?: number;
-    demo_trade_count_24h?: number;
-    unknown_trade_count_24h?: number;
     price_change_pct: number | null;
     last_trade_at: string | null;
     source_kind?: MarketSourceKind;
     scope?: MarketScope;
     demo_status?: MarketDemoStatus;
-    is_reference?: boolean;
     observed_at?: string | null;
 }
 

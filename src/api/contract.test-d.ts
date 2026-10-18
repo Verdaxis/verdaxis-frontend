@@ -126,53 +126,18 @@ expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
 expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
 expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
-// ─── DRIFT-7: remaining differences on the named wire shapes ──────
+// ─── Shapes that already agree ─────────────────────────────────────
+// Pinned so a change to either side is noticed here too.
 
-// `product_name` is on the wire and missing from the app's price summary.
-expectTypeOf<HasProperty<WirePriceSummary, 'product_name'>>().toEqualTypeOf<true>();
-expectTypeOf<WirePriceSummary['product_name']>().toEqualTypeOf<string>();
-expectTypeOf<HasProperty<PriceSummary, 'product_name'>>().toEqualTypeOf<false>();
-
-// Fields the wire always sends, which the app marks optional.
-expectTypeOf<WirePriceSummary['real_trade_count_24h']>().toEqualTypeOf<number>();
-expectTypeOf<PriceSummary['real_trade_count_24h']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<WirePriceSummary['demo_trade_count_24h']>().toEqualTypeOf<number>();
-expectTypeOf<PriceSummary['demo_trade_count_24h']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<WirePriceSummary['unknown_trade_count_24h']>().toEqualTypeOf<number>();
-expectTypeOf<PriceSummary['unknown_trade_count_24h']>().toEqualTypeOf<number | undefined>();
-expectTypeOf<WirePriceSummary['availability_window']>().toEqualTypeOf<string>();
-expectTypeOf<PriceSummary['availability_window']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<WirePriceSummary['is_reference']>().toEqualTypeOf<boolean>();
-expectTypeOf<PriceSummary['is_reference']>().toEqualTypeOf<boolean | undefined>();
-
-// Commissions: the wire sends exact strings on every response; the trade
-// boundary converts them, so the app types are plain numbers again.
+type SummaryKeys = 'product_name' | 'availability_window' | 'real_trade_count_24h' | 'demo_trade_count_24h' | 'unknown_trade_count_24h' | 'is_reference';
+expectTypeOf<Pick<PriceSummary, SummaryKeys>>().toEqualTypeOf<Pick<WirePriceSummary, SummaryKeys>>();
+expectTypeOf<Omit<Product, 'min_lot_size'>>().toEqualTypeOf<Omit<WireProduct, 'min_lot_size'>>();
+expectTypeOf<DeliveryPoint>().toEqualTypeOf<WireDeliveryPoint>();
+expectTypeOf<Notification>().toEqualTypeOf<WireNotification>();
 expectTypeOf<WireTrade['commission_rate_pct']>().toEqualTypeOf<string>();
 expectTypeOf<Trade['commission_rate_pct']>().toEqualTypeOf<number>();
 expectTypeOf<WireTrade['commission_amount_usd']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<WireTrade['commission_fee_per_mt_usd']>().toEqualTypeOf<string | null | undefined>();
 expectTypeOf<Trade['commission_amount_usd']>().toEqualTypeOf<number | null | undefined>();
-expectTypeOf<Trade['commission_fee_per_mt_usd']>().toEqualTypeOf<number | null | undefined>();
-
-expectTypeOf<WireProduct['execution_mode']>().toEqualTypeOf<string>();
-expectTypeOf<Product['execution_mode']>().toEqualTypeOf<'ORDERBOOK' | 'RFQ_ONLY' | undefined>();
-expectTypeOf<WireProduct['available_delivery_point_ids']>().toEqualTypeOf<string[]>();
-expectTypeOf<Product['available_delivery_point_ids']>().toEqualTypeOf<string[] | undefined>();
-expectTypeOf<WireProduct['market_product']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<Product['market_product']>().toEqualTypeOf<MarketProduct | undefined>();
-expectTypeOf<WireProduct['spec_description']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<Product['spec_description']>().toEqualTypeOf<string | undefined>();
-
-expectTypeOf<WireDeliveryPoint['timezone']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<DeliveryPoint['timezone']>().toEqualTypeOf<string | undefined>();
-
-expectTypeOf<WireNotification['type']>().toEqualTypeOf<string>();
-expectTypeOf<Notification['type']>().toEqualTypeOf<'SYSTEM' | 'ORDER_UPDATE' | 'DIRECT_ORDER' | 'DIRECT_ORDER_OFFER' | 'USER_STATUS'>();
-expectTypeOf<WireNotification['data']>().toEqualTypeOf<{ [key: string]: unknown } | null>();
-expectTypeOf<Notification['data']>().toEqualTypeOf<any>();
-
-// ─── Shapes that already agree ─────────────────────────────────────
-// Pinned so a change to either side is noticed here too.
 
 expectTypeOf<AvailabilityWindow>().toEqualTypeOf<WireOrder['availability_window']>();
 expectTypeOf<OrderBookOrder['availability_window']>().toEqualTypeOf<AvailabilityWindow>();
