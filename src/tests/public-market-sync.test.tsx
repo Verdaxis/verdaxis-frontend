@@ -27,6 +27,26 @@ describe('public market refresh synchronization', () => {
   });
   afterEach(() => vi.useRealTimers());
 
+  it('batches ordinary order events without accepting malformed committed signals', async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const unsubscribe = subscribePublicMarketRefresh(refresh);
+    const view = render(<PublicMarketSync />);
+    act(() => {
+      streamHandlers.get('orderbook')?.('market_invalidated', { schema_version: 2, resync_required: true });
+      vi.advanceTimersByTime(500);
+    });
+    expect(refresh).not.toHaveBeenCalled();
+    act(() => {
+      for (const event of ['order_created', 'order_cancelled', 'orders_matched']) {
+        streamHandlers.get('orderbook')?.(event, {});
+      }
+      vi.advanceTimersByTime(500);
+    });
+    await act(async () => { await Promise.resolve(); });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    unsubscribe(); view.unmount();
+  });
+
   it('shares one public stream and keeps one active refresh plus one dirty rerun', async () => {
     const firstRefresh = deferred();
     const refresh = vi.fn().mockReturnValueOnce(firstRefresh.promise).mockResolvedValue(undefined);

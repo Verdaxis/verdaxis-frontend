@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useMarketSupport } from '../../context/MarketSupportContext';
 import { AUTH_IDENTITY_CHANGED_EVENT, getAuthGeneration } from '../../services/authToken';
 import { createQueryClient } from './client';
-import { clearPrivateQueries } from './invalidation';
+import { attachQueryInvalidation, clearPrivateQueries } from './invalidation';
 
 interface QueryProviderProps {
     children: React.ReactNode;
@@ -27,11 +27,16 @@ export function QueryProvider({ children, client: suppliedClient }: QueryProvide
     }
 
     useLayoutEffect(() => {
+        const bridge = attachQueryInvalidation(client, document.visibilityState !== 'hidden');
+        const visibility = () => bridge.setVisible(document.visibilityState !== 'hidden');
+        document.addEventListener('visibilitychange', visibility);
         const clear = () => clearPrivateQueries(client);
         const events = [AUTH_IDENTITY_CHANGED_EVENT, 'verdaxis:auth-logout',
             'verdaxis:market-support-context-invalidated', 'verdaxis:query-auth-revoked'];
         for (const event of events) window.addEventListener(event, clear);
         return () => {
+            document.removeEventListener('visibilitychange', visibility);
+            bridge.dispose();
             for (const event of events) window.removeEventListener(event, clear);
             clear();
         };

@@ -12,7 +12,7 @@ export function createRefreshCoordinator(initiallyVisible = true) {
     let visible = initiallyVisible;
     let disposed = false;
 
-    const schedule = (key: string, entry: RefreshEntry) => {
+    const schedule = (key: string, entry: RefreshEntry, delay = REFRESH_BATCH_MS) => {
         if (disposed || !visible || !entry.dirty || entry.running || entry.timer || !entry.listeners.size) return;
         entry.timer = setTimeout(async () => {
             entry.timer = undefined;
@@ -25,7 +25,7 @@ export function createRefreshCoordinator(initiallyVisible = true) {
                 entry.running = false;
                 if (entries.get(key) === entry) schedule(key, entry);
             }
-        }, REFRESH_BATCH_MS);
+        }, delay);
     };
 
     return {
@@ -42,11 +42,21 @@ export function createRefreshCoordinator(initiallyVisible = true) {
                 }
             };
         },
-        markDirty(key: string) {
+        markDirty(key: string, delay = REFRESH_BATCH_MS) {
             const entry = entries.get(key);
             if (!entry || disposed) return;
             entry.dirty = true;
-            schedule(key, entry);
+            if (delay === 0 && !entry.running && visible) {
+                clearTimeout(entry.timer);
+                entry.timer = undefined;
+                // The public owner already applied its 500 ms batch.
+                entry.running = true;
+                entry.dirty = false;
+                void Promise.allSettled([...entry.listeners].map(refresh => Promise.resolve().then(refresh))).finally(() => {
+                    entry.running = false;
+                    if (entries.get(key) === entry) schedule(key, entry);
+                });
+            } else schedule(key, entry, delay);
         },
         setVisible(next: boolean) {
             visible = next;

@@ -102,21 +102,21 @@ export const invalidateReadsForEvent = (
         || event === 'reconnect'
     );
     if (invalidatesAllPublicMarketReads) {
-        invalidateReadCache(...PUBLIC_MARKET_CACHE_PREFIXES);
+        invalidateReadCacheWithCause('event', ...PUBLIC_MARKET_CACHE_PREFIXES);
         // Broad trade-stream signals also invalidate private trade history.
-        if (channel === 'trades') invalidateReadCache('trades:');
+        if (channel === 'trades') invalidateReadCacheWithCause('event', 'trades:');
         return;
     }
 
     if (channel === 'prices') {
-        invalidateReadCache('prices:', 'curves:');
+        invalidateReadCacheWithCause('event', 'prices:', 'curves:');
         return;
     }
     if (channel === 'orderbook') {
-        invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
+        invalidateReadCacheWithCause('event', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
         return;
     }
-    invalidateReadCache('trades:', 'trade-tape:', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
+    invalidateReadCacheWithCause('event', 'trades:', 'trade-tape:', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
 };
 
 export const cachedRead = <T>(
