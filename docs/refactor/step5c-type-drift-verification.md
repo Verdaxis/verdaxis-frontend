@@ -35,7 +35,7 @@ remain explicitly recorded follow-up scope; they are outside the named entries.
 ## Gates and command exit codes
 
 Full run: `work/final-gates.log`. Final test/type rerun: `work/test-rerun.log`.
-The checked script is `outputs/step5c-gates.sh`.
+The checked script is `docs/refactor/step5c-evidence/step5c-gates.sh`.
 
 | Command | Exit |
 |---|---:|
