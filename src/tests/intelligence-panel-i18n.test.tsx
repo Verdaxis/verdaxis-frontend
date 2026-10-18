@@ -64,7 +64,7 @@ describe('IntelligencePanel localization', () => {
     const alcoholProduct: Product = {
       id: 'bio-methanol', name: 'Bio Methanol', market_product: 'BIO_METHANOL',
       fuel_type: 'Methanol', fuel_grade: 'Bio', unit: 'MT', min_lot_size: 100,
-      is_active: true,
+      is_active: true, execution_mode: 'ORDERBOOK', available_delivery_point_ids: [],
     };
     vi.mocked(api.catalog.products).mockResolvedValue([
       { ...alcoholProduct, id: 'ucome-b100', name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME', execution_mode: 'RFQ_ONLY' },
@@ -218,7 +218,7 @@ describe('IntelligencePanel localization', () => {
       'BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL',
     ] as const).map(market_product => ({
       id: market_product, name: market_product, market_product,
-      fuel_type: 'Methanol', fuel_grade: market_product, unit: 'MT', min_lot_size: 1, is_active: true,
+      fuel_type: 'Methanol', fuel_grade: market_product, unit: 'MT', min_lot_size: 1, is_active: true, execution_mode: 'ORDERBOOK', available_delivery_point_ids: [],
     }));
     vi.mocked(api.catalog.products).mockResolvedValue(alcoholProducts.concat(ucomeProduct));
     vi.mocked(api.curves.forward).mockResolvedValue(curveResponse(790));

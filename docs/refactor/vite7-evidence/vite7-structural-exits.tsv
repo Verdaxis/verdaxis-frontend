@@ -1,0 +1,10 @@
+reference-source	0	git archive 425e3cb8 | tar -xf - -C work/vite6-reference
+reference-install	0	cd work/vite6-reference && npm ci --legacy-peer-deps
+reference-build	0	cd work/vite6-reference && npm run build:prod
+reference-check	0	cd work/vite6-reference && npm run build:check
+reference-budgets	0	cd work/vite6-reference && node scripts/check-build-artifacts.mjs --report --root dist
+migrated-install	0	npm ci --legacy-peer-deps
+migrated-build	0	npm run build:prod
+migrated-check	0	npm run build:check
+migrated-budgets	0	node scripts/check-build-artifacts.mjs --report --root dist
+structural-comparison	0	node docs/refactor/vite7-evidence/vite7-compare.mjs

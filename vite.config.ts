@@ -179,6 +179,8 @@ export default defineConfig(({ command, mode }) => {
       plugins: [react(), apiPreconnectPlugin(process.env.VITE_API_URL ?? env.VITE_API_URL), fontPreloadPlugin(), staticRouteMetadataPlugin(mode)],
       // SECURITY: No API keys in define{} — all AI calls go through backend /api/ai/chat
       build: {
+        // Preserve Vite 6 browser support; Vite 7 defaults to Baseline 2025.
+        target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
         // SECURITY: Disable source maps in production to prevent source code exposure
         sourcemap: false,
         // Fonts and brand images must keep their content hash and the

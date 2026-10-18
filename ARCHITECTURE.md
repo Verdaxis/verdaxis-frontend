@@ -2,7 +2,7 @@
 
 ## Scope and stack
 
-This repository is the Verdaxis React single-page application. It serves localized public pages and the protected buyer/supplier platform. The stack is React 19, TypeScript, Vite 6, react-router-dom 7, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, i18next, and Vitest.
+This repository is the Verdaxis React single-page application. It serves localized public pages and the protected buyer/supplier platform. The stack is React 19, TypeScript, Vite 7 (Node 24), react-router-dom 7, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, i18next, and Vitest.
 
 ## Runtime topology
 
@@ -35,7 +35,7 @@ index.html
                     -> production or staging API
 ```
 
-`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable. `src/api/` holds the decimal boundary: `decimals.ts` converts one wire decimal, `mappers.ts` maps each wire shape to its app type, and `contract.ts` names the generated wire types the mappers read.
+`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable. `src/api/` holds the decimal boundary: `decimals.ts` converts one wire decimal, `mappers.ts` maps each wire shape to its app type, and `contract.ts` names the generated wire types the mappers read. Non-decimal auth, catalog, notification and order metadata types derive from those aliases; `OwnedOrderBookOrder` requires owner metadata for `/orderbook/my`, while `OrderBookOrder` keeps an optional compatibility view pending the public/owner consumer decision.
 
 ## Route and workspace rules
 
@@ -218,6 +218,12 @@ inlines neither the fonts nor the brand images (`build.assetsInlineLimit` opts
 asset on it), so the images stay separate hashed files under `/assets/`;
 `src/tests/brand-assets.test.ts` guards the
 pixel sizes, the descriptor-to-file match and the fallbacks.
+
+Vite 7 keeps the Vite 6 browser target explicitly (`es2020`, Edge 88,
+Firefox 78, Chrome 87, Safari 14), rather than adopting the newer Baseline
+2025 default. The three build plugins, manual chunk groups and asset inlining
+policy are unchanged. `package.json` requires Node `24.x` (also the Vercel
+build override); CI, the release workflow and the Docker builder use Node 24.
 
 ## Run commands
 
