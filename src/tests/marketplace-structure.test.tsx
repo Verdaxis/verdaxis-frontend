@@ -129,7 +129,7 @@ describe('Marketplace DOM contract before presentation extraction', () => {
         renderWithProviders(<Marketplace />);
         await waitFor(() => expect(mocks.counts).toHaveBeenCalled());
         expect(document.querySelectorAll('tbody tr')).toHaveLength(4);
-        expectTree('loading');
+        await waitFor(() => expectTree('loading'));
     });
     it('preserves first-load error', async () => {
         mocks.asks.mockRejectedValue(new Error('Market unavailable'));
@@ -146,7 +146,7 @@ describe('Marketplace DOM contract before presentation extraction', () => {
     it('preserves the exact-slice depth gate and tab DOM', async () => {
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?view=orderbook' });
         await waitFor(() => expect(mocks.counts).toHaveBeenCalled());
-        expectTree('depth-gate');
+        await waitFor(() => expectTree('depth-gate'));
     });
     it('preserves my orders and cancellation portal, focus and reason input', async () => {
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?view=my_orders' });

@@ -84,6 +84,50 @@ describe('Marketplace Query lifecycle', () => {
         expect(document.querySelector('[data-order-id="current-ask"]')).toBeNull();
     });
 
+    it.each([
+        [{ product: 'B30', port: 'Singapore', window: 'SPOT' }, { product: 'B30', port: 'Rotterdam', window: 'SPOT' }],
+        [{ product: 'B30', port: 'Singapore', window: 'SPOT' }, { product: 'B30', port: 'Singapore', window: '2026-Q4' }],
+    ] as const)('rejects late slice evidence from %j after navigation to %j', async (first, second) => {
+        const old = deferred<ReturnType<typeof page>>();
+        mocks.asks.mockReturnValueOnce(old.promise).mockResolvedValue(page('new-slice'));
+        const view = renderWithProviders(<Marketplace initialSlice={first} />);
+        await waitFor(() => expect(mocks.asks).toHaveBeenCalledTimes(1));
+        view.rerender(<Marketplace initialSlice={second} />);
+        await waitFor(() => expect(document.querySelector('[data-order-id="new-slice"]')).not.toBeNull());
+        await act(async () => old.resolve(page('old-slice')));
+        expect(document.querySelector('[data-order-id="old-slice"]')).toBeNull();
+    });
+
+    it('suspends hidden fallback reads and resumes once for stale visible keys', async () => {
+        vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+        let visibility = 'visible';
+        vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility as DocumentVisibilityState);
+        renderWithProviders(<Marketplace />);
+        await waitFor(() => expect(document.querySelector('[data-order-id="current-ask"]')).not.toBeNull());
+        visibility = 'hidden';
+        act(() => document.dispatchEvent(new Event('visibilitychange')));
+        const before = mocks.asks.mock.calls.length;
+        act(() => vi.advanceTimersByTime(60_000));
+        expect(mocks.asks).toHaveBeenCalledTimes(before);
+        visibility = 'visible';
+        act(() => document.dispatchEvent(new Event('visibilitychange')));
+        await waitFor(() => expect(mocks.asks).toHaveBeenCalledTimes(before + 1));
+        act(() => vi.advanceTimersByTime(60_000));
+        await waitFor(() => expect(mocks.asks).toHaveBeenCalledTimes(before + 2));
+    });
+
+    it('batches sorted unique ASK ids and removes hints after a failed overlay read', async () => {
+        const a = page('a').items[0];
+        const b = page('b').items[0];
+        mocks.asks.mockResolvedValue({ ...page('a'), items: [b, a, { ...a, id: 'bid', side: 'BID' }] });
+        mocks.overlay.mockRejectedValue(new Error('Overlay unavailable'));
+        renderWithProviders(<Marketplace />);
+        await waitFor(() => expect(mocks.overlay).toHaveBeenCalledWith(['a', 'b'], expect.objectContaining({ cacheOwner: 'query' })));
+        expect(mocks.overlay).toHaveBeenCalledTimes(1);
+        expect(document.querySelector('[data-order-id="a"]')).not.toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
+    });
+
     it('does not fetch listings on a depth route or while delivery scope is unresolved', async () => {
         localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
         const pending = deferred<Awaited<ReturnType<typeof mocks.points>>>();

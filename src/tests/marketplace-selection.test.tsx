@@ -61,7 +61,7 @@ describe('Marketplace selection contract', () => {
         expect(root().getAttribute('data-tour-port')).toBe('Singapore');
         expect(root().getAttribute('data-tour-window')).toBe('SPOT');
         expect(screen.getByTestId('location').textContent).toContain('/app/m/b30/singapore/spot?keep=1');
-        expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'B30', delivery_point_id: 'sg', availability: 'SPOT', skip: 0, limit: 8 }));
+        expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'B30', delivery_point_id: 'sg', availability: 'SPOT', skip: 0, limit: 8 }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
         expect(mocks.track.mock.calls.filter(([event]) => event === 'market_slice_selected')).toEqual([
             ['market_slice_selected', { product: 'B30', delivery_point: 'sg', window: 'SPOT' }],
         ]);
@@ -93,7 +93,7 @@ describe('Marketplace selection contract', () => {
         renderWithProviders(<Workspace />, { route: '/app/m/ucome-b100/rotterdam/spot' });
         await waitFor(() => expect(root().getAttribute('data-tour-port')).toBe('Singapore'));
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/m/ucome-b100/singapore/spot'));
-        expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'sg' }));
+        expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'sg' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     });
     it('keeps B100 legacy requests in history without market reads', async () => {
         renderWithProviders(<Workspace />, { route: '/app/marketplace?product=UCOME_B100&view=requests' });
@@ -106,15 +106,15 @@ describe('Marketplace selection contract', () => {
         const view = renderWithProviders(<Workspace />, { route: '/app/marketplace' });
         await settled();
         view.rerender(<Workspace mode="SUPPLIER" />);
-        await waitFor(() => expect(mocks.bids).toHaveBeenLastCalledWith(expect.objectContaining({ sort_by: 'price_desc', skip: 0 })));
+        await waitFor(() => expect(mocks.bids).toHaveBeenLastCalledWith(expect.objectContaining({ sort_by: 'price_desc', skip: 0 }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) })));
         expect(screen.getByTestId('location').textContent).toContain('/app/marketplace');
     });
     it('resets the accepted page after a product selection', async () => {
         renderWithProviders(<Workspace />, { route: '/app/marketplace' });
         await screen.findByRole('button', { name: 'Next page' });
         fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
-        await waitFor(() => expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 8, limit: 8 })));
+        await waitFor(() => expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 8, limit: 8 }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) })));
         fireEvent.click(document.querySelector('[data-market-product="B30"]')!);
-        await waitFor(() => expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'B30', skip: 0 })));
+        await waitFor(() => expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'B30', skip: 0 }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) })));
     });
 });

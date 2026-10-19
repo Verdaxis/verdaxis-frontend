@@ -67,7 +67,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({ locale }), [locale]);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
-    const [currentSkip, setCurrentSkip] = useState(0);
+    const [page, setPage] = useState({ scope: '', skip: 0 });
 
     // ─── Resolved port name (best match as user types) ─────────
     const resolvedPort = useMemo(() => {
@@ -103,7 +103,12 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     }, [catalogProducts, deliveryPoints, deliveryPointsStatus, marketProduct]);
 
     const defaultSort = role === 'SUPPLIER' ? 'price_desc' : 'price_asc';
-    const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>(() => defaultSort);
+    const [sorting, setSorting] = useState<{ role: ViewMode; value: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest' }>(() => ({ role, value: defaultSort }));
+    const sortBy = sorting.role === role ? sorting.value : defaultSort;
+    const setSortBy = useCallback((value: typeof sortBy) => setSorting({ role, value }), [role]);
+    const pageScope = JSON.stringify([role, resolvedPort, resolvedDeliveryPointId, marketProduct, availability, sortBy]);
+    const currentSkip = page.scope === pageScope ? page.skip : 0;
+    const setCurrentSkip = useCallback((skip: number) => setPage({ scope: pageScope, skip }), [pageScope]);
     const fameTab: 'history_offers' | 'history_my_offers' | 'history_rfqs' = requestedView === 'history_rfqs' || requestedView === 'requests' ? 'history_rfqs' : requestedView === 'history_my_offers' ? 'history_my_offers' : 'history_offers';
     const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'history_offers' | 'history_my_offers' | 'history_rfqs') => {
         const next = new URLSearchParams(location.search);
