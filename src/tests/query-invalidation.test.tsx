@@ -1,12 +1,70 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryObserver } from '@tanstack/react-query';
 import { createQueryClient } from '../lib/query/client';
-import { attachQueryInvalidation } from '../lib/query/invalidation';
+import { attachQueryInvalidation, registerQueryRefresh } from '../lib/query/invalidation';
 import { queuePublicMarketRefresh, subscribePublicMarketRefresh } from '../services/publicMarketSync';
 import { createRefreshCoordinator } from '../lib/query/refreshCoordinator';
 import { invalidateReadCache, invalidateReadCacheWithCause, subscribeReadInvalidations } from '../services/readCache';
 
 afterEach(() => vi.useRealTimers());
+
+describe('registered Query refresh bridge', () => {
+    it('resumes hidden signals once, then reads exactly once more for an event during force', async () => {
+        vi.useFakeTimers();
+        const client = createQueryClient();
+        const key = ['public', 'orderbook', 'snapshot', 'registered'];
+        client.setQueryData(key, 'seed');
+        const ordinary = vi.fn().mockResolvedValue('after-event');
+        let finish!: (value: string) => void;
+        const forced = vi.fn(() => new Promise<string>(resolve => { finish = resolve; }));
+        const registration = registerQueryRefresh(client, key, { ordinary, forced });
+        const observer = new QueryObserver(client, { queryKey: key, queryFn: registration.ordinary, staleTime: Infinity, enabled: false });
+        const unobserve = observer.subscribe(() => {});
+        const bridge = attachQueryInvalidation(client, false);
+        try {
+            invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+            await vi.advanceTimersByTimeAsync(500);
+            const resume = registration.force();
+            observer.setOptions({ queryKey: key, queryFn: registration.ordinary, staleTime: Infinity, enabled: true });
+            bridge.setVisible(true);
+            await vi.advanceTimersByTimeAsync(500);
+            expect(forced).toHaveBeenCalledTimes(1); expect(ordinary).not.toHaveBeenCalled();
+            invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+            await vi.advanceTimersByTimeAsync(500);
+            finish('resume'); await resume;
+            await vi.advanceTimersByTimeAsync(500);
+            expect(forced).toHaveBeenCalledTimes(1); expect(ordinary).toHaveBeenCalledTimes(1);
+        } finally { registration.dispose(); bridge.dispose(); unobserve(); client.clear(); }
+    });
+
+    it('detaches registration when the client cache is cleared, with or without a bridge', async () => {
+        const client = createQueryClient();
+        const key = ['public', 'orderbook', 'snapshot', 'removed'];
+        client.setQueryData(key, 'seed');
+        const read = vi.fn().mockResolvedValue('value');
+        const registration = registerQueryRefresh(client, key, { ordinary: read, forced: read });
+        client.clear();
+        await expect(registration.force()).rejects.toMatchObject({ name: 'AbortError' });
+        await expect(registration.flush()).resolves.toBeUndefined();
+        expect(read).not.toHaveBeenCalled();
+    });
+
+    it('replaces an earlier registration of the same key and ignores its late disposal', async () => {
+        const client = createQueryClient();
+        const key = ['public', 'orderbook', 'snapshot', 'replaced'];
+        const oldRead = vi.fn().mockResolvedValue('old');
+        const newRead = vi.fn().mockResolvedValue('new');
+        const first = registerQueryRefresh(client, key, { ordinary: oldRead, forced: oldRead });
+        const second = registerQueryRefresh(client, key, { ordinary: newRead, forced: newRead });
+        await expect(first.ordinary()).rejects.toMatchObject({ name: 'AbortError' });
+        first.dispose();
+        await expect(second.ordinary()).resolves.toBe('new');
+        expect(oldRead).not.toHaveBeenCalled();
+        expect(newRead).toHaveBeenCalledTimes(1);
+        second.dispose();
+        client.clear();
+    });
+});
 
 describe('Query invalidation bridge', () => {
     it('marks stale synchronously then shares one public batch with legacy subscribers', async () => {
