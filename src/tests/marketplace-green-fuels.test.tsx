@@ -357,11 +357,11 @@ describe('Marketplace green fuels surface', () => {
   it('uses the same delivery filters and Orderbook view for B100', async () => {
     setMarketplaceSlice({ product: 'BIO_ETHANOL', port: 'Singapore', window: 'Q4 2026' });
     renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=orderbook' });
-    await waitFor(() => expect(snapshot).toHaveBeenCalledWith({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { force: false }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
     expect(supplierOffersList).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /Bio Methanol/ }));
-    await waitFor(() => expect(snapshot).toHaveBeenLastCalledWith({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { force: false }));
+    await waitFor(() => expect(snapshot).toHaveBeenLastCalledWith({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
   });
 
   it('keeps earlier offers and RFQs in history without new creation controls', async () => {
@@ -474,7 +474,7 @@ describe('Marketplace green fuels surface', () => {
       expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({
         market_product: 'BIO_METHANOL',
         delivery_point_id: 'dp-1',
-      }), { force: false });
+      }), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
       expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
         region: undefined,
         delivery_point_id: 'dp-1',
@@ -755,7 +755,7 @@ describe('Marketplace green fuels surface', () => {
         market_product: 'BIO_METHANOL',
         delivery_point_id: 'dp-1',
         availability_window: 'SPOT',
-      }, { force: false });
+      }, { cacheOwner: 'query', signal: expect.any(AbortSignal) });
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
@@ -821,7 +821,7 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => expect(screen.getByTestId('current-url').textContent)
       .toBe('/app/m/e-methanol/singapore/spot?view=orderbook'));
     expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
-    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }), { force: false }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }), { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
   });
 
   it.each([

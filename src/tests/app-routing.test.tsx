@@ -200,7 +200,7 @@ vi.mock('../services/api', () => ({
 }));
 
 const emptyListings = { items: [], total: 0, skip: 0, limit: 8 };
-// Migrated Marketplace reads hand cache ownership and cancellation to Query.
+// Migrated Marketplace and OrderBook reads hand cache ownership and cancellation to Query.
 const queryRead = { cacheOwner: 'query', signal: expect.any(AbortSignal) };
 
 const LocationSpy: React.FC = () => {
@@ -522,7 +522,7 @@ describe('app routing', () => {
         market_product: 'UCOME_B100',
         delivery_point_id: 'dp-1',
         availability_window: '2028-Q1',
-      }, { force: false }));
+      }, queryRead));
       expect(currentPathname()).toBe('/app/m/ucome-b100/singapore/2028-q1');
       expect(screen.getByTestId('location-search').textContent).toBe('?view=orderbook');
     });
