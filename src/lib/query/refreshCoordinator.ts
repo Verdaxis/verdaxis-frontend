@@ -74,3 +74,90 @@ export function createRefreshCoordinator(initiallyVisible = true) {
         },
     };
 }
+
+export interface RefreshReads<T> {
+    /** Ordinary read, normally the Query function. Must start a new request. */
+    ordinary: () => Promise<T>;
+    /** Forced read, such as a visibility or network resume. Must start a new request. */
+    forced: () => Promise<T>;
+}
+
+export interface RefreshLifecycle<T> {
+    /** Ordinary read for Query. Joins any request already in flight. */
+    ordinary(): Promise<T>;
+    /** Forced read. Joins a forced request already in flight. */
+    force(): Promise<T>;
+    /** Records a freshness signal that a later read must cover. */
+    invalidate(): void;
+    /** Resolves when no signal remains uncovered, reading once per uncovered batch. */
+    flush(): Promise<void>;
+    /** Ends the lifecycle: pending signals are dropped and new reads are refused. */
+    dispose(): void;
+}
+
+/**
+ * Per-key request ownership. It holds no value cache, clock or scheduler.
+ *
+ * Every freshness signal advances `revision`. A read covers every signal that
+ * arrived before it started, so one forced resume read satisfies all signals
+ * received while the tab was hidden. A signal that arrives after a read started
+ * is not covered by it and costs exactly one further read.
+ */
+export function createRefreshLifecycle<T>(reads: RefreshReads<T>, onDispose?: () => void): RefreshLifecycle<T> {
+    let disposed = false;
+    let revision = 0;
+    let covered = 0;
+    let ordinary: Promise<T> | undefined;
+    let forced: Promise<T> | undefined;
+    let flushing: Promise<void> | undefined;
+    const ended = () => Promise.reject<T>(new DOMException('Refresh lifecycle ended', 'AbortError'));
+
+    const start = (kind: 'ordinary' | 'forced'): Promise<T> => {
+        if (disposed) return ended();
+        // A forced read already answers an ordinary request. A signal that
+        // arrived after it started is read once by flush(), not here.
+        if (forced) return forced;
+        if (kind === 'ordinary' && ordinary) return ordinary;
+        covered = revision;
+        let request: Promise<T>;
+        try { request = Promise.resolve(reads[kind]()); }
+        catch (error) { request = Promise.reject(error); }
+        const tracked = request.finally(() => {
+            if (kind === 'forced' && forced === tracked) forced = undefined;
+            if (kind === 'ordinary' && ordinary === tracked) ordinary = undefined;
+        });
+        if (kind === 'forced') forced = tracked;
+        else ordinary = tracked;
+        return tracked;
+    };
+
+    const drain = async () => {
+        // Always asynchronous, so `flushing` is assigned before it can be cleared.
+        await undefined;
+        try {
+            while (!disposed) {
+                const inFlight = [ordinary, forced].filter((request): request is Promise<T> => Boolean(request));
+                if (inFlight.length) await Promise.allSettled(inFlight);
+                if (disposed || covered >= revision) return;
+                await start('ordinary').catch(() => undefined);
+            }
+        } finally { flushing = undefined; }
+    };
+
+    return {
+        ordinary: () => start('ordinary'),
+        force: () => start('forced'),
+        invalidate() { if (!disposed) revision += 1; },
+        flush() {
+            if (disposed) return Promise.resolve();
+            flushing ??= drain();
+            return flushing;
+        },
+        dispose() {
+            if (disposed) return;
+            disposed = true;
+            covered = revision;
+            onDispose?.();
+        },
+    };
+}
