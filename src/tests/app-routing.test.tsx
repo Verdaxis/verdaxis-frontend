@@ -201,7 +201,7 @@ vi.mock('../services/api', () => ({
 
 const emptyListings = { items: [], total: 0, skip: 0, limit: 8 };
 // Migrated Marketplace reads hand cache ownership and cancellation to Query.
-const queryRead = expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) });
+const queryRead = { cacheOwner: 'query', signal: expect.any(AbortSignal) };
 
 const LocationSpy: React.FC = () => {
   const location = useLocation();
