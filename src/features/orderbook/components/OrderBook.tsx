@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { OrderBookOrder, ProductExecutionMode } from '../../../types';
-import { api } from '../../../services/api';
 import { useNamespace } from '../../../hooks/useNamespace';
-import { usePublicMarketRefresh } from '../../../hooks/usePublicMarketRefresh';
+import { useOrderBookSnapshot } from '../hooks/useOrderBookSnapshot';
 import { isOrderbookMarketProduct } from '../../../utils/marketProduct';
 import { isDemoMarketActivity } from '../../../utils/marketActivity';
 import i18n from '../../../i18n';
@@ -22,7 +21,6 @@ interface OrderBookProps {
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
 }
 
-const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
 function isOrderbookFuelType(fuelType: string | undefined): boolean {
@@ -38,161 +36,25 @@ function isOrderbookOrder(order: OrderBookOrder): boolean {
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, executionMode, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
-    const [bids, setBids] = useState<OrderBookOrder[]>([]);
-    const [asks, setAsks] = useState<OrderBookOrder[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [generatedAt, setGeneratedAt] = useState<string | null>(null);
     const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
     const tooltipId = useId();
-    const requestGeneration = useRef(0);
-    const latestRequest = useRef(0);
-    const latestAppliedRequest = useRef(0);
-    const requestsInFlight = useRef(new Map<string, { token: symbol; forced: boolean; completion: Promise<void> }>());
-    const hasSnapshot = useRef(false);
     const b100Selected = marketProduct === 'UCOME_B100' || fuelType?.trim().toLowerCase() === 'fame';
     const orderbookAvailable = executionMode !== 'RFQ_ONLY'
         && (!b100Selected || executionMode === 'ORDERBOOK')
         && (!marketProduct || isOrderbookMarketProduct(marketProduct))
         && (!fuelType || isOrderbookFuelType(fuelType));
     const requestScope = JSON.stringify([fuelType, marketProduct, executionMode, region, deliveryPointId, availability]);
-    const currentRequestScope = useRef(requestScope);
-    currentRequestScope.current = requestScope;
-
-    const fetchData = useCallback(async (force = false) => {
-        if (!orderbookAvailable) {
-            hasSnapshot.current = false;
-            setBids([]);
-            setAsks([]);
-            setHoverTooltip(null);
-            setError(null);
-            setGeneratedAt(null);
-            setLoading(false);
-            return;
-        }
-        if (!marketProduct || !isOrderbookMarketProduct(marketProduct) || !deliveryPointId || !availability) return;
-        const activeRequest = requestsInFlight.current.get(requestScope);
-        if (activeRequest && (!force || activeRequest.forced)) return activeRequest.completion;
-        const requestToken = Symbol(requestScope);
-        let completeRequest!: () => void;
-        const completion = new Promise<void>((resolve) => { completeRequest = resolve; });
-        requestsInFlight.current.set(requestScope, { token: requestToken, forced: force, completion });
-        const generation = requestGeneration.current;
-        const requestId = ++latestRequest.current;
-        if (hasSnapshot.current) setRefreshing(true);
-        else setLoading(true);
-        setError(null);
-        try {
-            const snapshot = await api.orderbook.snapshot({
-                market_product: marketProduct,
-                delivery_point_id: deliveryPointId,
-                availability_window: availability,
-            }, { force });
-
-            if (
-                generation !== requestGeneration.current
-                || requestScope !== currentRequestScope.current
-                || requestId < latestAppliedRequest.current
-            ) return;
-
-            // Bids: highest price first (best bid at top)
-            const sortedBids: OrderBookOrder[] = [...snapshot.bids]
-                .filter(isOrderbookOrder)
-                .sort((a: OrderBookOrder, b: OrderBookOrder) => b.price_per_mt_usd - a.price_per_mt_usd)
-                .slice(0, MAX_ROWS);
-
-            // Asks: lowest price first (best ask at top)
-            const sortedAsks: OrderBookOrder[] = [...snapshot.asks]
-                .filter(isOrderbookOrder)
-                .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
-                .slice(0, MAX_ROWS);
-
-            latestAppliedRequest.current = requestId;
-            setBids(sortedBids);
-            setAsks(sortedAsks);
-            setGeneratedAt(snapshot.generated_at);
-            hasSnapshot.current = true;
-            setError(null);
-            setLoading(false);
-            const activeRequestAfterSnapshot = requestsInFlight.current.get(requestScope);
-            setRefreshing(Boolean(
-                activeRequestAfterSnapshot
-                && activeRequestAfterSnapshot.token !== requestToken
-            ));
-        } catch {
-            if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
-                setError(t('orderBook.error'));
-            }
-        } finally {
-            if (requestsInFlight.current.get(requestScope)?.token === requestToken) requestsInFlight.current.delete(requestScope);
-            completeRequest();
-            if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
-                setLoading(false);
-                setRefreshing(false);
-            }
-        }
-    }, [availability, deliveryPointId, fuelType, marketProduct, orderbookAvailable, region, requestScope, t]);
-
-    // Initial load + re-fetch when filters change
-    useEffect(() => {
-        requestGeneration.current += 1;
-        hasSnapshot.current = false;
-        setBids([]);
-        setAsks([]);
-        setGeneratedAt(null);
-        setError(null);
-        setLoading(true);
-        setHoverTooltip(null);
-        if (!orderbookAvailable) {
-            setLoading(false);
-        } else if (!marketProduct || !isOrderbookMarketProduct(marketProduct) || !deliveryPointId || !availability) {
-            setLoading(false);
-            setError(t('orderBook.error'));
-        } else if (!document.hidden) {
-            void fetchData();
-        }
-        return () => {
-            requestGeneration.current += 1;
-            requestsInFlight.current.delete(requestScope);
-        };
-    }, [availability, deliveryPointId, fetchData, marketProduct, orderbookAvailable, requestScope, t]);
-
-    // Poll through the 10-second cache. A visibility/network resume bypasses it.
-    useEffect(() => {
-        const pollWhenVisible = () => {
-            if (!document.hidden && orderbookAvailable) void fetchData();
-        };
-        const refreshAfterResume = () => {
-            if (!document.hidden && orderbookAvailable) void fetchData(true);
-        };
-        const interval = window.setInterval(pollWhenVisible, POLL_INTERVAL_MS);
-        document.addEventListener('visibilitychange', refreshAfterResume);
-        window.addEventListener('online', refreshAfterResume);
-        return () => {
-            window.clearInterval(interval);
-            document.removeEventListener('visibilitychange', refreshAfterResume);
-            window.removeEventListener('online', refreshAfterResume);
-        };
-    }, [fetchData, orderbookAvailable]);
-
-    const refreshFromPublicEvent = useCallback(async () => {
-        if (document.hidden || !orderbookAvailable) return;
-        const refreshGeneration = requestGeneration.current;
-        const activeRequest = requestsInFlight.current.get(requestScope);
-        if (activeRequest?.forced) await activeRequest.completion;
-        if (
-            document.hidden
-            || !orderbookAvailable
-            || refreshGeneration !== requestGeneration.current
-            || requestScope !== currentRequestScope.current
-        ) return;
-        await fetchData(true);
-    }, [fetchData, orderbookAvailable, requestScope]);
-    usePublicMarketRefresh(
-        refreshFromPublicEvent,
-        Boolean(orderbookAvailable && marketProduct && deliveryPointId && availability),
-    );
+    const completeSlice = Boolean(marketProduct && deliveryPointId && availability);
+    const { snapshot, loading, refreshing, error: refreshError, refresh: fetchData } = useOrderBookSnapshot({
+        product: marketProduct ?? '', deliveryPointId: deliveryPointId ?? '', window: availability ?? '',
+    }, orderbookAvailable && completeSlice, requestScope);
+    const error = refreshError || (orderbookAvailable && !completeSlice) ? t('orderBook.error') : null;
+    const generatedAt = snapshot?.generated_at ?? null;
+    const bids = useMemo(() => [...(snapshot?.bids ?? [])].filter(isOrderbookOrder)
+        .sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd).slice(0, MAX_ROWS), [snapshot?.bids]);
+    const asks = useMemo(() => [...(snapshot?.asks ?? [])].filter(isOrderbookOrder)
+        .sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd).slice(0, MAX_ROWS), [snapshot?.asks]);
+    useEffect(() => { setHoverTooltip(null); }, [requestScope]);
 
     const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
         const rect = element.getBoundingClientRect();

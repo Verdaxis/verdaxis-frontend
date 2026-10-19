@@ -4,6 +4,8 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { OrderBook } from '../components/OrderBook';
 import { Route, Routes, useNavigate } from 'react-router-dom';
+import { attachQueryInvalidation } from '../lib/query/invalidation';
+import { invalidateReadCacheWithCause } from '../services/readCache';
 import { queuePublicMarketRefresh } from '../services/publicMarketSync';
 
 const { snapshot } = vi.hoisted(() => ({ snapshot: vi.fn() }));
@@ -104,7 +106,7 @@ describe('orderbook pre-Query re-entry contract', () => {
       expect(screen.queryByRole('tooltip')).toBeNull();
       await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(before + 1));
       expect(snapshot).toHaveBeenLastCalledWith({ market_product: 'BIO_METHANOL',
-        delivery_point_id: MARKET.deliveryPointId, availability_window: 'SPOT' }, { force: false });
+        delivery_point_id: MARKET.deliveryPointId, availability_window: 'SPOT' }, { cacheOwner: 'query', signal: expect.any(AbortSignal) });
       await act(async () => { finish(depth); });
       expect(await screen.findByRole('group', { name: /Ask.*915/ })).toBeTruthy();
       expect(view.queryClient).toBe(client);
@@ -194,7 +196,7 @@ describe('orderbook inspection', () => {
       market_product: 'UCOME_B100',
       delivery_point_id: MARKET.deliveryPointId,
       availability_window: MARKET.availability,
-    }), { force: false });
+    }), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
     fireEvent.keyDown(level, { key: 'Enter' });
     expect(openTrade).toHaveBeenCalledWith(expect.objectContaining(b100Ask));
   });
@@ -235,10 +237,10 @@ describe('orderbook inspection', () => {
     ));
 
     const view = renderWithProviders(<OrderBook {...MARKET} marketProduct="BIO_METHANOL" />);
-    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL' }), { force: false }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL' }), { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
 
     view.rerender(<OrderBook {...MARKET} marketProduct="E_METHANOL" />);
-    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }), { force: false }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }), { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
 
     await act(async () => {
       resolveEMethanol(makeSnapshot([{
@@ -273,7 +275,7 @@ describe('orderbook inspection', () => {
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('refresh failed'));
     expect(screen.getByRole('group', { name: /Bid.*600/ })).toBeTruthy();
-    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
   });
 
   it('uses an ordinary in-flight snapshot after a forced resume refresh fails', async () => {
@@ -296,7 +298,7 @@ describe('orderbook inspection', () => {
       window.dispatchEvent(new Event('online'));
     });
     await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
-    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
 
     await act(async () => {
       rejectRefresh(new Error('network unavailable'));
@@ -329,7 +331,7 @@ describe('orderbook inspection', () => {
     }], []));
 
     renderWithProviders(<OrderBook {...MARKET} />);
-    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.any(Object), { force: false }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
 
     act(() => {
       window.dispatchEvent(new Event('online'));
@@ -337,7 +339,7 @@ describe('orderbook inspection', () => {
     });
 
     await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
-    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
     expect(await screen.findByRole('group', { name: /Bid.*700/ })).toBeTruthy();
 
     await act(async () => {
@@ -363,7 +365,8 @@ describe('orderbook inspection', () => {
         remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
       }], []));
 
-    renderWithProviders(<OrderBook {...MARKET} />);
+    const view = renderWithProviders(<OrderBook {...MARKET} />);
+    const bridge = attachQueryInvalidation(view.queryClient);
     const refreshButton = await screen.findByRole('button', { name: 'Refresh orderbook' });
     expect(snapshot).toHaveBeenCalledTimes(1);
     fireEvent.click(refreshButton);
@@ -372,6 +375,7 @@ describe('orderbook inspection', () => {
     vi.useFakeTimers();
     try {
       await act(async () => {
+        invalidateReadCacheWithCause('event', 'orderbook:');
         queuePublicMarketRefresh();
         await vi.advanceTimersByTimeAsync(500);
       });
@@ -383,8 +387,9 @@ describe('orderbook inspection', () => {
         await Promise.resolve();
       });
       expect(snapshot).toHaveBeenCalledTimes(3);
-      expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+      expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
     } finally {
+      bridge.dispose();
       vi.useRealTimers();
     }
   });
