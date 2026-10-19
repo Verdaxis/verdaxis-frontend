@@ -10,8 +10,9 @@ interface SnapshotRequestsOptions<T> {
     change: (status: SnapshotStatus) => void;
 }
 
-// Query owns the value and freshness. This helper only arbitrates overlapping
-// ordinary/forced requests within one mounted slice lifecycle.
+// Query owns the value and freshness; the shared per-key refresh registration
+// owns which signals each read covers. This helper only arbitrates the results
+// of overlapping ordinary/forced requests within one mounted slice lifecycle.
 export function createSnapshotRequests<T>({ read, apply, change }: SnapshotRequestsOptions<T>) {
     let active = true;
     let sequence = 0;
@@ -51,15 +52,9 @@ export function createSnapshotRequests<T>({ read, apply, change }: SnapshotReque
     return {
         ordinary(): Promise<T> {
             if (ordinary) return ordinary;
-            // Bridge refetches wait for force completion, then read again.
-            // A manual/resume signal cannot consume this post-event read.
-            const pendingForce = forced;
-            ordinary = (pendingForce
-                ? pendingForce.catch(() => undefined).then(() => {
-                    if (!active) throw new Error('Snapshot lifecycle ended');
-                    return start();
-                })
-                : start()).finally(() => { ordinary = undefined; });
+            // The registered refresh lifecycle decides when an ordinary read
+            // is needed after forced work; this helper only orders results.
+            ordinary = start().finally(() => { ordinary = undefined; });
             return ordinary;
         },
         force(): Promise<T> {

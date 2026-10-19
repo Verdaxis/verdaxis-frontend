@@ -11,7 +11,7 @@ import { orderbookKeys } from '../features/orderbook/api/orderbookKeys';
 const { snapshot } = vi.hoisted(() => ({ snapshot: vi.fn() }));
 vi.mock('../services/api', () => ({ api: { orderbook: { snapshot } } }));
 const market = { marketProduct: 'BIO_METHANOL', deliveryPointId: 'port', availability: 'SPOT' };
-const depth = (price = 600) => ({ bids: [{ id: 'bid', side: 'BID', market_product: 'BIO_METHANOL',
+const depth = (price = 600, product = 'BIO_METHANOL') => ({ bids: [{ id: 'bid', side: 'BID', market_product: product,
   price_per_mt_usd: price, remaining_quantity_mt: 100, certifications: [] }], asks: [],
   generated_at: '2026-10-19T00:00:00Z' });
 function deferred() {
@@ -50,16 +50,25 @@ describe('Query-owned OrderBook lifecycle', () => {
     expect(screen.getByRole('group', { name: /Bid.*700/ })).toBeTruthy();
   });
 
-  it.each(['initial', 'forced'])('performs one bridge-owned post-event read during %s work', async phase => {
+  // A read that starts after an event covers it. A read that started before the
+  // event does not, so the bridge makes exactly one further read. A resume signal
+  // joins a forced read in flight and must not consume that post-event read.
+  it.each([
+    { phase: 'initial', resume: false, reads: 2 },
+    { phase: 'initial', resume: true, reads: 2 },
+    { phase: 'forced', resume: false, reads: 3 },
+    { phase: 'forced', resume: true, reads: 3 },
+  ])('makes exactly $reads reads for an event during $phase work (resume signal: $resume)', async ({ phase, resume, reads }) => {
     const busy = deferred();
+    snapshot.mockResolvedValue(depth(730));
     if (phase === 'initial') snapshot.mockReturnValueOnce(busy.promise);
     else snapshot.mockResolvedValueOnce(depth()).mockReturnValueOnce(busy.promise);
     const view = renderWithProviders(<OrderBook {...market} />);
     const bridge = attachQueryInvalidation(view.queryClient);
     try {
       if (phase === 'forced') fireEvent.click(await screen.findByRole('button', { name: 'Refresh orderbook' }));
-      await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(phase === 'initial' ? 1 : 2));
-      const before = snapshot.mock.calls.length;
+      const before = phase === 'initial' ? 1 : 2;
+      await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(before));
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       await act(async () => {
         invalidateReadCacheWithCause('event', 'orderbook:');
@@ -67,12 +76,15 @@ describe('Query-owned OrderBook lifecycle', () => {
         await vi.advanceTimersByTimeAsync(500);
       });
       expect(snapshot).toHaveBeenCalledTimes(before);
-      fireEvent(window, new Event('online'));
-      const withResume = snapshot.mock.calls.length;
+      if (resume) fireEvent(window, new Event('online'));
+      await act(async () => { await Promise.resolve(); });
+      expect(snapshot).toHaveBeenCalledTimes(resume && phase === 'initial' ? before + 1 : before);
       await act(async () => { busy.resolve(depth(710)); await busy.promise; });
       await act(async () => { await vi.advanceTimersByTimeAsync(500); });
-      expect(snapshot.mock.calls.length).toBeGreaterThan(before);
-      expect(snapshot.mock.calls.length).toBeLessThanOrEqual(withResume + 1);
+      expect(snapshot).toHaveBeenCalledTimes(reads);
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(snapshot).toHaveBeenCalledTimes(reads);
+      expect(screen.getByRole('group', { name: /Bid.*730/ })).toBeTruthy();
     } finally { bridge.dispose(); }
   });
 
@@ -126,5 +138,67 @@ describe('Query-owned OrderBook lifecycle', () => {
     view.unmount();
     await act(async () => { pending.resolve(depth(900)); });
     expect(view.queryClient.getQueryData(orderbookKeys.snapshot('BIO_METHANOL', 'port', 'SPOT'))).toBeUndefined();
+  });
+
+  it('ends the old slice lifecycle on a scope change and reads only the new slice after an event', async () => {
+    const old = deferred();
+    snapshot.mockImplementation(async params => depth(600, params.market_product));
+    snapshot.mockReturnValueOnce(old.promise);
+    const view = renderWithProviders(<OrderBook {...market} />);
+    const bridge = attachQueryInvalidation(view.queryClient);
+    try {
+      await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(1));
+      view.rerender(<OrderBook {...market} marketProduct="E_METHANOL" />);
+      await screen.findByRole('group', { name: /Bid.*600/ });
+      expect(snapshot).toHaveBeenCalledTimes(2);
+      await act(async () => { old.resolve(depth(900)); await old.promise; });
+      expect(screen.queryByRole('group', { name: /Bid.*900/ })).toBeNull();
+      expect(view.queryClient.getQueryData(orderbookKeys.snapshot('BIO_METHANOL', 'port', 'SPOT'))).toBeUndefined();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      await act(async () => {
+        invalidateReadCacheWithCause('event', 'orderbook:');
+        queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(snapshot.mock.calls.map(([params]) => params.market_product))
+        .toEqual(['BIO_METHANOL', 'E_METHANOL', 'E_METHANOL']);
+    } finally { bridge.dispose(); }
+  });
+
+  it('stops every read for a slice after unmount, including events, polling and resume', async () => {
+    const pending = deferred();
+    snapshot.mockReturnValueOnce(pending.promise);
+    const view = renderWithProviders(<OrderBook {...market} />);
+    const bridge = attachQueryInvalidation(view.queryClient);
+    try {
+      await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(1));
+      view.unmount();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      await act(async () => {
+        invalidateReadCacheWithCause('event', 'orderbook:');
+        queuePublicMarketRefresh();
+        pending.resolve(depth(900));
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      fireEvent(window, new Event('online'));
+      fireEvent(document, new Event('visibilitychange'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+      expect(snapshot).toHaveBeenCalledTimes(1);
+    } finally { bridge.dispose(); }
+  });
+
+  it('registers a fresh lifecycle when the same slice mounts again on one client', async () => {
+    const first = deferred();
+    snapshot.mockReturnValueOnce(first.promise);
+    const initial = renderWithProviders(<OrderBook {...market} />);
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(1));
+    initial.unmount();
+    const again = renderWithProviders(<OrderBook {...market} />, { queryClient: initial.queryClient });
+    await screen.findByRole('group', { name: /Bid.*600/ });
+    await act(async () => { first.resolve(depth(900)); await first.promise; });
+    expect(screen.queryByRole('group', { name: /Bid.*900/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(3));
+    again.unmount();
   });
 });
