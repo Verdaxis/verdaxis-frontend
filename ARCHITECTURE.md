@@ -63,7 +63,7 @@ index.html
 
 **On-demand chart libraries.** Recharts is the heaviest workspace dependency and only two chart components use it: `compliance/FuelEuBarChart.tsx` (lazily imported by `ComplianceDashboard`) and `admin/product-analytics/TrendChart.tsx` (lazily imported through `LazyTrendChart`, used by the five analytics tabs). Both lazy boundaries reserve the chart's box (`h-52` / the `height` prop) so the layout does not move while the chunk arrives. Recharts therefore leaves the compliance and admin route chunks' static imports; the checker fails the build if any route statically reaches `vendor-recharts`.
 
-**Orderbook snapshots.** `OrderBook` treats the bids, asks, and server `generated_at` value from one canonical market-slice snapshot as one dated view. It clears that evidence when the slice changes. If refresh fails, it keeps the last depth visible and labels its age and refresh failure.
+**Orderbook snapshots.** `OrderBook` treats the bids, asks, and server `generated_at` value from one canonical market-slice snapshot as one dated view. It clears that evidence when the slice changes. If refresh fails, it keeps the last depth visible and labels its age and refresh failure. Query stores the snapshot under the canonical slice key. `useOrderBookSnapshot` registers the slice's ordinary and forced reads with `registerQueryRefresh`; `snapshotRequests.ts` never lets an older result replace a newer one when reads overlap. One forced resume read covers every freshness signal received while the tab was hidden, and a committed event that arrives during a read costs exactly one further read.
 
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
 
@@ -110,6 +110,17 @@ src/
     admin/market-support/           eligible-organization entry
     market-support/                 acting banner and final order confirmation
     public/                         localized public shell and components
+  features/marketplace/             Marketplace workspace: components/, hooks/ (useMarketplaceQueries, useMarketplaceSelection), api/ (Query keys, options, read adapters)
+  features/orderbook/               OrderBook workspace: components/, api/ (Query keys, options, read adapter)
+  features/orderbook/hooks/useOrderBookSnapshot.ts
+                                    Query-owned market-slice snapshot: registers its reads with the shared
+                                    refresh registry, polls while visible, forces one read on resume
+  lib/query/                        TanStack Query client, provider, keys and invalidation bridge
+  lib/query/refreshRegistry.ts      per-key refresh lifecycle and registration; no bridge dependency, so feature
+                                    hooks import it without loading the bridge
+  lib/query/refreshCoordinator.ts   500 ms batching of freshness signals for the bridge (visible tab only)
+  lib/query/invalidation.ts         bridge from read-cache and public-market signals to Query
+  lib/query/snapshotRequests.ts     orders overlapping ordinary and forced snapshot reads inside one mounted slice
   context/                          auth, market support, theme, notifications, tutorial
   services/
     api.ts                          fetch client and response transforms
