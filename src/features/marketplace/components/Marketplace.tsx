@@ -7,13 +7,13 @@ import { MarketDepthPanel } from './MarketDepthPanel';
 import { MyListingsPanel } from './MyListingsPanel';
 import { CancelOrderDialog } from './CancelOrderDialog';
 import { MarketplaceHistory } from './MarketplaceHistory';
+import { useMarketplaceQueries, useMarketplaceReferences } from '../hooks/useMarketplaceQueries';
 import { useMarketplaceSelection } from '../hooks/useMarketplaceSelection';
 import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { ApiError, ApiOutcomeUnknownError, api, isKycRequiredError } from '../../../services/api';
-import type { PaginatedResult } from '../../../services/api';
 import { Port, OrderBookOrder, MarketProduct, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../../../types';
 import { getAuthGeneration } from '../../../services/authToken';
 import { getMarketSupportContextId } from '../../../services/marketSupportContextStore';
@@ -21,7 +21,6 @@ import { createIdempotencyKey } from '../../../utils/idempotencyKey';
 import { OrderPlaceModal } from '../../../components/OrderPlaceModal';
 import { useNamespace } from '../../../hooks/useNamespace';
 import { useDashboardContentReady } from '../../../hooks/useDashboardContentReady';
-import { usePublicMarketRefresh } from '../../../hooks/usePublicMarketRefresh';
 import { formatMarketProduct, isOrderbookMarketProduct, isOrderbookProduct } from '../../../utils/marketProduct';
 import { type MarketSlice } from '../../../utils/sliceUrl';
 import { useWatchlist } from '../../../hooks/useWatchlist';
@@ -47,22 +46,11 @@ export interface MarketplaceRolePresentation {
 }
 
 interface RoleConfigEntry extends MarketplaceRolePresentation {
-    fetchOrders: (params?: {
-        region?: string;
-        delivery_point_id?: string;
-        fuel_type?: string;
-        market_product?: string;
-        availability?: string;
-        sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
-        skip?: number;
-        limit?: number;
-    }, cacheOptions?: { force?: boolean }) => Promise<PaginatedResult<any>>;
     defaultSort: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
 }
 
 const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
     BUYER: {
-        fetchOrders: api.orderbook.listAsksPaged,
         subtitleKey: 'marketplace.subtitle.buyer',
         primaryAction: { labelKey: 'marketplace.btn.placeBid', side: 'BID' as const },
         counterAction: { labelKey: 'marketplace.btn.hitAsk' },
@@ -70,7 +58,6 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
         columns: ['fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
     },
     SUPPLIER: {
-        fetchOrders: api.orderbook.listBidsPaged,
         subtitleKey: 'marketplace.subtitle.supplier',
         primaryAction: { labelKey: 'marketplace.btn.placeAsk', side: 'ASK' as const },
         counterAction: { labelKey: 'marketplace.btn.hitBid' },
@@ -81,8 +68,6 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 
 // ─── Product chip options ─────────────────────────────────────────
 const ALL_MARKET_PRODUCTS = 'All';
-const PAGE_SIZE = 8;
-const REFRESH_INTERVAL_MS = 60_000;
 
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
@@ -98,39 +83,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const { trackedSliceKeys, pinnedOrderIds, toggleSlice, togglePin } = useWatchlist();
 
-    // ─── Data state ───────────────────────────────────────────────
-    const [listings, setListings] = useState<OrderBookOrder[]>([]);
-    const [totalCount, setTotalCount] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [hasLoadedListings, setHasLoadedListings] = useState(false);
-    const listingRequestsInFlight = useRef(new Map<string, symbol>());
-    const countRequestsInFlight = useRef(new Map<string, symbol>());
-    const currentListingsRequest = useRef('');
-    const currentCountsRequest = useRef('');
-    const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
-    const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
-
-    // ─── Filter state ─────────────────────────────────────────────
-    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [deliveryPointsStatus, setDeliveryPointsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
-    const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
-    const [catalogError, setCatalogError] = useState(false);
-    const latestCatalogRequest = useRef(0);
-    const loadCatalogProducts = useCallback(async (force = false) => {
-        const requestId = ++latestCatalogRequest.current;
-        try {
-            const products = await api.catalog.products(force ? { force: true } : undefined);
-            if (requestId !== latestCatalogRequest.current) return;
-            setCatalogProducts(products);
-            setCatalogError(false);
-        } catch {
-            if (requestId !== latestCatalogRequest.current) return;
-            setCatalogProducts([]);
-            setCatalogError(true);
-        }
-    }, []);
+    const { deliveryPoints, deliveryPointsStatus, catalogProducts, catalogError, loadCatalogProducts } = useMarketplaceReferences(ready);
     const b100Product = catalogProducts.find(product => product.market_product === 'UCOME_B100');
     const b100TradingEnabled = Boolean(b100Product && isOrderbookProduct(b100Product));
     const bioLngProduct = catalogProducts.find(product => product.market_product === 'BIO_LNG');
@@ -146,6 +99,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         deliveryPoints, deliveryPointsStatus, catalogProducts,
     });
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
+    const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
+    const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
+    const {
+        listings, totalCount, acceptedSkip, loading, refreshing, error, hasLoadedListings,
+        complianceOverlays, overlayAssumptions, marketProductCounts,
+        myOrders, myOrdersLoading, myOrdersReadError, setMyOrders,
+        fetchListings, fetchProductCounts, fetchMyOrders,
+    } = useMarketplaceQueries({
+        ready, isHistorySelected, marketTab, isCatalogScopeResolving, hasUser: Boolean(user),
+        scope: [getAuthGeneration(), user?.id ?? '', user?.organization_id ?? null, marketSupportContext?.id ?? null],
+        selection: { side: role === 'BUYER' ? 'ASK' : 'BID', region: resolvedPort,
+            deliveryPointId: resolvedDeliveryPointId, product: marketProduct === ALL_MARKET_PRODUCTS ? null : marketProduct,
+            window: availability, sort: sortBy, skip: currentSkip },
+    });
     useDashboardContentReady('MARKETPLACE', !isHistorySelected && ready && (marketTab !== 'market' || (!loading && hasLoadedListings)));
 
     const currentSliceTarget = useMemo(() => {
@@ -186,11 +153,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
-    const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
-    const latestMyOrdersRequest = useRef(0);
-    const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
@@ -260,8 +223,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeNeedsRefresh(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
-        setMyOrders([]);
-        latestMyOrdersRequest.current += 1;
     }, [user?.id, user?.organization_id, isMarketSupportActive]);
 
 
@@ -273,202 +234,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setPendingCancellation(null);
     }, [isHistorySelected]);
 
-    // ─── Fuel counts for chips ────────────────────────────────────
-    const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
-
     const filteredListings = listings;
-
     useEffect(() => {
-        if (!ready) return;
-        let cancelled = false;
-        const loadDeliveryPoints = async () => {
-            try {
-                const response = await api.catalog.deliveryPoints();
-                if (!cancelled) {
-                    setDeliveryPoints(response.filter(point => point.is_active !== false));
-                    setDeliveryPointsStatus('ready');
-                }
-            } catch (error) {
-                console.warn('Marketplace delivery points unavailable', error);
-                if (!cancelled) {
-                    setDeliveryPoints([]);
-                    setDeliveryPointsStatus('failed');
-                }
-            }
-        };
-
-        void loadCatalogProducts();
-        loadDeliveryPoints();
-        return () => {
-            cancelled = true;
-            latestCatalogRequest.current += 1;
-        };
-    }, [ready, loadCatalogProducts]);
-
-
-    // ─── Data fetching ────────────────────────────────────────────
-    const marketScopeKey = `${role}:${resolvedPort}:${resolvedDeliveryPointId}:${marketProduct}:${availability}:${sortBy}`;
-    const countScopeKey = `${role}:${resolvedPort}:${resolvedDeliveryPointId}:${availability}`;
-    const currentMarketScope = useRef(marketScopeKey);
-    const currentCountScope = useRef(countScopeKey);
-    currentMarketScope.current = marketScopeKey;
-    currentCountScope.current = countScopeKey;
-    const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
-
-    const fetchListings = useCallback(async (silent = false, skip = 0, force = false) => {
-        if (!ready || isHistorySelected || isCatalogScopeResolving) return;
-        const requestScope = `${marketScopeKey}:${skip}`;
-        currentListingsRequest.current = requestScope;
-        if (!force && listingRequestsInFlight.current.has(requestScope)) return;
-        const requestToken = Symbol(requestScope);
-        listingRequestsInFlight.current.set(requestScope, requestToken);
-        if (silent) setRefreshing(true);
-        else setLoading(true);
-        setError(null);
-
-        try {
-            const orderParams = {
-                region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
-                delivery_point_id: resolvedDeliveryPointId || undefined,
-                market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
-                availability: availability || undefined,
-                sort_by: sortBy,
-                skip,
-                limit: PAGE_SIZE,
-            };
-            const data = await (force
-                ? configBase.fetchOrders(orderParams, { force: true })
-                : configBase.fetchOrders(orderParams));
-            if (listingRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentListingsRequest.current || marketScopeKey !== currentMarketScope.current) return;
-            setListings(data.items.filter((order) => isOrderbookMarketProduct(order.market_product)));
-            setTotalCount(data.total);
-            setCurrentSkip(data.skip);
-            setHasLoadedListings(true);
-        } catch (err: any) {
-            console.error('Marketplace fetch error:', err);
-            if (listingRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentListingsRequest.current || marketScopeKey !== currentMarketScope.current) return;
-            setError(err instanceof Error ? err.message : '');
-        } finally {
-            const isCurrentRequest = listingRequestsInFlight.current.get(requestScope) === requestToken;
-            if (isCurrentRequest) listingRequestsInFlight.current.delete(requestScope);
-            if (isCurrentRequest && requestScope === currentListingsRequest.current && marketScopeKey === currentMarketScope.current) {
-                setLoading(false);
-                setRefreshing(false);
-            }
-        }
-    }, [availability, configBase, isCatalogScopeResolving, isHistorySelected, marketProduct, marketScopeKey, ready, resolvedDeliveryPointId, resolvedPort, sortBy]);
-
-    const fetchProductCounts = useCallback(async (force = false) => {
-        if (!ready || isHistorySelected || isCatalogScopeResolving) return;
-        const requestScope = countScopeKey;
-        currentCountsRequest.current = requestScope;
-        if (!force && countRequestsInFlight.current.has(requestScope)) return;
-        const requestToken = Symbol(requestScope);
-        countRequestsInFlight.current.set(requestScope, requestToken);
-        try {
-            const countParams = {
-                side: role === 'BUYER' ? 'ASK' as const : 'BID' as const,
-                region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
-                delivery_point_id: resolvedDeliveryPointId || undefined,
-                availability_window: availability || undefined,
-                include_off_spec: false,
-            };
-            const counts = await (force
-                ? api.orderbook.productCounts(countParams, { force: true })
-                : api.orderbook.productCounts(countParams));
-            if (countRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentCountsRequest.current || countScopeKey !== currentCountScope.current) return;
-            setMarketProductCounts(counts.counts ?? {});
-        } catch {
-            // Preserve the last good counts only while the selected scope is unchanged.
-        } finally {
-            if (countRequestsInFlight.current.get(requestScope) === requestToken) countRequestsInFlight.current.delete(requestScope);
-        }
-    }, [availability, countScopeKey, isCatalogScopeResolving, isHistorySelected, ready, resolvedDeliveryPointId, resolvedPort, role]);
-
-    const refreshFromPublicEvent = useCallback(() => {
-        if (document.hidden) return Promise.resolve();
-        const requests: Promise<void>[] = [fetchProductCounts(true)];
-        if (marketTab === 'market') requests.push(fetchListings(true, currentSkip, true));
-        return Promise.all(requests).then(() => undefined);
-    }, [currentSkip, fetchListings, fetchProductCounts, marketTab]);
-    usePublicMarketRefresh(refreshFromPublicEvent, ready && !isHistorySelected);
-
-    useEffect(() => {
-        setHasLoadedListings(false);
-        setTotalCount(0);
-    }, [marketScopeKey]);
-
-    useEffect(() => {
-        setMarketProductCounts({});
-    }, [countScopeKey]);
-
-    // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
-    useEffect(() => {
-        if (!ready || isHistorySelected || marketTab !== 'market' || document.hidden) return;
-        void fetchListings(false, 0);
-        return () => {
-            listingRequestsInFlight.current.clear();
-            currentListingsRequest.current = '';
-        };
-    }, [fetchListings, isHistorySelected, marketTab, ready]);
-
-    useEffect(() => {
-        if (!ready || isHistorySelected) return;
-        if (!document.hidden) void fetchProductCounts();
-        return () => {
-            countRequestsInFlight.current.clear();
-            currentCountsRequest.current = '';
-        };
-    }, [fetchProductCounts, isHistorySelected, ready]);
-
-    // Refresh only while the page is visible, including an immediate refresh when it resumes.
-    useEffect(() => {
-        if (!ready || isHistorySelected) return;
-        const refreshWhenVisible = () => {
-            if (document.hidden) return;
-            void fetchProductCounts();
-            if (marketTab === 'market') void fetchListings(hasLoadedListings, currentSkip);
-        };
-        const interval = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
-        document.addEventListener('visibilitychange', refreshWhenVisible);
-        return () => {
-            window.clearInterval(interval);
-            document.removeEventListener('visibilitychange', refreshWhenVisible);
-        };
-    }, [currentSkip, fetchListings, fetchProductCounts, hasLoadedListings, isHistorySelected, marketTab, ready]);
-
-    // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
-    // One batched authenticated fetch per distinct set of visible ASK ids.
-    // The cancelled guard drops stale responses when filters/pages change
-    // mid-flight; failures degrade to no-hint and never break the table.
-    const askIdSignature = useMemo(
-        () => listings.filter((order) => order.side === 'ASK').map((order) => order.id).sort().join(','),
-        [listings],
-    );
-    // Deps are primitives on purpose: a `user` object identity here would
-    // re-run the effect on every auth-context render and loop via the
-    // new-object setState below.
-    const hasAuthedUser = !!user;
-    useEffect(() => {
-        if (!ready) return;
-        if (isHistorySelected || !hasAuthedUser || !askIdSignature) {
-            setComplianceOverlays({});
-            return;
-        }
-        let cancelled = false;
-        api.compliance.pricingOverlay(askIdSignature.split(','))
-            .then((response) => {
-                if (cancelled) return;
-                setComplianceOverlays(response.overlays);
-                setOverlayAssumptions(response.assumptions);
-            })
-            .catch(() => {
-                if (!cancelled) setComplianceOverlays({});
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [hasAuthedUser, askIdSignature, ready, isHistorySelected]);
+        setMyOrdersError(myOrdersReadError ? (i18n.language.startsWith('zh') ? t('marketplace.myOrders.error')
+            : myOrdersReadError instanceof Error ? myOrdersReadError.message : t('marketplace.myOrders.error')) : null);
+    }, [myOrdersReadError, t]);
 
     const totalMarketProductCount = useMemo(
         () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
@@ -482,8 +252,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
 
     const handlePageChange = (newSkip: number) => {
-        setHasLoadedListings(false);
-        void fetchListings(false, newSkip);
+        setCurrentSkip(newSkip);
     };
 
     const hasExactProduct = marketProduct !== ALL_MARKET_PRODUCTS;
@@ -560,37 +329,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeKycBlocked(false);
         tradeRequestRef.current = null;
     };
-
-    /* ---- My Orders fetch ---- */
-    const fetchMyOrders = useCallback(async (force = false) => {
-        if (!ready) return;
-        const requestId = ++latestMyOrdersRequest.current;
-        setMyOrdersLoading(true);
-        setMyOrdersError(null);
-        try {
-            const data = force
-                ? await api.orderbook.myOrders({ force: true })
-                : await api.orderbook.myOrders();
-            if (requestId !== latestMyOrdersRequest.current) return;
-            // `/orderbook/my` answers with a bare array; `data.items` is the
-            // paginated fallback for an older backend and never resolves to `never`
-            // at runtime.
-            setMyOrders(Array.isArray(data) ? data : ((data as { items?: OrderBookOrder[] }).items ?? []));
-        } catch (error) {
-            if (requestId !== latestMyOrdersRequest.current) return;
-            if (!force) setMyOrders([]);
-            setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.myOrders.error') : error instanceof Error ? error.message : t('marketplace.myOrders.error'));
-        } finally {
-            if (requestId === latestMyOrdersRequest.current) setMyOrdersLoading(false);
-        }
-    }, [ready, t, user?.id, user?.organization_id, isMarketSupportActive]);
-
-    useEffect(() => {
-        if (!isHistorySelected && marketTab === 'my_orders') fetchMyOrders();
-        return () => {
-            latestMyOrdersRequest.current += 1;
-        };
-    }, [marketTab, fetchMyOrders, isHistorySelected]);
 
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
         order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
@@ -1054,7 +792,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 catalogError={catalogError}
                 togglePin={togglePin}
                 totalCount={totalCount}
-                currentSkip={currentSkip}
+                currentSkip={acceptedSkip}
                 handlePageChange={handlePageChange}
             />
 
