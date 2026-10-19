@@ -2,8 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderbookApi, type SnapshotSelection } from '../api/orderbookApi';
 import { orderbookQueries } from '../api/orderbookQueries';
-import { registerQueryRefresh } from '../../../lib/query/invalidation';
-import type { RefreshLifecycle } from '../../../lib/query/refreshCoordinator';
+import { registerQueryRefresh, type RefreshLifecycle } from '../../../lib/query/refreshRegistry';
 import { createSnapshotRequests } from '../../../lib/query/snapshotRequests';
 import { useVisibleDocument } from '../../../lib/query/useVisibleDocument';
 

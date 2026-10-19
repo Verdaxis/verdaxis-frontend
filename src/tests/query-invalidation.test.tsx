@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryObserver } from '@tanstack/react-query';
 import { createQueryClient } from '../lib/query/client';
-import { attachQueryInvalidation, registerQueryRefresh } from '../lib/query/invalidation';
+import { attachQueryInvalidation } from '../lib/query/invalidation';
+import { registerQueryRefresh } from '../lib/query/refreshRegistry';
 import { queuePublicMarketRefresh, subscribePublicMarketRefresh } from '../services/publicMarketSync';
 import { createRefreshCoordinator } from '../lib/query/refreshCoordinator';
 import { invalidateReadCache, invalidateReadCacheWithCause, subscribeReadInvalidations } from '../services/readCache';

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSnapshotRequests } from '../lib/query/snapshotRequests';
-import { createRefreshLifecycle } from '../lib/query/refreshCoordinator';
+import { createRefreshLifecycle } from '../lib/query/refreshRegistry';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
