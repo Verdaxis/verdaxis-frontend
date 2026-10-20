@@ -59,10 +59,10 @@ when a cached filter key is revisited.
 
 ## Result after the fixes
 
-Source c9adb424, same pinned backend, scenario version and command. All
+Source efa09bf4, same pinned backend, scenario version and command. All
 journeys and all screenshot comparisons passed, and the request-volume
 comparison passed: every scenario is at or below its baseline. Ledger
-`request-volume-20261020-021658` from run `run-20261020-020827`.
+`request-volume-20261020-025405` from run `run-20261020-024510`.
 
 | Scenario | Baseline | Tolerance | Before | After | Delta |
 |---|---:|---:|---:|---:|---:|
@@ -85,7 +85,9 @@ comparison passed: every scenario is at or below its baseline. Ledger
 
 The overlay growth is gone: no scenario exceeds the baseline policy and the
 `POST /api/compliance/pricing-overlay` route that `window-hidden-60s-resume`
-once added is no longer outside policy.
+once added is no longer outside policy. The counts match the earlier
+c9adb424 run; the rule change does not alter the observed volume in these
+journeys because each echo arrived before the bridge read started.
 
 ### What changed
 
@@ -101,6 +103,8 @@ once added is no longer outside policy.
    window's legacy `catalog.products()` and `catalog.deliveryPoints()` calls
    reuse them instead of reading twice.
 4. The invalidation bridge owns the read after an order or trade. The duplicate
-   explicit refreshes at order-window close and trade success are removed, and
-   the first stream event inside the two-second mutation window is served from
-   the mutation read, as the legacy read cache did. A later event reads again.
+   explicit refreshes at order-window close and trade success are removed. An
+   event batch causes no read for a query when a read of that query started
+   after the batch's last event was received: the server publishes after
+   commit, so that read already includes the change. Every other event batch
+   reads as before, with no time window.
