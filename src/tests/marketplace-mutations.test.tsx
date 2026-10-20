@@ -345,6 +345,25 @@ describe('mutation settlement invalidation', () => {
         }
     });
 
+    it('keeps every legacy prefix on a take settlement', async () => {
+        const api = await realApi();
+        setAccessToken('settlement-token');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ id: 'trade-1', status: 'PENDING_CONFIRMATION' })));
+        const events: { prefixes: readonly string[]; cause: string }[] = [];
+        const unsubscribe = subscribeReadInvalidations(event => events.push(event));
+        try {
+            await api.trades.initiate({ order_id: 'b30-ask', quantity_mt: 500,
+                expected_terms_digest: 'terms-digest-1', idempotency_key: 'key-1' });
+            expect(events.map(event => event.cause)).toEqual(['mutation-start', 'mutation-settled']);
+            for (const event of events) {
+                expect(event.prefixes).toEqual(['orderbook:', 'prices:', 'curves:', 'watchlists:', 'trades:', 'trade-tape:']);
+            }
+        } finally {
+            unsubscribe();
+            clearAccessToken();
+        }
+    });
+
     it('does not read at mutation start and reads once at settlement', async () => {
         const api = await realApi();
         setAccessToken('settlement-token');
