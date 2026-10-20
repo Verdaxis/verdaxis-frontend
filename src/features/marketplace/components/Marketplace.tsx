@@ -468,14 +468,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     useEffect(() => {
         if (tradeState !== 'success') return;
-        // Keep the success message visible briefly, then reload current quotes.
-        const timer = setTimeout(() => {
-            closeTradeModal();
-            void fetchProductCounts(true);
-            if (marketTab === 'market') void fetchListings(true, currentSkip, true);
-        }, 2000);
+        // Keep the success message visible briefly. The orderbook invalidation
+        // from the trade already refreshed listings and counts; a second read
+        // here would only repeat that request.
+        const timer = setTimeout(closeTradeModal, 2000);
         return () => clearTimeout(timer);
-    }, [tradeState, closeTradeModal, currentSkip, fetchListings, fetchProductCounts, marketTab]);
+    }, [tradeState, closeTradeModal]);
 
     const validateTradeQuantity = () => {
         if (!selectedOrder || tradeState === 'submitting') return null;
@@ -844,11 +842,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 onClose={() => {
                     setOrderModalSide(null);
                     setOrderModalPrefill(null);
-                    if (!isHistorySelected) {
-                        void fetchProductCounts(true);
-                        if (marketTab === 'market') void fetchListings(true, currentSkip, true);
-                        if (marketTab === 'my_orders') void fetchMyOrders(true);
-                    }
+                    // A placed order already invalidated the orderbook reads;
+                    // the Query bridge refreshes them once. Closing the window
+                    // without an order changed nothing, so do not read either.
+                    // My Listings keeps its explicit close refresh.
+                    if (marketTab === 'my_orders') void fetchMyOrders(true);
                 }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}

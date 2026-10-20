@@ -2,6 +2,10 @@ import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Marketplace } from '../components/Marketplace';
+import { QueryProvider } from '../lib/query/QueryProvider';
+import { createQueryClient } from '../lib/query/client';
+import { invalidateReadCacheWithCause } from '../services/readCache';
+import { queuePublicMarketRefresh } from '../services/publicMarketSync';
 import { renderWithProviders } from './test-utils';
 import i18n, { loadNamespace } from '../i18n';
 
@@ -126,6 +130,50 @@ describe('Marketplace Query lifecycle', () => {
         expect(mocks.overlay).toHaveBeenCalledTimes(1);
         expect(document.querySelector('[data-order-id="a"]')).not.toBeNull();
         expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('reads a fresh cached slice once when the user returns to it', async () => {
+        mocks.asks.mockImplementation(async ({ delivery_point_id }) => (
+            page(delivery_point_id === 'sg' ? 'ask-sg' : 'ask-rtm')));
+        const singapore = { product: 'B30', port: 'Singapore', window: 'SPOT' } as const;
+        const rotterdam = { product: 'B30', port: 'Rotterdam', window: 'SPOT' } as const;
+        const view = renderWithProviders(<Marketplace initialSlice={singapore} />);
+        await waitFor(() => expect(document.querySelector('[data-order-id="ask-sg"]')).not.toBeNull());
+        expect(mocks.asks).toHaveBeenCalledTimes(1);
+
+        view.rerender(<Marketplace initialSlice={rotterdam} />);
+        await waitFor(() => expect(document.querySelector('[data-order-id="ask-rtm"]')).not.toBeNull());
+        expect(mocks.asks).toHaveBeenCalledTimes(2);
+
+        view.rerender(<Marketplace initialSlice={singapore} />);
+        await waitFor(() => expect(document.querySelector('[data-order-id="ask-sg"]')).not.toBeNull());
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+        // The first slice is still fresh: returning to it must not read again.
+        expect(mocks.asks).toHaveBeenCalledTimes(2);
+    });
+
+    it('reads the pricing overlay once per settled ask id set', async () => {
+        const client = createQueryClient();
+        mocks.asks.mockResolvedValue(page('a'));
+        renderWithProviders(
+            <QueryProvider client={client}><Marketplace viewMode="BUYER" /></QueryProvider>,
+            { queryClient: client },
+        );
+        await waitFor(() => expect(document.querySelector('[data-order-id="a"]')).not.toBeNull());
+        await waitFor(() => expect(mocks.overlay).toHaveBeenCalledTimes(1));
+        expect(mocks.overlay).toHaveBeenLastCalledWith(['a'], expect.anything());
+
+        mocks.asks.mockResolvedValue(page('b'));
+        act(() => {
+            invalidateReadCacheWithCause('event', 'orderbook:');
+            queuePublicMarketRefresh();
+        });
+        await waitFor(() => expect(document.querySelector('[data-order-id="b"]')).not.toBeNull(), { timeout: 4_000 });
+        await waitFor(() => expect(mocks.overlay).toHaveBeenCalledTimes(2), { timeout: 4_000 });
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 100)); });
+
+        // One read for the initial ids and one for the settled replacement set.
+        expect(mocks.overlay.mock.calls.map(([ids]) => ids)).toEqual([['a'], ['b']]);
     });
 
     it('does not fetch listings on a depth route or while delivery scope is unresolved', async () => {

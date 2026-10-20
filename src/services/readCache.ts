@@ -166,6 +166,26 @@ export const cachedRead = <T>(
     return request;
 };
 
+/**
+ * Stores a value that another reader already fetched, such as a Query-owned
+ * marketplace read. Legacy callers that still pass through `cachedRead` then
+ * reuse that request instead of asking the API a second time for the same
+ * reference data.
+ */
+export const primeReadCache = <T>(
+    resourceKey: string,
+    scope: 'public' | 'private',
+    ttlMs: number,
+    value: T,
+): void => {
+    values.set(scopedKey(resourceKey, scope), {
+        expiresAt: Date.now() + ttlMs,
+        resourceKey,
+        value,
+    });
+    while (values.size > MAX_CACHE_ENTRIES) removeOldestValue();
+};
+
 if (typeof window !== 'undefined') {
     window.addEventListener('verdaxis:auth-logout', () => invalidateReadCache());
     window.addEventListener('verdaxis:market-support-context-invalidated', () => invalidateReadCache());

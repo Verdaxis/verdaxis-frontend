@@ -44,7 +44,7 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
     const visible = useVisibleDocument();
     const marketEnabled = ready && !isHistorySelected && !isCatalogScopeResolving && visible;
     const listingsQuery = useQuery({ ...marketplaceQueries.listings(selection),
-        enabled: marketEnabled && marketTab === 'market', refetchOnMount: 'always',
+        enabled: marketEnabled && marketTab === 'market',
         refetchInterval: marketEnabled && marketTab === 'market' ? 60_000 : false });
     const countsQuery = useQuery({ ...marketplaceQueries.counts(selection), enabled: marketEnabled,
         refetchInterval: marketEnabled ? 60_000 : false });
@@ -53,19 +53,30 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
     const entryReadCompleted = useRef(false);
     if (listingsQuery.isFetchedAfterMount) entryReadCompleted.current = true;
     const hasLoadedListings = entryReadCompleted.current && listingsQuery.data !== undefined;
-    // Returning to a cached filter needs one visible current-key read, just as
-    // changing filters did before migration. Do not clear other public keys.
+    // A workspace entry checks its listings even when Query still holds a fresh
+    // value from the previous visit. The first render decides: cached data needs
+    // one read, no data means the automatic fetch is that read. Returning to a
+    // cached filter inside the same mount does not read again.
+    const entryCheck = useRef<'pending' | 'done'>(listingsQuery.data !== undefined ? 'pending' : 'done');
     useEffect(() => {
-        if (marketEnabled && marketTab === 'market' && listingsQuery.data !== undefined && !listingsQuery.isFetching) {
-            void listingsQuery.refetch({ cancelRefetch: false });
+        if (entryCheck.current === 'done' || !marketEnabled || marketTab !== 'market') return;
+        if (listingsQuery.isFetching) {
+            entryCheck.current = 'done';
+            return;
         }
-    }, [JSON.stringify(marketplaceQueries.listings(selection).queryKey)]);
+        entryCheck.current = 'done';
+        void listingsQuery.refetch({ cancelRefetch: false });
+    }, [marketEnabled, marketTab, listingsQuery.isFetching, listingsQuery.refetch]);
     const listings = useMemo(() => hasLoadedListings
         ? listingsQuery.data!.items.filter(order => isOrderbookMarketProduct(order.market_product)) : EMPTY_ORDERS,
     [hasLoadedListings, listingsQuery.data]);
     const askIds = useMemo(() => [...new Set(listings.filter(order => order.side === 'ASK').map(order => order.id))].sort(), [listings]);
     const overlay = useQuery({ ...marketplaceQueries.overlay(scope, askIds),
-        enabled: ready && hasUser && visible && !isHistorySelected && askIds.length > 0 });
+        // Read only from a settled listings answer. A listings refresh that
+        // keeps the ids does not re-read the overlay; one that changes the ids
+        // reads the new set once.
+        enabled: ready && hasUser && visible && !isHistorySelected && askIds.length > 0
+            && listingsQuery.isFetchedAfterMount && !listingsQuery.isFetching });
 
     // These signatures keep the controlled presentation and financial handlers
     // unchanged until Task 9. Refetch bypasses freshness, not the API policy.

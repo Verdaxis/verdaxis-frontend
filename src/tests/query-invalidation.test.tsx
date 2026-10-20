@@ -132,6 +132,32 @@ describe('Query invalidation bridge', () => {
         expect(load).toHaveBeenCalledTimes(2);
         bridge.dispose(); unobserve(); client.clear();
     });
+
+    it('serves the event that echoes a mutation from the mutation read', async () => {
+        vi.useFakeTimers();
+        const client = createQueryClient();
+        const key = ['public', 'orderbook', 'listings', 'ASK', 'echo'];
+        client.setQueryData(key, ['old']);
+        let finish!: () => void;
+        const load = vi.fn()
+            .mockImplementationOnce(() => new Promise<string[]>(resolve => { finish = () => resolve(['new']); }))
+            .mockResolvedValue(['newer']);
+        const observer = new QueryObserver(client, { queryKey: key, queryFn: load, staleTime: Infinity });
+        const unobserve = observer.subscribe(() => {});
+        const bridge = attachQueryInvalidation(client);
+        invalidateReadCacheWithCause('mutation-settled', 'orderbook:');
+        // The stream echoes the order in the same public batch window.
+        invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(500);
+        expect(load).toHaveBeenCalledTimes(1);
+        finish(); await vi.advanceTimersByTimeAsync(10);
+        // An event after the echo window is new data and reads again.
+        await vi.advanceTimersByTimeAsync(5_000);
+        invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(500);
+        expect(load).toHaveBeenCalledTimes(2);
+        bridge.dispose(); unobserve(); client.clear();
+    });
 });
 
 describe('Query refresh coordination primitives', () => {

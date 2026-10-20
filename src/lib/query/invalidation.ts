@@ -11,16 +11,29 @@ export function clearPrivateQueries(client: QueryClient): void {
     client.removeQueries({ queryKey: ['private'] });
 }
 
-const isFeatureQuery = (query: Query) => (
-    query.queryKey[0] === 'public' && query.queryKey[1] === 'orderbook'
-) || (
-    query.queryKey[0] === 'private' && ['orderbook', 'compliance'].includes(String(query.queryKey[2]))
+const isPricingOverlayQuery = (query: Query) => query.queryKey[0] === 'private'
+    && query.queryKey[2] === 'compliance' && query.queryKey[3] === 'pricing-overlay';
+
+// The pricing overlay is keyed by the settled ASK ids. A generic refresh starts
+// a read for the old ids, then the listings answer changes the key and starts
+// the read that was actually wanted. The marketplace hook owns that key.
+const isFeatureQuery = (query: Query) => !isPricingOverlayQuery(query) && (
+    (query.queryKey[0] === 'public' && query.queryKey[1] === 'orderbook')
+    || (query.queryKey[0] === 'private' && ['orderbook', 'compliance'].includes(String(query.queryKey[2])))
 );
+
+// A mutation clears the read cache and the bridge reads the committed result.
+// The market stream then echoes that same change. The first event batch inside
+// this window is that echo, not new data: the mutation's own read already sees
+// it, and the legacy read cache served such an echo from the fresh entry. A
+// later event is new data and reads normally.
+const MUTATION_ECHO_WINDOW_MS = 2_000;
 
 export function attachQueryInvalidation(client: QueryClient, initiallyVisible = true) {
     const coordinator = createRefreshCoordinator(initiallyVisible);
     const subscriptions = new Map<string, () => void>();
-    const waitingForBatch = new Set<string>();
+    const waitingForBatch = new Map<string, Query>();
+    const mutationSignals = new WeakMap<Query, number>();
     const refresh = (query: Query) => {
         if (!query.isActive()) return Promise.resolve();
         const registered = registeredRefresh(client, query.queryHash);
@@ -49,12 +62,22 @@ export function attachQueryInvalidation(client: QueryClient, initiallyVisible = 
         for (const query of client.getQueryCache().getAll().filter(isFeatureQuery)) {
             registeredRefresh(client, query.queryHash)?.invalidate();
             void client.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: 'none' });
-            if (cause === 'event') waitingForBatch.add(query.queryHash);
-            else if (cause !== 'mutation-start') coordinator.markDirty(query.queryHash);
+            if (cause === 'event') waitingForBatch.set(query.queryHash, query);
+            else if (cause !== 'mutation-start') {
+                mutationSignals.set(query, Date.now());
+                coordinator.markDirty(query.queryHash);
+            }
         }
     });
     const detachBatch = subscribePublicMarketBatch(() => {
-        for (const key of waitingForBatch) coordinator.markDirty(key, 0);
+        for (const [key, query] of waitingForBatch) {
+            const signal = mutationSignals.get(query);
+            if (signal !== undefined && Date.now() - signal < MUTATION_ECHO_WINDOW_MS) {
+                mutationSignals.delete(query);
+                continue;
+            }
+            coordinator.markDirty(key, 0);
+        }
         waitingForBatch.clear();
     });
     return {

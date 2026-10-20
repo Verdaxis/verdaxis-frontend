@@ -1,5 +1,6 @@
 import type { OrderBookOrder } from '../../../types';
 import { api, type PaginatedResult, type ReadCacheOptions } from '../../../services/api';
+import { READ_CACHE_TTL_MS, primeReadCache } from '../../../services/readCache';
 
 export interface MarketplaceReadSelection {
     side: 'ASK' | 'BID';
@@ -18,8 +19,18 @@ const scopeParams = (selection: MarketplaceReadSelection) => ({
 });
 
 export const marketplaceApi = {
-    products: (signal?: AbortSignal) => api.catalog.products(queryRead(signal)),
-    deliveryPoints: (signal?: AbortSignal) => api.catalog.deliveryPoints(queryRead(signal)),
+    // Query owns these reads, but the order window still asks the shared cache
+    // for the same references. Keep that cache warm so one read serves both.
+    products: async (signal?: AbortSignal) => {
+        const products = await api.catalog.products(queryRead(signal));
+        primeReadCache('catalog:products', 'public', READ_CACHE_TTL_MS.reference, products);
+        return products;
+    },
+    deliveryPoints: async (signal?: AbortSignal) => {
+        const points = await api.catalog.deliveryPoints(queryRead(signal));
+        primeReadCache('catalog:delivery-points', 'public', READ_CACHE_TTL_MS.reference, points);
+        return points;
+    },
     listings: (selection: MarketplaceReadSelection, signal?: AbortSignal): Promise<PaginatedResult<OrderBookOrder>> => {
         const params = { ...scopeParams(selection), market_product: selection.product || undefined,
             sort_by: selection.sort || undefined, skip: selection.skip ?? 0, limit: 8 };
