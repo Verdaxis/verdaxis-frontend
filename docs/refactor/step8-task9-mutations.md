@@ -2,7 +2,7 @@
 
 This record covers Task 9 of the step 8 plan: extract the take and cancel
 hooks and complete mutation invalidation. Source is `refactor/fe-step8`, from
-`df588e86` to `4f92e265`. Every gate ran on the test hosts; nothing ran on a
+`df588e86` to `993fa42b` (this record follows as its own commit). Every gate ran on the test hosts; nothing ran on a
 developer machine.
 
 ## What changed
@@ -34,8 +34,8 @@ order window are not migrated.
 
 ## Tests that fail on the parent and pass now
 
-`src/tests/marketplace-mutations.test.tsx` at `df588e86` with the same file:
-6 failed, 17 passed. On `4f92e265`: 23 passed, 0 failed.
+`src/tests/marketplace-mutations.test.tsx` at `df588e86` with the final file:
+6 failed, 18 passed. On `993fa42b`: 24 passed, 0 failed.
 
 | Test | Parent | Now |
 |---|---|---|
@@ -62,37 +62,37 @@ existed.
 
 | Gate | Command | Result |
 |---|---|---|
-| Focused | 12 suites incl. the new file, typecheck | exit 0, 196 passed |
-| U | full unit, both type checks, i18n, OpenAPI, API types, manifest | exit 0, 1158 passed |
+| Focused | new file, query scope, lifecycle, green-fuels, typecheck | exit 0, 95 passed |
+| U | full unit, both type checks, i18n, OpenAPI, API types, manifest | exit 0, 1159 passed |
 | B | staging and prod builds, budget check, artifact check | exit 0 |
 | J | eleven journeys, nine screenshots, live streams, volume compare | exit 0, all pass |
 
 Screenshots (all at or below 0.002): public-landing-light 0.000832,
-public-how-it-works-light 0.000926, marketplace-buyer-dark 0.000295,
+public-how-it-works-light 0.000882, marketplace-buyer-dark 0.000295,
 marketplace-buyer-light 0.000295, orderbook-buyer-dark 0.000306,
 trades-supplier-dark 0.000295, map-buyer-dark 0.000295,
 map-buyer-light 0.000295, admin-users-dark 0.000448.
 
 The take→confirm→deliver→pay journey reached PAID
-(`trade 92b2f73f ... confirmed -> delivered -> paid`).
+(`trade d92485c4 ... confirmed -> delivered -> paid`).
 
-Bundle (gzip): marketplace 320,691 / 325,000; landing 343,942 / 349,400;
-intelligence-map 792,511 / 807,100; command-center 245,479 / 248,100;
-compliance 231,058 / 233,500.
+Bundle (gzip): marketplace 320,686 / 325,000; landing 343,934 / 349,400;
+intelligence-map 792,502 / 807,100; command-center 245,487 / 248,100;
+compliance 231,061 / 233,500.
 
 ## Request volume against decision 96
 
-Sample `request-volume-20261020-164913`, run on the prod test host with the
+Sample `request-volume-20261020-183001`, run on the prod test host with the
 pinned backend `56d75770`. Every scenario is at or below its baseline.
 
 | Scenario | Baseline | Candidate | Delta |
 |---|---:|---:|---:|
-| login-success | 11 | 9 | -2 |
+| login-success | 11 | 10 | -1 |
 | login-wrong-password | 2 | 2 | 0 |
-| marketplace-browse-filter-paginate | 37 | 35 | -2 |
+| marketplace-browse-filter-paginate | 37 | 34 | -3 |
 | marketplace-deep-link-slice | 22 | 19 | -3 |
 | place-bid | 19 | 18 | -1 |
-| place-ask | 19 | 18 | -1 |
+| place-ask | 19 | 16 | -3 |
 | trade-take-confirm-deliver-pay | 45 | 40 | -5 |
 | notifications-list-mark-read | 12 | 11 | -1 |
 | map-ports-eca-overlay | 20 | 18 | -2 |
@@ -113,5 +113,8 @@ read, and the write the journey performs still settles into one bridge read.
 - `e711cc04` fix(api): carry the mutation cause through write invalidation
 - `d78c87bd` refactor: isolate Marketplace actions with safe Query invalidation
 - `4f92e265` test(marketplace): pin every legacy prefix on a take settlement
+- `993fa42b` fix(marketplace): keep the private key current when a session is replaced
+- `d83aa4f0` docs: record the Task 9 mutation and volume results
 
-CI on PR #96 (run 39463123524) is green on `4f92e265`.
+CI on PR #96 is green on each pushed head; the final run is recorded on the
+pull request.
