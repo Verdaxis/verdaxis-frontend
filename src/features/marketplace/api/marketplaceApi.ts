@@ -1,4 +1,4 @@
-import type { OrderBookOrder } from '../../../types';
+import type { OrderBookOrder, Trade, TradeCreateInput } from '../../../types';
 import { api, type PaginatedResult, type ReadCacheOptions } from '../../../services/api';
 import { READ_CACHE_TTL_MS, primeReadCache } from '../../../services/readCache';
 
@@ -46,4 +46,9 @@ export const marketplaceApi = {
     }, queryRead(signal)),
     myOrders: (signal?: AbortSignal) => api.orderbook.myOrders(queryRead(signal)),
     pricingOverlay: (orderIds: string[], signal?: AbortSignal) => api.compliance.pricingOverlay(orderIds, queryRead(signal)),
+    // Typed delegates for the two financial writes. They keep the transport,
+    // its invalidations, and its idempotency headers in `services/api.ts`.
+    takeTrade: (payload: TradeCreateInput): Promise<Trade> => api.trades.initiate(payload),
+    cancelOrder: (orderId: string, options: { reason: string; etag?: string | null; idempotencyKey: string }) =>
+        api.orderbook.cancel(orderId, options),
 };

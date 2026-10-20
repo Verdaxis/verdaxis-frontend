@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { marketplaceQueries } from '../api/marketplaceQueries';
 import type { MarketplaceReadSelection } from '../api/marketplaceApi';
 import type { QueryScope } from '../../../lib/query/keys';
 import { useVisibleDocument } from '../../../lib/query/useVisibleDocument';
 import { isOrderbookMarketProduct } from '../../../utils/marketProduct';
-import type { OrderBookOrder, OwnedOrderBookOrder } from '../../../types';
+import type { OrderBookOrder } from '../../../types';
 
 const EMPTY_ORDERS: OrderBookOrder[] = [];
 const EMPTY_COUNTS: Record<string, number> = {};
@@ -40,7 +40,6 @@ interface MarketplaceQueryOptions {
 }
 
 export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isCatalogScopeResolving, selection, scope, hasUser }: MarketplaceQueryOptions) {
-    const client = useQueryClient();
     const visible = useVisibleDocument();
     const marketEnabled = ready && !isHistorySelected && !isCatalogScopeResolving && visible;
     const listingsQuery = useQuery({ ...marketplaceQueries.listings(selection),
@@ -89,10 +88,6 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
     const fetchMyOrders = useCallback(async (_force = false) => {
         if (ready && hasUser && !isHistorySelected) await myQuery.refetch({ cancelRefetch: false });
     }, [ready, hasUser, isHistorySelected, myQuery.refetch]);
-    const setMyOrders = useCallback((update: OwnedOrderBookOrder[] | ((orders: OwnedOrderBookOrder[]) => OwnedOrderBookOrder[])) => {
-        client.setQueryData(myOptions.queryKey, (previous: OwnedOrderBookOrder[] | undefined) =>
-            typeof update === 'function' ? update(previous ?? []) : update);
-    }, [client, JSON.stringify(myOptions.queryKey)]);
 
     return { listings, totalCount: hasLoadedListings ? listingsQuery.data!.total : 0,
         acceptedSkip: hasLoadedListings ? listingsQuery.data!.skip : selection.skip ?? 0,
@@ -104,5 +99,5 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
         myOrdersReadError: myQuery.isError ? myQuery.error : null,
         complianceOverlays: overlay.isError ? {} : overlay.data?.overlays ?? {},
         overlayAssumptions: overlay.isError ? null : overlay.data?.assumptions ?? null,
-        fetchListings, fetchProductCounts, fetchMyOrders, setMyOrders };
+        fetchListings, fetchProductCounts, fetchMyOrders };
 }

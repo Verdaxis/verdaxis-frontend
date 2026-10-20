@@ -29,10 +29,7 @@ interface TakeTradeDialogProps {
     closeTradeModal: () => void;
     tradeKycBlocked: boolean;
     tradeNeedsRefresh: boolean;
-    fetchProductCounts: (force?: boolean) => Promise<void>;
-    marketTab: 'market' | 'orderbook' | 'my_orders';
-    fetchListings: (silent?: boolean, skip?: number, force?: boolean) => Promise<void>;
-    currentSkip: number;
+    refreshReview: () => void;
     configBase: MarketplaceRolePresentation;
     tradeQuantity: number;
     setTradeQuantity: (quantity: number) => void;
@@ -46,7 +43,7 @@ interface TakeTradeDialogProps {
     setTradeState: (state: 'confirming') => void;
 }
 
-export function TakeTradeDialog({ isHistorySelected, selectedOrder, tradeState, tradeResult, t, locale, role, tradeError, confirmTrade, closeTradeModal, tradeKycBlocked, tradeNeedsRefresh, fetchProductCounts, marketTab, fetchListings, currentSkip, configBase, tradeQuantity, setTradeQuantity, tradeTermsForm, tradeLngTermsForm, reviewTrade, initialBuyerTerms, initialLngTaker, tradeFameInput, tradeLngInput, setTradeState }: TakeTradeDialogProps) {
+export function TakeTradeDialog({ isHistorySelected, selectedOrder, tradeState, tradeResult, t, locale, role, tradeError, confirmTrade, closeTradeModal, tradeKycBlocked, tradeNeedsRefresh, refreshReview, configBase, tradeQuantity, setTradeQuantity, tradeTermsForm, tradeLngTermsForm, reviewTrade, initialBuyerTerms, initialLngTaker, tradeFameInput, tradeLngInput, setTradeState }: TakeTradeDialogProps) {
     return <>
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
             {!isHistorySelected && selectedOrder && tradeState !== 'idle' && (
@@ -132,11 +129,7 @@ export function TakeTradeDialog({ isHistorySelected, selectedOrder, tradeState, 
                                 {tradeNeedsRefresh && (
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            closeTradeModal();
-                                            void fetchProductCounts(true);
-                                            if (marketTab === 'market') void fetchListings(false, currentSkip, true);
-                                        }}
+                                        onClick={refreshReview}
                                         className="mb-3 w-full rounded-lg border border-emerald-500 px-3 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-300"
                                     >
                                         {t('marketplace.modal.refreshReview')}

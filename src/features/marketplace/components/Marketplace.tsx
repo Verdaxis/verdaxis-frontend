@@ -9,29 +9,22 @@ import { CancelOrderDialog } from './CancelOrderDialog';
 import { MarketplaceHistory } from './MarketplaceHistory';
 import { useMarketplaceQueries, useMarketplaceReferences } from '../hooks/useMarketplaceQueries';
 import { useMarketplaceSelection } from '../hooks/useMarketplaceSelection';
-import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useTakeTrade } from '../hooks/useTakeTrade';
+import { useCancelOrder } from '../hooks/useCancelOrder';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { ApiError, ApiOutcomeUnknownError, api, isKycRequiredError } from '../../../services/api';
-import { Port, OrderBookOrder, MarketProduct, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../../../types';
+import { Port, OrderBookOrder, MarketProduct, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product } from '../../../types';
 import { getAuthGeneration } from '../../../services/authToken';
-import { getMarketSupportContextId } from '../../../services/marketSupportContextStore';
-import { createIdempotencyKey } from '../../../utils/idempotencyKey';
 import { OrderPlaceModal } from '../../../components/OrderPlaceModal';
 import { useNamespace } from '../../../hooks/useNamespace';
 import { useDashboardContentReady } from '../../../hooks/useDashboardContentReady';
-import { formatMarketProduct, isOrderbookMarketProduct, isOrderbookProduct } from '../../../utils/marketProduct';
+import { formatMarketProduct, isOrderbookProduct } from '../../../utils/marketProduct';
 import { type MarketSlice } from '../../../utils/sliceUrl';
 import { useWatchlist } from '../../../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../../../utils/watchlist';
 import i18n from '../../../i18n';
-import { analytics } from '../../../services/analytics';
 import { useMarketSupport } from '../../../context/MarketSupportContext';
-import type { FameOrderBidTerms } from '../../../types/fameOrder';
-import { readFameOrderTerms, validateFameOrderTerms, readFameOrderAcknowledgements } from '../../../components/fame/FameOrderFields';
-import type { LngOrderTerms } from '../../../types/lngOrder';
-import { initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms, readLngOrderAcknowledgements } from '../../../components/lng/LngOrderFields';
 
 // ─── Role Config ──────────────────────────────────────────────────
 export type MarketplaceColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -101,18 +94,41 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
+    const queryScope = useMemo(() => [getAuthGeneration(), user?.id ?? '', user?.organization_id ?? null,
+        marketSupportContext?.id ?? null] as const,
+    [user?.id, user?.organization_id, marketSupportContext?.id]);
     const {
         listings, totalCount, acceptedSkip, loading, refreshing, error, hasLoadedListings,
         complianceOverlays, overlayAssumptions, marketProductCounts,
-        myOrders, myOrdersLoading, myOrdersReadError, setMyOrders,
+        myOrders, myOrdersLoading, myOrdersReadError,
         fetchListings, fetchProductCounts, fetchMyOrders,
     } = useMarketplaceQueries({
         ready, isHistorySelected, marketTab, isCatalogScopeResolving, hasUser: Boolean(user),
-        scope: [getAuthGeneration(), user?.id ?? '', user?.organization_id ?? null, marketSupportContext?.id ?? null],
+        scope: queryScope,
         selection: { side: role === 'BUYER' ? 'ASK' : 'BID', region: resolvedPort,
             deliveryPointId: resolvedDeliveryPointId, product: marketProduct === ALL_MARKET_PRODUCTS ? null : marketProduct,
             window: availability, sort: sortBy, skip: currentSkip },
     });
+    const takeTrade = useTakeTrade({
+        userId: user?.id, organizationId: user?.organization_id, isMarketSupportActive, isHistorySelected, marketTab,
+        b100TradingEnabled, bioLngTradingEnabled, t, tRfq, fetchProductCounts, fetchListings, currentSkip,
+        prefillAskOrder: order => { setOrderModalPrefill(order); setOrderModalSide('ASK'); },
+    });
+    const cancellation = useCancelOrder({
+        userId: user?.id, organizationId: user?.organization_id,
+        marketSupportContextId: marketSupportContext?.id ?? null, scope: queryScope,
+        isMarketSupportActive, isHistorySelected, readError: myOrdersReadError, t, fetchMyOrders,
+    });
+    const {
+        selectedOrder, tradeState, tradeResult, tradeError, tradeKycBlocked, tradeNeedsRefresh,
+        tradeQuantity, setTradeQuantity, tradeTermsForm, tradeLngTermsForm, tradeFameInput, tradeLngInput,
+        initialBuyerTerms, initialLngTaker, openTradeModal, reviewTrade, confirmTrade, closeTradeModal,
+        refreshReview, setTradeState,
+    } = takeTrade;
+    const {
+        pendingCancellation, cancellationReason, setCancellationReason, cancellationLoading,
+        cancellationOutcomeUnknown, myOrdersError, handleCancelOrder, confirmCancelOrder, closeCancellationModal,
+    } = cancellation;
     useDashboardContentReady('MARKETPLACE', !isHistorySelected && ready && (marketTab !== 'market' || (!loading && hasLoadedListings)));
 
     const currentSliceTarget = useMemo(() => {
@@ -151,94 +167,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── Server-side sorting ──────────────────────────────────────
     const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
 
-    // ─── Trade modal state ────────────────────────────────────────
-    const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
-    const [tradeQuantity, setTradeQuantity] = useState(0);
-    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
-    const [tradeError, setTradeError] = useState('');
-    const [tradeKycBlocked, setTradeKycBlocked] = useState(false);
-    const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
-    const [tradeResult, setTradeResult] = useState<Trade | null>(null);
-    const tradeRequestRef = useRef<{
-        signature: string;
-        payload: TradeCreateInput;
-        authGeneration: number;
-        supportContextId: string | null;
-        reviewedOrder: OrderBookOrder;
-    } | null>(null);
-    const tradeTermsForm = useRef<HTMLFormElement>(null);
-    const tradeLngTermsForm = useRef<HTMLFormElement>(null);
-    const [tradeFameInput, setTradeFameInput] = useState<Pick<TradeCreateInput, 'fame_terms' | 'certification_declared' | 'msds_available'> | null>(null);
-    const [tradeLngInput, setTradeLngInput] = useState<Pick<TradeCreateInput, 'lng_terms' | 'msds_available'> | null>(null);
-    const initialBuyerTerms = useMemo<FameOrderBidTerms | undefined>(() => {
-        const terms = selectedOrder?.fame_terms;
-        if (terms?.side !== 'ASK') return undefined;
-        return {
-            side: 'BID', schema_version: 1, neat_fame: true,
-            standard: terms.standard, standard_edition: terms.standard_edition,
-            astm_grade: terms.astm_grade, en_climate_class: terms.en_climate_class,
-            max_cfpp_c: null, max_cloud_point_c: null, max_ci_gco2e_mj: null,
-            sustainability_scheme: terms.sustainability_scheme,
-            require_quality_evidence: false, require_sustainability_evidence: false,
-            evidence_due: terms.evidence_due,
-        };
-    }, [selectedOrder]);
-    const initialLngTaker = useMemo<LngOrderTerms | undefined>(() => {
-        const terms = selectedOrder?.lng_terms;
-        return terms ? initialLngTakerTerms(terms) : undefined;
-    }, [selectedOrder]);
-    const tradeInFlightRef = useRef(false);
-    const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
-    const [cancellationReason, setCancellationReason] = useState('');
-    const [cancellationLoading, setCancellationLoading] = useState(false);
-    const [cancellationOutcomeUnknown, setCancellationOutcomeUnknown] = useState(false);
-    const cancellationRequestRef = useRef<{
-        orderId: string;
-        reason: string;
-        etag?: string | null;
-        idempotencyKey: string;
-        authGeneration: number;
-        supportContextId: string | null;
-    } | null>(null);
-    const cancellationScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${marketSupportContext?.id ?? 'direct'}`;
-    const cancellationScopeRef = useRef(cancellationScope);
-    const cancellationEpochRef = useRef(0);
-    if (cancellationScopeRef.current !== cancellationScope) {
-        cancellationScopeRef.current = cancellationScope;
-        cancellationEpochRef.current += 1;
-    }
-
-    // ─── News panel toggle ──────────────────────────────────────
-
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalPrefill, setOrderModalPrefill] = useState<OrderBookOrder | null>(null);
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     useEffect(() => {
         setOrderModalSide(null);
-        setSelectedOrder(null);
-        setTradeState('idle');
-        setTradeFameInput(null);
-        setTradeNeedsRefresh(false);
-        setTradeResult(null);
-        tradeRequestRef.current = null;
     }, [user?.id, user?.organization_id, isMarketSupportActive]);
 
 
     useEffect(() => {
         if (!isHistorySelected) return;
         setOrderModalSide(null);
-        setSelectedOrder(null);
-        setTradeState('idle');
-        setPendingCancellation(null);
     }, [isHistorySelected]);
 
     const filteredListings = listings;
-    useEffect(() => {
-        setMyOrdersError(myOrdersReadError ? (i18n.language.startsWith('zh') ? t('marketplace.myOrders.error')
-            : myOrdersReadError instanceof Error ? myOrdersReadError.message : t('marketplace.myOrders.error')) : null);
-    }, [myOrdersReadError, t]);
 
     const totalMarketProductCount = useMemo(
         () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
@@ -297,39 +240,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         });
     }, [filteredListings, highlightedOrderId, marketTab]);
 
-    // ─── Trade modal handlers ─────────────────────────────────────
-    const openTradeModal = (order: OrderBookOrder) => {
-        if (!isOrderbookMarketProduct(order.market_product) || (isMarketSupportActive && !order.is_demo_listing)) return;
-        if (order.market_product === 'UCOME_B100' && !b100TradingEnabled) return;
-        if (order.market_product === 'BIO_LNG' && !bioLngTradingEnabled) return;
-        if (order.market_product && order.delivery_point_id && order.availability_window) {
-            analytics.track('listing_opened', {
-                product: order.market_product,
-                delivery_point: order.delivery_point_id,
-                window: order.availability_window,
-                side: order.side,
-                demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
-            });
-        }
-        if (order.side === 'BID' && getBiofuelSpecification(order.market_product) && !order.is_demo_listing) {
-            // A scalar biofuel supplier must declare an ASK. This does not target the BID.
-            setOrderModalPrefill(order);
-            setOrderModalSide('ASK');
-            return;
-        }
-        setTradeFameInput(null);
-        setTradeLngInput(null);
-        setTradeNeedsRefresh(false);
-        setTradeResult(null);
-        setSelectedOrder(order);
-        // The order boundary already converted `remaining_quantity_mt` to a number.
-        setTradeQuantity(order.remaining_quantity_mt);
-        setTradeState('confirming');
-        setTradeError('');
-        setTradeKycBlocked(false);
-        tradeRequestRef.current = null;
-    };
-
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
         order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
     )), [myOrders]);
@@ -354,283 +264,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
         return true;
     }), [availability, marketProduct, outstandingMyOrders, resolvedDeliveryPointId, resolvedPort]);
-
-    const handleCancelOrder = async (order: OrderBookOrder) => {
-        cancellationRequestRef.current = null;
-        setCancellationOutcomeUnknown(false);
-        setPendingCancellation(order);
-        setCancellationReason(isMarketSupportActive ? t('marketplace.cancel.reason.assisted') : t('marketplace.cancel.reason.user'));
-        setMyOrdersError(null);
-    };
-
-    const confirmCancelOrder = async () => {
-        if (!pendingCancellation || !cancellationReason.trim()) return;
-        const retainedRequest = cancellationOutcomeUnknown ? cancellationRequestRef.current : null;
-        if (retainedRequest && (
-            retainedRequest.authGeneration !== getAuthGeneration()
-            || retainedRequest.supportContextId !== getMarketSupportContextId()
-        )) {
-            cancellationRequestRef.current = null;
-            setCancellationOutcomeUnknown(false);
-            setPendingCancellation(null);
-            setMyOrdersError(t('marketplace.cancel.contextChanged'));
-            return;
-        }
-        if (isMarketSupportActive && pendingCancellation.creation_method === 'MARKET_SUPPORT' && !pendingCancellation.etag) {
-            setMyOrdersError(t('marketplace.cancel.missingVersion'));
-            await fetchMyOrders();
-            setPendingCancellation(null);
-            return;
-        }
-        const request = retainedRequest ?? {
-            orderId: pendingCancellation.id,
-            reason: cancellationReason.trim(),
-            etag: pendingCancellation.etag,
-            idempotencyKey: createIdempotencyKey('order-cancel'),
-            authGeneration: getAuthGeneration(),
-            supportContextId: getMarketSupportContextId(),
-        };
-        const executionEpoch = cancellationEpochRef.current;
-        const executionIsCurrent = () => (
-            executionEpoch === cancellationEpochRef.current
-            && request.authGeneration === getAuthGeneration()
-            && request.supportContextId === getMarketSupportContextId()
-        );
-        cancellationRequestRef.current = request;
-        setCancellationLoading(true);
-        try {
-            await api.orderbook.cancel(request.orderId, { reason: request.reason, etag: request.etag, idempotencyKey: request.idempotencyKey });
-            if (!executionIsCurrent()) {
-                if (executionEpoch === cancellationEpochRef.current) {
-                    cancellationRequestRef.current = null;
-                    setCancellationOutcomeUnknown(false);
-                    setPendingCancellation(null);
-                }
-                return;
-            }
-            setMyOrders(prev => prev.filter(o => o.id !== request.orderId));
-            cancellationRequestRef.current = null;
-            setCancellationOutcomeUnknown(false);
-            setPendingCancellation(null);
-        } catch (error) {
-            if (!executionIsCurrent()) {
-                if (executionEpoch === cancellationEpochRef.current) {
-                    cancellationRequestRef.current = null;
-                    setCancellationOutcomeUnknown(false);
-                    setPendingCancellation(null);
-                }
-                return;
-            }
-            if (error instanceof ApiOutcomeUnknownError) {
-                setCancellationOutcomeUnknown(true);
-                setMyOrdersError(null);
-                return;
-            }
-            cancellationRequestRef.current = null;
-            setCancellationOutcomeUnknown(false);
-            if (error instanceof ApiError && (error.status === 412 || error.status === 428)) {
-                await fetchMyOrders(true);
-                setMyOrdersError(t('marketplace.cancel.stale'));
-                setPendingCancellation(null);
-            } else {
-                setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.cancel.error') : error instanceof Error ? error.message : t('marketplace.cancel.error'));
-            }
-        } finally {
-            if (executionEpoch === cancellationEpochRef.current) setCancellationLoading(false);
-        }
-    };
-
-    const closeCancellationModal = () => {
-        if (cancellationLoading) return;
-        cancellationRequestRef.current = null;
-        setCancellationOutcomeUnknown(false);
-        setPendingCancellation(null);
-    };
-
-    useEffect(() => {
-        cancellationRequestRef.current = null;
-        setCancellationOutcomeUnknown(false);
-        setCancellationLoading(false);
-        setPendingCancellation(null);
-    }, [user?.id, user?.organization_id, marketSupportContext?.id]);
-
-    const closeTradeModal = useCallback(() => {
-        if (tradeInFlightRef.current) return;
-        setSelectedOrder(null);
-        setTradeState('idle');
-        setTradeError('');
-        setTradeKycBlocked(false);
-        setTradeFameInput(null);
-        setTradeNeedsRefresh(false);
-        setTradeResult(null);
-        tradeRequestRef.current = null;
-    }, []);
-
-    useEffect(() => {
-        if (tradeState !== 'success') return;
-        // Keep the success message visible briefly. The orderbook invalidation
-        // from the trade already refreshed listings and counts; a second read
-        // here would only repeat that request.
-        const timer = setTimeout(closeTradeModal, 2000);
-        return () => clearTimeout(timer);
-    }, [tradeState, closeTradeModal]);
-
-    const validateTradeQuantity = () => {
-        if (!selectedOrder || tradeState === 'submitting') return null;
-        const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
-        if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
-            setTradeError(t('marketplace.modal.invalidQuantity'));
-            setTradeState('error');
-            return null;
-        }
-        return normalizedTradeQuantity;
-    };
-
-    const reviewTrade = () => {
-        if (!selectedOrder) return;
-        if (selectedOrder.is_demo_listing) {
-            setTradeError(t('marketplace.demo.blocked'));
-            setTradeState('error');
-            return;
-        }
-        if (validateTradeQuantity() == null) return;
-        if (!selectedOrder.terms_digest) {
-            tradeRequestRef.current = null;
-            setTradeNeedsRefresh(true);
-            setTradeError(t('marketplace.modal.reviewRequired'));
-            setTradeState('error');
-            return;
-        }
-        if (selectedOrder.market_product === 'UCOME_B100') {
-            if (!b100TradingEnabled || !selectedOrder.fame_terms || !tradeTermsForm.current
-                || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1) {
-                setTradeError(t('marketplace.b100.missingTerms'));
-                return;
-            }
-            if (!tradeTermsForm.current.reportValidity()) return;
-            const side = selectedOrder.side === 'ASK' ? 'BID' : 'ASK';
-            const data = new FormData(tradeTermsForm.current);
-            const terms = readFameOrderTerms(data, side);
-            const validationError = validateFameOrderTerms(terms);
-            if (validationError) { setTradeError(tRfq(validationError)); return; }
-            const declarations = side === 'ASK' ? readFameOrderAcknowledgements(data) : undefined;
-            if (declarations && (!declarations.certification_declared || !declarations.msds_available)) {
-                setTradeError(tRfq('validation.orderAcknowledgements'));
-                return;
-            }
-            setTradeFameInput({ fame_terms: terms, ...declarations });
-        }
-        if (selectedOrder.market_product === 'BIO_LNG') {
-            if (!bioLngTradingEnabled || !selectedOrder.lng_terms || !tradeLngTermsForm.current) {
-                setTradeError(t('marketplace.bioLng.missingTerms'));
-                return;
-            }
-            if (!tradeLngTermsForm.current.reportValidity()) return;
-            const side = selectedOrder.side === 'ASK' ? 'BID' : 'ASK';
-            const data = new FormData(tradeLngTermsForm.current);
-            const terms = readLngOrderTerms(data, side);
-            const validationError = validateLngOrderTerms(terms);
-            if (validationError) { setTradeError(t(validationError)); return; }
-            // A supplier taking a BIO_LNG bid declares the ask side, which keeps
-            // the MSDS acknowledgement required.
-            const declarations = side === 'ASK' ? readLngOrderAcknowledgements(data) : undefined;
-            if (declarations && !declarations.msds_available) {
-                setTradeError(t('lngTerms.validation.msdsRequired'));
-                return;
-            }
-            setTradeLngInput({ lng_terms: terms, ...declarations });
-        }
-        analytics.track('trade_confirmation_opened', {
-            side: selectedOrder.side,
-            demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
-        });
-        setTradeError('');
-        setTradeKycBlocked(false);
-        setTradeState('reviewing');
-    };
-
-    const confirmTrade = async () => {
-        if (!selectedOrder || !isOrderbookMarketProduct(selectedOrder.market_product) || tradeState === 'submitting' || tradeInFlightRef.current) return;
-        if (selectedOrder.is_demo_listing) {
-            setTradeError(t('marketplace.demo.blocked'));
-            setTradeState('error');
-            return;
-        }
-        const retainedRequest = tradeState === 'outcome_unknown' ? tradeRequestRef.current : null;
-        if (retainedRequest && (
-            retainedRequest.authGeneration !== getAuthGeneration()
-            || retainedRequest.supportContextId !== getMarketSupportContextId()
-        )) {
-            tradeRequestRef.current = null;
-            setTradeNeedsRefresh(true);
-            setTradeError(t('marketplace.modal.contextChanged'));
-            setTradeState('error');
-            return;
-        }
-        const normalizedTradeQuantity = retainedRequest ? retainedRequest.payload.quantity_mt : validateTradeQuantity();
-        if (normalizedTradeQuantity == null) return;
-        if (!retainedRequest && !selectedOrder.terms_digest) {
-            tradeRequestRef.current = null;
-            setTradeNeedsRefresh(true);
-            setTradeError(t('marketplace.modal.reviewRequired'));
-            setTradeState('error');
-            return;
-        }
-        if (!retainedRequest && selectedOrder.market_product === 'UCOME_B100' && (!b100TradingEnabled || !tradeFameInput?.fame_terms
-            || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1)) return;
-        if (!retainedRequest && selectedOrder.market_product === 'BIO_LNG'
-            && (!bioLngTradingEnabled || !tradeLngInput?.lng_terms)) return;
-        setTradeState('submitting');
-        tradeInFlightRef.current = true;
-        try {
-            const requestPayload = {
-                order_id: selectedOrder.id,
-                quantity_mt: normalizedTradeQuantity,
-                expected_terms_digest: selectedOrder.terms_digest!,
-                ...(selectedOrder.market_product === 'UCOME_B100'
-                    ? { ...tradeFameInput, expected_order_version: selectedOrder.version } : {}),
-                ...(selectedOrder.market_product === 'BIO_LNG' ? { ...tradeLngInput } : {}),
-            };
-            const signature = JSON.stringify(requestPayload);
-            if (!retainedRequest && (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature)) {
-                tradeRequestRef.current = {
-                    signature,
-                    payload: { ...requestPayload, idempotency_key: createIdempotencyKey('trade') },
-                    authGeneration: getAuthGeneration(),
-                    supportContextId: getMarketSupportContextId(),
-                    reviewedOrder: { ...selectedOrder, certifications: [...selectedOrder.certifications] },
-                };
-            }
-            const result = await api.trades.initiate(tradeRequestRef.current!.payload);
-            setTradeResult(result);
-            setTradeState('success');
-        } catch (err: unknown) {
-            if (err instanceof ApiOutcomeUnknownError) {
-                setTradeError(t('marketplace.modal.outcomeUnknown.body'));
-                setTradeState('outcome_unknown');
-            } else if (err instanceof ApiError && err.code === 'ORDER_TERMS_REVIEW_REQUIRED') {
-                tradeRequestRef.current = null;
-                setTradeNeedsRefresh(true);
-                setTradeError(t('marketplace.modal.reviewRequired'));
-                setTradeState('error');
-            } else if (isKycRequiredError(err)) {
-                tradeRequestRef.current = null;
-                setTradeKycBlocked(true);
-                setTradeError('');
-                setTradeState('error');
-            } else if (err instanceof ApiError && err.code === 'LNG_TERMS_INCOMPATIBLE') {
-                tradeRequestRef.current = null;
-                setTradeError(t('marketplace.bioLng.incompatible'));
-                setTradeState('error');
-            } else {
-                tradeRequestRef.current = null;
-                setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err instanceof Error ? err.message : t('marketplace.modal.tradeFailedFallback'));
-                setTradeState('error');
-            }
-        } finally {
-            tradeInFlightRef.current = false;
-        }
-    };
 
     if (!ready) return null;
 
@@ -807,10 +440,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 closeTradeModal={closeTradeModal}
                 tradeKycBlocked={tradeKycBlocked}
                 tradeNeedsRefresh={tradeNeedsRefresh}
-                fetchProductCounts={fetchProductCounts}
-                marketTab={marketTab}
-                fetchListings={fetchListings}
-                currentSkip={currentSkip}
+                refreshReview={refreshReview}
                 configBase={configBase}
                 tradeQuantity={tradeQuantity}
                 setTradeQuantity={setTradeQuantity}
