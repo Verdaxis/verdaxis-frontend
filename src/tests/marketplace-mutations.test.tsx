@@ -294,6 +294,22 @@ describe('Marketplace cancellation execution', () => {
         expect(mocks.myOrders).toHaveBeenCalledTimes(1);
     });
 
+    it('reads my orders under the new private key when the session is replaced in place', async () => {
+        mocks.myOrders.mockResolvedValue([ownOrder]);
+        const view = renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+        expect(await screen.findByText('Cancel Harbour')).toBeTruthy();
+        expect(mocks.myOrders).toHaveBeenCalledTimes(1);
+
+        // Same user and organization, new auth generation. The old private key
+        // belongs to the replaced session and must not be read again.
+        setAccessToken(`replacement-${getAuthGeneration() + 1}`);
+        view.rerender(<Marketplace />);
+        fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+        await waitFor(() => expect(mocks.myOrders).toHaveBeenCalledTimes(2));
+        expect(await screen.findByText('Cancel Harbour')).toBeTruthy();
+    });
+
     it('does not remove the next organization row after a deferred cancellation success', async () => {
         let resolveCancel!: () => void;
         mocks.cancel.mockImplementationOnce(() => new Promise<void>(resolve => { resolveCancel = resolve; }));

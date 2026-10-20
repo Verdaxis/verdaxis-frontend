@@ -94,9 +94,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
-    const queryScope = useMemo(() => [getAuthGeneration(), user?.id ?? '', user?.organization_id ?? null,
-        marketSupportContext?.id ?? null] as const,
-    [user?.id, user?.organization_id, marketSupportContext?.id]);
+    // Scope is rebuilt on every render, as before: the auth generation is read
+    // from the token store, not from React state, so memoizing it would keep a
+    // replaced session on its old private key.
+    const queryScope = [getAuthGeneration(), user?.id ?? '', user?.organization_id ?? null,
+        marketSupportContext?.id ?? null] as const;
     const {
         listings, totalCount, acceptedSkip, loading, refreshing, error, hasLoadedListings,
         complianceOverlays, overlayAssumptions, marketProductCounts,
