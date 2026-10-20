@@ -22,18 +22,12 @@ const isFeatureQuery = (query: Query) => !isPricingOverlayQuery(query) && (
     || (query.queryKey[0] === 'private' && ['orderbook', 'compliance'].includes(String(query.queryKey[2])))
 );
 
-// A mutation clears the read cache and the bridge reads the committed result.
-// The market stream then echoes that same change. The first event batch inside
-// this window is that echo, not new data: the mutation's own read already sees
-// it, and the legacy read cache served such an echo from the fresh entry. A
-// later event is new data and reads normally.
-const MUTATION_ECHO_WINDOW_MS = 2_000;
-
 export function attachQueryInvalidation(client: QueryClient, initiallyVisible = true) {
     const coordinator = createRefreshCoordinator(initiallyVisible);
     const subscriptions = new Map<string, () => void>();
     const waitingForBatch = new Map<string, Query>();
-    const mutationSignals = new WeakMap<Query, number>();
+    const lastEventAt = new WeakMap<Query, number>();
+    const readStartedAt = new WeakMap<Query, number>();
     const refresh = (query: Query) => {
         if (!query.isActive()) return Promise.resolve();
         const registered = registeredRefresh(client, query.queryHash);
@@ -41,8 +35,10 @@ export function attachQueryInvalidation(client: QueryClient, initiallyVisible = 
         // Do not cancel an older read to service a newer freshness signal.
         // Completion is followed by the coordinator's single dirty rerun.
         const running = query.state.fetchStatus === 'fetching' ? query.promise : undefined;
-        return Promise.resolve(running).catch(() => undefined).then(() =>
-            client.refetchQueries({ queryKey: query.queryKey, exact: true, type: 'active' }, { cancelRefetch: false }));
+        return Promise.resolve(running).catch(() => undefined).then(() => {
+            readStartedAt.set(query, Date.now());
+            return client.refetchQueries({ queryKey: query.queryKey, exact: true, type: 'active' }, { cancelRefetch: false });
+        });
     };
     const observe = (query: Query) => {
         if (!isFeatureQuery(query) || subscriptions.has(query.queryHash)) return;
@@ -62,20 +58,20 @@ export function attachQueryInvalidation(client: QueryClient, initiallyVisible = 
         for (const query of client.getQueryCache().getAll().filter(isFeatureQuery)) {
             registeredRefresh(client, query.queryHash)?.invalidate();
             void client.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: 'none' });
-            if (cause === 'event') waitingForBatch.set(query.queryHash, query);
-            else if (cause !== 'mutation-start') {
-                mutationSignals.set(query, Date.now());
-                coordinator.markDirty(query.queryHash);
-            }
+            if (cause === 'event') {
+                lastEventAt.set(query, Date.now());
+                waitingForBatch.set(query.queryHash, query);
+            } else if (cause !== 'mutation-start') coordinator.markDirty(query.queryHash);
         }
     });
     const detachBatch = subscribePublicMarketBatch(() => {
         for (const [key, query] of waitingForBatch) {
-            const signal = mutationSignals.get(query);
-            if (signal !== undefined && Date.now() - signal < MUTATION_ECHO_WINDOW_MS) {
-                mutationSignals.delete(query);
-                continue;
-            }
+            // A read that started after the batch's last event was received
+            // already includes that event's change: the server publishes after
+            // commit. Every other case reads.
+            const readStarted = readStartedAt.get(query);
+            const lastEvent = lastEventAt.get(query);
+            if (readStarted !== undefined && lastEvent !== undefined && readStarted > lastEvent) continue;
             coordinator.markDirty(key, 0);
         }
         waitingForBatch.clear();

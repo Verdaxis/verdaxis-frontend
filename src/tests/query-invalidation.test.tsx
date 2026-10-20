@@ -124,8 +124,10 @@ describe('Query invalidation bridge', () => {
         invalidateReadCacheWithCause('mutation-start', 'orderbook:');
         await vi.advanceTimersByTimeAsync(500); expect(load).not.toHaveBeenCalled();
         invalidateReadCacheWithCause('mutation-settled', 'orderbook:');
+        // The event arrives before the mutation read starts; that read covers it.
         invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
         await vi.advanceTimersByTimeAsync(500); expect(load).toHaveBeenCalledTimes(1);
+        // This event arrives after the read started; it must cause one more read.
         invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
         await vi.advanceTimersByTimeAsync(500);
         finish(); await vi.advanceTimersByTimeAsync(500);
@@ -133,28 +135,64 @@ describe('Query invalidation bridge', () => {
         bridge.dispose(); unobserve(); client.clear();
     });
 
-    it('serves the event that echoes a mutation from the mutation read', async () => {
+    it('skips the batch when the bridge read started after the last event arrived', async () => {
         vi.useFakeTimers();
         const client = createQueryClient();
-        const key = ['public', 'orderbook', 'listings', 'ASK', 'echo'];
+        const key = ['public', 'orderbook', 'listings', 'ASK', 'echo-before-read'];
         client.setQueryData(key, ['old']);
-        let finish!: () => void;
-        const load = vi.fn()
-            .mockImplementationOnce(() => new Promise<string[]>(resolve => { finish = () => resolve(['new']); }))
-            .mockResolvedValue(['newer']);
+        const load = vi.fn().mockResolvedValue(['new']);
         const observer = new QueryObserver(client, { queryKey: key, queryFn: load, staleTime: Infinity });
         const unobserve = observer.subscribe(() => {});
         const bridge = attachQueryInvalidation(client);
         invalidateReadCacheWithCause('mutation-settled', 'orderbook:');
-        // The stream echoes the order in the same public batch window.
+        // The echo arrives at 100 ms; the mutation read starts at 500 ms.
+        await vi.advanceTimersByTimeAsync(100);
         invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(400);
+        expect(load).toHaveBeenCalledTimes(1);
+        // The batch at 600 ms sees the read started after the echo: no new read.
+        await vi.advanceTimersByTimeAsync(100);
+        expect(load).toHaveBeenCalledTimes(1);
+        bridge.dispose(); unobserve(); client.clear();
+    });
+
+    it('reads once more when the event arrives after the bridge read started', async () => {
+        vi.useFakeTimers();
+        const client = createQueryClient();
+        const key = ['public', 'orderbook', 'listings', 'ASK', 'echo-after-read'];
+        client.setQueryData(key, ['old']);
+        const load = vi.fn().mockResolvedValue(['new']);
+        const observer = new QueryObserver(client, { queryKey: key, queryFn: load, staleTime: Infinity });
+        const unobserve = observer.subscribe(() => {});
+        const bridge = attachQueryInvalidation(client);
+        invalidateReadCacheWithCause('mutation-settled', 'orderbook:');
+        // The mutation read starts at 500 ms; the echo arrives at 600 ms.
         await vi.advanceTimersByTimeAsync(500);
         expect(load).toHaveBeenCalledTimes(1);
-        finish(); await vi.advanceTimersByTimeAsync(10);
-        // An event after the echo window is new data and reads again.
-        await vi.advanceTimersByTimeAsync(5_000);
+        await vi.advanceTimersByTimeAsync(100);
         invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
         await vi.advanceTimersByTimeAsync(500);
+        expect(load).toHaveBeenCalledTimes(2);
+        bridge.dispose(); unobserve(); client.clear();
+    });
+
+    it('reads once more when a later event in the same batch arrived after the read started', async () => {
+        vi.useFakeTimers();
+        const client = createQueryClient();
+        const key = ['public', 'orderbook', 'listings', 'ASK', 'later-event'];
+        client.setQueryData(key, ['old']);
+        const load = vi.fn().mockResolvedValue(['new']);
+        const observer = new QueryObserver(client, { queryKey: key, queryFn: load, staleTime: Infinity });
+        const unobserve = observer.subscribe(() => {});
+        const bridge = attachQueryInvalidation(client);
+        invalidateReadCacheWithCause('mutation-settled', 'orderbook:');
+        // First event at 400 ms, before the read starts at 500 ms.
+        await vi.advanceTimersByTimeAsync(400);
+        invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+        // Second event at 600 ms, after the read started, in the same batch at 900 ms.
+        await vi.advanceTimersByTimeAsync(200);
+        invalidateReadCacheWithCause('event', 'orderbook:'); queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(300);
         expect(load).toHaveBeenCalledTimes(2);
         bridge.dispose(); unobserve(); client.clear();
     });
