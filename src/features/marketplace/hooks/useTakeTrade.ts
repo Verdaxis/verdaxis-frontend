@@ -276,7 +276,10 @@ export function useTakeTrade({
         const executionEpoch = tradeEpochRef.current;
         setTradeState('submitting');
         tradeInFlightRef.current = true;
-        let executionIsCurrent = () => false;
+        // Until the frozen request exists, the epoch is the whole scope test.
+        // A synchronous failure in that construction still reports an error
+        // instead of leaving the dialog in `submitting`.
+        let executionIsCurrent = () => executionEpoch === tradeEpochRef.current;
         try {
             const requestPayload = {
                 order_id: selectedOrder.id,

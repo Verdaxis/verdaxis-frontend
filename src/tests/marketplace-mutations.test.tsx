@@ -157,6 +157,15 @@ describe('Marketplace take execution', () => {
         expect(mocks.initiate).toHaveBeenCalledTimes(1);
     });
 
+    it('reports an error when the request cannot be built instead of staying in submitting', async () => {
+        vi.stubGlobal('crypto', { randomUUID: () => { throw new Error('uuid unavailable'); } });
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        await openTradeAndConfirm();
+        expect(await screen.findByText(/uuid unavailable/i)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /submitting/i })).toBeNull();
+        expect(mocks.initiate).not.toHaveBeenCalled();
+    });
+
     it('does not apply a late trade success to the next organization dialog', async () => {
         let resolveTrade!: (value: typeof tradeResult) => void;
         mocks.initiate.mockImplementationOnce(() => new Promise(resolve => { resolveTrade = resolve; }));
