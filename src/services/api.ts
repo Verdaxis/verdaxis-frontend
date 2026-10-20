@@ -45,7 +45,7 @@ import {
     getMarketSupportContextId,
     MARKET_SUPPORT_CONTEXT_HEADER,
 } from './marketSupportContextStore';
-import { cachedRead, invalidateReadCache, READ_CACHE_TTL_MS } from './readCache';
+import { cachedRead, invalidateReadCacheWithCause, READ_CACHE_TTL_MS, type ReadInvalidationCause } from './readCache';
 import type {
     MarketSupportCapability,
     MarketSupportEntry,
@@ -421,18 +421,23 @@ const readApi = <T = any>(
     );
 };
 
-const invalidateMarketReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
-const invalidateTradeReads = () => invalidateReadCache('trades:', 'trade-tape:');
-const invalidateTradeTransitionReads = () => invalidateReadCache('trades:', 'trade-tape:', 'watchlists:');
-const invalidateWatchlistReads = () => invalidateReadCache('watchlists:');
-const invalidateTradeExecutionReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:', 'trades:', 'trade-tape:');
+const invalidateMarketReads = (cause: ReadInvalidationCause) => invalidateReadCacheWithCause(cause, 'orderbook:', 'prices:', 'curves:', 'watchlists:');
+const invalidateTradeReads = (cause: ReadInvalidationCause) => invalidateReadCacheWithCause(cause, 'trades:', 'trade-tape:');
+const invalidateTradeTransitionReads = (cause: ReadInvalidationCause) => invalidateReadCacheWithCause(cause, 'trades:', 'trade-tape:', 'watchlists:');
+const invalidateWatchlistReads = (cause: ReadInvalidationCause) => invalidateReadCacheWithCause(cause, 'watchlists:');
+const invalidateTradeExecutionReads = (cause: ReadInvalidationCause) => invalidateReadCacheWithCause(cause, 'orderbook:', 'prices:', 'curves:', 'watchlists:', 'trades:', 'trade-tape:');
+const invalidateAllReads = (cause: ReadInvalidationCause) => invalidateReadCacheWithCause(cause);
 
-const mutateApi = async <T = any>(invalidate: () => void, path: string, options: RequestInit): Promise<T> => {
-    invalidate();
+// A write marks its reads stale before it starts and again when it settles.
+// The Query bridge turns the first signal into staleness only and the second
+// into one coordinated active read, so a slow write does not cause a read it
+// is about to replace.
+const mutateApi = async <T = any>(invalidate: (cause: ReadInvalidationCause) => void, path: string, options: RequestInit): Promise<T> => {
+    invalidate('mutation-start');
     try {
         return await fetchApi(path, options) as T;
     } finally {
-        invalidate();
+        invalidate('mutation-settled');
     }
 };
 
@@ -1269,7 +1274,7 @@ export const api = {
             };
         },
         start: (input: MarketSupportStartInput): Promise<MarketSupportSession> => {
-            return mutateApi(() => invalidateReadCache(), '/admin/market-support/contexts', {
+            return mutateApi(invalidateAllReads, '/admin/market-support/contexts', {
                 method: 'POST',
                 body: JSON.stringify({
                     organization_id: input.organizationId,
@@ -1283,7 +1288,7 @@ export const api = {
         getContext: (contextId: string): Promise<MarketSupportSession> =>
             fetchApi(`/admin/market-support/contexts/${contextId}`),
         exit: (contextId: string): Promise<void> => {
-            return mutateApi(() => invalidateReadCache(), `/admin/market-support/contexts/${contextId}/exit`, { method: 'POST' });
+            return mutateApi(invalidateAllReads, `/admin/market-support/contexts/${contextId}/exit`, { method: 'POST' });
         },
     },
 
