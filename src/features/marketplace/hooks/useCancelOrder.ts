@@ -61,6 +61,10 @@ export function useCancelOrder({
             reason: request.reason, etag: request.etag, idempotencyKey: request.idempotencyKey,
         }),
         retry: false,
+        // Send at once, as a direct call does. The default `online` mode holds
+        // a write while the browser reports offline and sends it later, when
+        // the user may no longer see this dialog.
+        networkMode: 'always',
     });
 
     useEffect(() => {

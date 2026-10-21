@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { QueryObserver } from '@tanstack/react-query';
+import { QueryObserver, onlineManager } from '@tanstack/react-query';
 
 import { Marketplace } from '../components/Marketplace';
 import { ApiError, ApiOutcomeUnknownError } from '../services/api';
@@ -94,6 +94,7 @@ beforeEach(async () => {
 afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    onlineManager.setOnline(true);
 });
 
 async function openTradeAndConfirm() {
@@ -184,6 +185,32 @@ describe('Marketplace take execution', () => {
         expect(screen.getByRole('button', { name: 'Confirm Trade' })).toBeTruthy();
     });
 
+    it('closes the take dialog when the session is replaced before the result arrives', async () => {
+        let resolveTrade!: (value: typeof tradeResult) => void;
+        mocks.initiate.mockImplementationOnce(() => new Promise(resolve => { resolveTrade = resolve; }));
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        await openTradeAndConfirm();
+        await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
+
+        // Same user and organization, new auth generation.
+        setAccessToken(`replacement-${getAuthGeneration() + 1}`);
+        await act(async () => { resolveTrade(tradeResult); });
+        expect(screen.queryByText('Trade Request Sent')).toBeNull();
+        expect(screen.queryByRole('button', { name: /submitting/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Confirm Trade' })).toBeNull();
+    });
+
+    it('sends the take at once while the browser reports offline', async () => {
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        fireEvent.click(await screen.findByRole('button', { name: 'Lift Ask' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Submit Trade' }));
+        const confirm = await screen.findByRole('button', { name: 'Confirm Trade' });
+        act(() => { onlineManager.setOnline(false); });
+        fireEvent.click(confirm);
+        await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
+        expect(await screen.findByText('Trade Request Sent')).toBeTruthy();
+    });
+
     it('requires a fresh review when an order has no terms digest', async () => {
         mocks.listAsksPaged.mockResolvedValue({ items: [{ ...ask, terms_digest: undefined }], total: 1, skip: 0, limit: 8 });
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
@@ -229,6 +256,15 @@ describe('Marketplace cancellation execution', () => {
         expect(mocks.cancel).toHaveBeenCalledWith('own-1', expect.objectContaining({
             reason: 'Stop this listing', etag: '"v7"', idempotencyKey: expect.any(String),
         }));
+    });
+
+    it('sends the cancellation at once while the browser reports offline', async () => {
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        await openMyListingsRow();
+        act(() => { onlineManager.setOnline(false); });
+        await confirmCancellation();
+        await waitFor(() => expect(mocks.cancel).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByText('Cancel Harbour')).toBeNull());
     });
 
     it('does not automatically retry an unknown cancellation and keeps the row', async () => {

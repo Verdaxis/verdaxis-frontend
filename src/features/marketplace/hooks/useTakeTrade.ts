@@ -82,6 +82,10 @@ export function useTakeTrade({
     const tradeMutation = useMutation({
         mutationFn: (payload: TradeCreateInput) => marketplaceApi.takeTrade(payload),
         retry: false,
+        // Send at once, as a direct call does. The default `online` mode holds
+        // a write while the browser reports offline and sends it later, when
+        // the user may no longer see this dialog.
+        networkMode: 'always',
     });
 
     const initialBuyerTerms = useMemo<FameOrderBidTerms | undefined>(() => {
@@ -102,8 +106,7 @@ export function useTakeTrade({
         return terms ? initialLngTakerTerms(terms) : undefined;
     }, [selectedOrder]);
 
-    const closeTradeModal = useCallback(() => {
-        if (tradeInFlightRef.current) return;
+    const resetTradeDialog = useCallback(() => {
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
@@ -113,6 +116,11 @@ export function useTakeTrade({
         setTradeResult(null);
         tradeRequestRef.current = null;
     }, []);
+
+    const closeTradeModal = useCallback(() => {
+        if (tradeInFlightRef.current) return;
+        resetTradeDialog();
+    }, [resetTradeDialog]);
 
     useEffect(() => {
         setSelectedOrder(null);
@@ -280,6 +288,11 @@ export function useTakeTrade({
         // A synchronous failure in that construction still reports an error
         // instead of leaving the dialog in `submitting`.
         let executionIsCurrent = () => executionEpoch === tradeEpochRef.current;
+        // A late result never reaches another workspace. In the same workspace
+        // under a replaced session it ends the dialog, as a cancellation does.
+        const endStaleExecution = () => {
+            if (executionEpoch === tradeEpochRef.current) resetTradeDialog();
+        };
         try {
             const requestPayload = {
                 order_id: selectedOrder.id,
@@ -308,11 +321,11 @@ export function useTakeTrade({
             const result = await tradeMutation.mutateAsync(request.payload);
             // The scope changed while the write was in flight. Its result belongs
             // to the old workspace; never show it on the current one.
-            if (!executionIsCurrent()) return;
+            if (!executionIsCurrent()) { endStaleExecution(); return; }
             setTradeResult(result);
             setTradeState('success');
         } catch (err: unknown) {
-            if (!executionIsCurrent()) return;
+            if (!executionIsCurrent()) { endStaleExecution(); return; }
             if (err instanceof ApiOutcomeUnknownError) {
                 setTradeError(t('marketplace.modal.outcomeUnknown.body'));
                 setTradeState('outcome_unknown');
