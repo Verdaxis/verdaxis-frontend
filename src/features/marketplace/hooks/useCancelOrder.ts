@@ -105,9 +105,18 @@ export function useCancelOrder({
             setMyOrdersError(t('marketplace.cancel.contextChanged'));
             return;
         }
+        const executionEpoch = cancellationEpochRef.current;
+        const authGeneration = retainedRequest?.authGeneration ?? getAuthGeneration();
+        const supportContextId = retainedRequest ? retainedRequest.supportContextId : getMarketSupportContextId();
+        const executionIsCurrent = () => (
+            executionEpoch === cancellationEpochRef.current
+            && authGeneration === getAuthGeneration()
+            && supportContextId === getMarketSupportContextId()
+        );
         if (isMarketSupportActive && pendingCancellation.creation_method === 'MARKET_SUPPORT' && !pendingCancellation.etag) {
             setMyOrdersError(t('marketplace.cancel.missingVersion'));
             await fetchMyOrders();
+            if (!executionIsCurrent()) return;
             setPendingCancellation(null);
             return;
         }
@@ -116,16 +125,10 @@ export function useCancelOrder({
             reason: cancellationReason.trim(),
             etag: pendingCancellation.etag,
             idempotencyKey: createIdempotencyKey('order-cancel'),
-            authGeneration: getAuthGeneration(),
-            supportContextId: getMarketSupportContextId(),
+            authGeneration,
+            supportContextId,
             scope,
         };
-        const executionEpoch = cancellationEpochRef.current;
-        const executionIsCurrent = () => (
-            executionEpoch === cancellationEpochRef.current
-            && request.authGeneration === getAuthGeneration()
-            && request.supportContextId === getMarketSupportContextId()
-        );
         cancellationRequestRef.current = request;
         setCancellationLoading(true);
         try {
@@ -163,6 +166,7 @@ export function useCancelOrder({
             setCancellationOutcomeUnknown(false);
             if (error instanceof ApiError && (error.status === 412 || error.status === 428)) {
                 await fetchMyOrders(true);
+                if (!executionIsCurrent()) return;
                 setMyOrdersError(t('marketplace.cancel.stale'));
                 setPendingCancellation(null);
             } else {
