@@ -73,7 +73,8 @@ class RequestVolumeTests(unittest.TestCase):
         self.assertEqual(summary['rest_total'], 3)
         self.assertEqual(summary['failed_attempts'], 2)
         self.assertEqual(summary['buckets']['OPTIONS /api/orderbook/asks'], 1)
-        self.assertEqual(summary['requests_per_minute'], 6)
+        self.assertNotIn('requests_per_minute', summary)
+        self.assertNotIn('bucket_rates', summary)
 
     def test_direct_seed_and_screenshot_categories_are_excluded(self):
         ledger = volume.RequestLedger()

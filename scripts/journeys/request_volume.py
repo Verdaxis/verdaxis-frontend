@@ -78,9 +78,7 @@ class RequestLedger:
                 if row['category'] == 'browser' and row['kind'] == 'rest']
         buckets = Counter(row['method'] + ' ' + row['route'] for row in rest)
         return {'duration_seconds': duration, 'rest_total': len(rest),
-                'requests_per_minute': len(rest) * 60 / duration,
                 'buckets': dict(sorted(buckets.items())),
-                'bucket_rates': {key: count * 60 / duration for key, count in sorted(buckets.items())},
                 'categories': dict(Counter(row['category'] for row in self.records)),
                 'failed_attempts': sum(row['outcome'] in ('failed', 'aborted') for row in rest),
                 'sse_starts': sum(row['kind'] == 'sse' and row['category'] == 'browser'
