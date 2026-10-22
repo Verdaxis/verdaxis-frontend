@@ -7,8 +7,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 
-// Illustrative values shown while live fleet data loads or is unavailable.
-const DEMAND_FLEET_FALLBACK = [
+interface FleetEntry { fuel: string; orderedVessels: number; deliveredVessels: number; avgConsumptionMt: number; color: string }
+
+// Baseline estimate shown while the fleet read loads, or when it fails or
+// returns a malformed document. It is not an observation.
+const DEMAND_FLEET_BASELINE: FleetEntry[] = [
     { fuel: 'Methanol', orderedVessels: 323, deliveredVessels: 112, avgConsumptionMt: 9500, color: '#5DADE2' },
     { fuel: 'Biofuel', orderedVessels: 20, deliveredVessels: 11, avgConsumptionMt: 6800, color: '#4CAF50' },
     { fuel: 'Ammonia', orderedVessels: 45, deliveredVessels: 2, avgConsumptionMt: 12000, color: '#9C27B0' },
@@ -16,16 +19,93 @@ const DEMAND_FLEET_FALLBACK = [
     { fuel: 'Biomethane', orderedVessels: 12, deliveredVessels: 5, avgConsumptionMt: 6500, color: '#26A69A' },
 ];
 
-interface FleetEntry { fuel: string; orderedVessels: number; deliveredVessels: number; avgConsumptionMt: number; color: string }
-type FleetDataState = 'loading' | 'live' | 'empty' | 'sample';
+/** A fleet document that passed every check, ready to show as an observation. */
+interface FleetObservation {
+    entries: FleetEntry[];
+    sources: string[];
+    /** Display text for the `last_updated` value that the publisher reported. */
+    reportedDate: string;
+}
+
+type FleetData =
+    | { state: 'loading' | 'baseline' }
+    | { state: 'live' | 'empty'; observation: FleetObservation };
 
 const PRODUCER_DATASET_VINTAGE = '2026-02-17';
 
-const formatObservedAt = (value: string): string => {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime())
-        ? value
-        : parsed.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+// A calendar date, optionally followed by a time that carries its UTC offset.
+// Without an offset the instant is unknown, so such a value is not accepted.
+const REPORTED_DATE = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+
+const isCalendarDate = (year: number, month: number, day: number): boolean => {
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+};
+
+/**
+ * Returns the display text for a reported fleet update, or null when the value
+ * is not a date. A date-only value is shown exactly as received: the page must
+ * not add a time or time zone that the publisher did not record. A value with
+ * a time and an offset is shown in UTC.
+ */
+const formatReportedDate = (value: unknown): string | null => {
+    if (typeof value !== 'string') return null;
+    const match = REPORTED_DATE.exec(value);
+    if (!match) return null;
+    const [, year, month, day, time] = match;
+    if (!isCalendarDate(Number(year), Number(month), Number(day))) return null;
+    if (!time) return value;
+    const instant = new Date(value);
+    if (Number.isNaN(instant.getTime())) return null;
+    return instant.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+// Vessel counts and the per-vessel consumption are whole, non-negative numbers.
+const isCount = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+const readFleetEntry = (entry: unknown): FleetEntry => {
+    if (!isRecord(entry)) throw new Error('A fleet entry is not an object.');
+    const { fuel, color, ordered_vessels, delivered_vessels, avg_consumption_mt } = entry;
+    if (typeof fuel !== 'string' || typeof color !== 'string') {
+        throw new Error('A fleet entry has no fuel or color text.');
+    }
+    if (!isCount(ordered_vessels) || !isCount(delivered_vessels) || !isCount(avg_consumption_mt)) {
+        throw new Error('A fleet entry count is not a non-negative integer.');
+    }
+    return {
+        fuel,
+        color,
+        orderedVessels: ordered_vessels,
+        deliveredVessels: delivered_vessels,
+        avgConsumptionMt: avg_consumption_mt,
+    };
+};
+
+const readSources = (sources: unknown): string[] => {
+    if (!Array.isArray(sources)) throw new Error('The fleet sources are not a list.');
+    return sources.map((source: unknown) => {
+        if (typeof source !== 'string') throw new Error('A fleet source is not text.');
+        return source;
+    });
+};
+
+/**
+ * Checks the whole fleet document before any of it is shown. Every malformed
+ * field throws, so the caller keeps the labeled baseline estimate instead of
+ * a partial observation, a crash or NaN figures.
+ */
+const readFleetObservation = (fleetDocument: unknown): FleetObservation => {
+    if (!isRecord(fleetDocument)) throw new Error('The fleet document is not an object.');
+    if (!Array.isArray(fleetDocument.entries)) throw new Error('The fleet entries are not a list.');
+    const entries = fleetDocument.entries.map(readFleetEntry);
+    const sources = readSources(fleetDocument.sources);
+    const reportedDate = formatReportedDate(fleetDocument.last_updated);
+    if (reportedDate === null) throw new Error('The fleet update value is not a date.');
+    return { entries, sources, reportedDate };
 };
 
 const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -41,22 +121,15 @@ export const DataAnalytics: React.FC = () => {
     const { user } = useAuth();
     const { t, ready } = useNamespace('dashboard');
     const [subscription, setSubscription] = useState<Subscription | null>(null);
-    const [demandFleet, setDemandFleet] = useState<FleetEntry[]>(DEMAND_FLEET_FALLBACK);
-    const [fleetDataState, setFleetDataState] = useState<FleetDataState>('loading');
-    const [fleetSources, setFleetSources] = useState<string[]>([]);
-    const [fleetLastUpdated, setFleetLastUpdated] = useState<string>('');
-    const [fleetLoaded, setFleetLoaded] = useState(false);
+    const [fleetData, setFleetData] = useState<FleetData>({ state: 'loading' });
     const [subscriptionLoaded, setSubscriptionLoaded] = useState(false);
+    const fleetLoaded = fleetData.state !== 'loading';
 
     useDashboardContentReady('DATA_ANALYTICS', ready && fleetLoaded && subscriptionLoaded);
 
     useEffect(() => {
         let cancelled = false;
-        setFleetLoaded(false);
-        setFleetDataState('loading');
-        setDemandFleet(DEMAND_FLEET_FALLBACK);
-        setFleetSources([]);
-        setFleetLastUpdated('');
+        setFleetData({ state: 'loading' });
         setSubscriptionLoaded(user?.role === 'ADMIN');
         setSubscription(null);
         if (user?.role !== 'ADMIN') {
@@ -71,35 +144,24 @@ export const DataAnalytics: React.FC = () => {
                 });
         }
 
-        // Fetch live fleet demand data
+        // Fetch live fleet demand data. A malformed document throws in
+        // readFleetObservation, so the catch below keeps the labeled baseline.
         api.fleetIntelligence.get()
-            .then(data => {
+            .then(fleetDocument => {
                 if (cancelled) return;
-                const entries = data.entries.map(e => ({
-                    fuel: e.fuel,
-                    orderedVessels: e.ordered_vessels,
-                    deliveredVessels: e.delivered_vessels,
-                    avgConsumptionMt: e.avg_consumption_mt,
-                    color: e.color,
-                }));
-                setDemandFleet(entries);
-                setFleetSources(data.sources);
-                setFleetLastUpdated(data.last_updated);
-                setFleetDataState(entries.length === 0 ? 'empty' : 'live');
-                setFleetLoaded(true);
+                const observation = readFleetObservation(fleetDocument);
+                setFleetData({ state: observation.entries.length === 0 ? 'empty' : 'live', observation });
             })
             .catch(() => {
-                if (cancelled) return;
-                setDemandFleet(DEMAND_FLEET_FALLBACK);
-                setFleetSources([]);
-                setFleetLastUpdated('');
-                setFleetDataState('sample');
-                setFleetLoaded(true);
+                if (!cancelled) setFleetData({ state: 'baseline' });
             });
         return () => { cancelled = true; };
     }, [user?.id, user?.organization_id, user?.role]);
     const hasPremiumAccess = user?.role === 'ADMIN' || !!(subscription && subscription.tier !== 'free');
-    const DEMAND_FLEET = demandFleet;
+    // Only a checked document is an observation with a reported date and source.
+    const observation = fleetData.state === 'live' || fleetData.state === 'empty' ? fleetData.observation : null;
+    const fleetState = fleetData.state;
+    const DEMAND_FLEET = observation ? observation.entries : DEMAND_FLEET_BASELINE;
     const supplyByStatus = useMemo(() => {
         const map: Record<string, { count: number; capacity: number }> = {};
         for (const p of producerProjects) {
@@ -138,17 +200,6 @@ export const DataAnalytics: React.FC = () => {
         : t(`dataAnalytics.fuels.${translationKey(fuel)}`, { defaultValue: t('dataAnalytics.fuels.other') });
     const statusLabel = (status: string) => t(`dataAnalytics.status.${translationKey(status)}`, { defaultValue: t('dataAnalytics.status.unknown') });
     const countryLabel = (country: string) => t(`countries.${translationKey(country)}`, { defaultValue: t('countries.unknown') });
-    // A published document is a historical observation: show the date and
-    // source it reports. A loading, unavailable or malformed read is a
-    // baseline estimate instead, so it has no observed date or source to show.
-    const showsObservation = fleetDataState === 'live' || fleetDataState === 'empty';
-    const fleetSource = showsObservation
-        ? fleetSources.join(', ') || t('dataAnalytics.provenance.sourceUnknown')
-        : '';
-    const fleetUpdatedAt = showsObservation && fleetLastUpdated
-        ? formatObservedAt(fleetLastUpdated)
-        : t('dataAnalytics.provenance.noReportedDate');
-
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
             {/* Header */}
@@ -167,11 +218,11 @@ export const DataAnalytics: React.FC = () => {
                     <span className="font-semibold text-slate-700 dark:text-slate-300">{t('dataAnalytics.provenance.producerMetrics')}:</span>
                     {' '}{t('dataAnalytics.provenance.staticDataset')} · {t('dataAnalytics.provenance.vintage', { date: PRODUCER_DATASET_VINTAGE })}
                 </div>
-                <div className={`rounded border px-3 py-2 ${fleetDataState === 'sample' || fleetDataState === 'loading'
+                <div className={`rounded border px-3 py-2 ${fleetState === 'baseline' || fleetState === 'loading'
                     ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300'
                     : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-700/40 dark:bg-blue-950/30 dark:text-blue-300'}`}>
                     <span className="font-semibold">{t('dataAnalytics.provenance.fleetMetrics')}:</span>
-                    {' '}{t(`dataAnalytics.provenance.fleetState.${fleetDataState}`)}
+                    {' '}{t(`dataAnalytics.provenance.fleetState.${fleetState}`)}
                 </div>
             </div>
 
@@ -271,20 +322,25 @@ export const DataAnalytics: React.FC = () => {
                     </div>
                     <div className="p-4 space-y-4">
                         <div
-                            className={`rounded border px-3 py-2 text-[11px] ${fleetDataState === 'sample' || fleetDataState === 'loading'
+                            className={`rounded border px-3 py-2 text-[11px] ${fleetState === 'baseline' || fleetState === 'loading'
                                 ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300'
-                                : fleetDataState === 'empty'
+                                : fleetState === 'empty'
                                     ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400'
                                     : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-700/40 dark:bg-blue-950/30 dark:text-blue-300'}`}
-                            role={fleetDataState === 'sample' ? 'status' : undefined}
+                            role={fleetState === 'baseline' ? 'status' : undefined}
                         >
                             <div className="font-semibold">
-                                {t(`dataAnalytics.provenance.fleetState.${fleetDataState}`)}
+                                {t(`dataAnalytics.provenance.fleetState.${fleetState}`)}
                             </div>
-                            {showsObservation ? (
+                            {/* A historical observation shows the date and source it reports.
+                                A loading, unavailable or malformed read is a baseline estimate,
+                                so it has no observed date or source to show. */}
+                            {observation ? (
                                 <>
-                                    <div>{t('dataAnalytics.provenance.source', { source: fleetSource })}</div>
-                                    <div>{t('dataAnalytics.provenance.updated', { date: fleetUpdatedAt })}</div>
+                                    <div>{t('dataAnalytics.provenance.source', {
+                                        source: observation.sources.join(', ') || t('dataAnalytics.provenance.sourceUnknown'),
+                                    })}</div>
+                                    <div>{t('dataAnalytics.provenance.updated', { date: observation.reportedDate })}</div>
                                     <div>{t('dataAnalytics.provenance.historicalNote')}</div>
                                 </>
                             ) : (
@@ -292,7 +348,7 @@ export const DataAnalytics: React.FC = () => {
                             )}
                             <div>{t('dataAnalytics.provenance.demandMethod')}</div>
                         </div>
-                        {fleetDataState === 'empty' ? (
+                        {fleetState === 'empty' ? (
                             <div className="rounded border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
                                 {t('dataAnalytics.demand.empty')}
                             </div>

@@ -141,7 +141,7 @@
       "averageConsumption": "Avg consumption: {{amount}} MT/yr per vessel",
       "estimatedDemand": "Estimated demand (derived): {{amount}}",
       "pendingDeliveries": "Pending deliveries",
-      "empty": "The live dataset reported no fleet demand entries for this update."
+      "empty": "The fleet observation reported no demand entries for this update."
     },
     "provenance": {
       "staticDataset": "Static dataset",
@@ -153,14 +153,13 @@
       "updated": "Updated: {{date}}",
       "sourceUnknown": "Source not supplied by the API",
       "baselineNotice": "Baseline estimate: no observed date or source.",
-      "noReportedDate": "No reported date",
       "historicalNote": "Reported by the dataset publisher; Verdaxis cannot certify facts the publisher did not record.",
       "demandMethod": "Estimate method: delivered vessels × average annual consumption per vessel.",
       "fleetState": {
         "loading": "Live fleet data is still loading; the values below are a baseline estimate.",
         "live": "Historical fleet observation",
         "empty": "Historical fleet observation returned zero entries",
-        "sample": "Live fleet data is unavailable; the values below are a baseline estimate."
+        "baseline": "Live fleet data is unavailable; the values below are a baseline estimate."
       }
     },
     "balance": {

@@ -141,7 +141,7 @@
       "averageConsumption": "平均消耗：每艘船 {{amount}} MT/yr",
       "estimatedDemand": "派生估算需求：{{amount}}",
       "pendingDeliveries": "等待交付",
-      "empty": "本次更新的实时数据集未报告船队需求条目。"
+      "empty": "本次更新的船队观测未报告需求条目。"
     },
     "provenance": {
       "staticDataset": "静态数据集",
@@ -153,14 +153,13 @@
       "updated": "更新时间：{{date}}",
       "sourceUnknown": "API 未提供来源",
       "baselineNotice": "基线估计：无观测日期或来源。",
-      "noReportedDate": "无报告日期",
       "historicalNote": "数据由数据集发布方报告；Verdaxis 无法核证发布方未记录的事实。",
       "demandMethod": "估算方法：已交付船舶数 × 每艘船的年均消耗量。",
       "fleetState": {
         "loading": "实时船队数据仍在加载；以下数值为基线估计值。",
         "live": "历史船队观测",
         "empty": "历史船队观测返回零条目",
-        "sample": "实时船队数据不可用；以下数值为基线估计值。"
+        "baseline": "实时船队数据不可用；以下数值为基线估计值。"
       }
     },
     "balance": {
