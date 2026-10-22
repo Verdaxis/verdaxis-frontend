@@ -91,6 +91,34 @@ describe('accepted Query scope lifecycle', () => {
         } finally { hook.unmount(); client.clear(); }
     });
 
+    it.each([412, 428, 'missing-version'] as const)('closes the cancellation dialog after session replacement during %s recovery', async recovery => {
+        setAccessToken('recovery-session');
+        const client = createQueryClient();
+        let finish!: () => void;
+        const refresh = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+        cancel.mockRejectedValue(new ApiError('version', typeof recovery === 'number' ? recovery : 412));
+        const t = ((key: string) => key) as TFunction;
+        const hook = renderHook(() => useCancelOrder({
+            userId: 'a', organizationId: 'org-a', marketSupportContextId: null,
+            scope: [getAuthGeneration(), 'a', 'org-a', null],
+            isMarketSupportActive: true, isHistorySelected: false, readError: null, t, fetchMyOrders: refresh,
+        }), { wrapper: ({ children }) => <QueryProvider client={client}>{children}</QueryProvider> });
+        try {
+            await act(async () => { await hook.result.current.handleCancelOrder({
+                id: 'order-a', creation_method: 'MARKET_SUPPORT',
+                etag: recovery === 'missing-version' ? null : '"v1"',
+            } as OrderBookOrder); });
+            let pending!: Promise<void>;
+            act(() => { pending = hook.result.current.confirmCancelOrder(); });
+            await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+            setAccessToken('replacement-session');
+            hook.rerender();
+            await act(async () => { finish(); await pending; });
+            expect(hook.result.current.pendingCancellation).toBeNull();
+            expect(hook.result.current.cancellationLoading).toBe(false);
+        } finally { hook.unmount(); client.clear(); }
+    });
+
     it('keeps one committed client through StrictMode and cleans listeners on unmount', () => {
         const clients = new Set();
         function ClientProbe() { clients.add(useQueryClient()); return null; }

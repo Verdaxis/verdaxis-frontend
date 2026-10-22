@@ -116,7 +116,10 @@ export function useCancelOrder({
         if (isMarketSupportActive && pendingCancellation.creation_method === 'MARKET_SUPPORT' && !pendingCancellation.etag) {
             setMyOrdersError(t('marketplace.cancel.missingVersion'));
             await fetchMyOrders();
-            if (!executionIsCurrent()) return;
+            if (!executionIsCurrent()) {
+                if (executionEpoch === cancellationEpochRef.current) setPendingCancellation(null);
+                return;
+            }
             setPendingCancellation(null);
             return;
         }
@@ -166,7 +169,10 @@ export function useCancelOrder({
             setCancellationOutcomeUnknown(false);
             if (error instanceof ApiError && (error.status === 412 || error.status === 428)) {
                 await fetchMyOrders(true);
-                if (!executionIsCurrent()) return;
+                if (!executionIsCurrent()) {
+                    if (executionEpoch === cancellationEpochRef.current) setPendingCancellation(null);
+                    return;
+                }
                 setMyOrdersError(t('marketplace.cancel.stale'));
                 setPendingCancellation(null);
             } else {
