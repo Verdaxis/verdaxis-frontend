@@ -204,6 +204,54 @@ describe('market_read_wrapper_cases', () => {
         expect(url.searchParams.get('limit')).toBe('128');
     });
 
+    it('sends zero bounds so the server can reject them', async () => {
+        fetchMock.mockImplementation(async () => jsonResponse([]));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await api.demand.signals({ limit: 0 });
+        await api.producers.list({ cod_year_min: 0, cod_year_max: 0 });
+
+        const demandUrl = new URL(requestUrl(0), 'http://localhost');
+        expect(demandUrl.searchParams.get('limit')).toBe('0');
+        const producerUrl = new URL(requestUrl(1), 'http://localhost');
+        expect(producerUrl.searchParams.get('cod_year_min')).toBe('0');
+        expect(producerUrl.searchParams.get('cod_year_max')).toBe('0');
+    });
+
+    it('turns a 422 with a list of validation messages into a typed client error', async () => {
+        fetchMock.mockResolvedValue(jsonResponse({
+            detail: [
+                { loc: ['query', 'limit'], msg: 'Input should be greater than or equal to 1', type: 'greater_than_equal' },
+            ],
+        }, 422));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const failure = api.demand.signals({ limit: 0 });
+
+        await expect(failure).rejects.toBeInstanceOf(ApiError);
+        await failure.catch((error: unknown) => {
+            const apiError = error as ApiError;
+            expect(apiError.status).toBe(422);
+            expect(apiError.code).toBeNull();
+            expect(apiError.message).toBe('Input should be greater than or equal to 1');
+        });
+    });
+
+    it('turns a 422 with a text detail into a typed client error', async () => {
+        fetchMock.mockResolvedValue(jsonResponse({ detail: 'The region filter is not supported.' }, 422));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const failure = api.demand.signals({ region: 'Atlantis' });
+
+        await expect(failure).rejects.toBeInstanceOf(ApiError);
+        await failure.catch((error: unknown) => {
+            const apiError = error as ApiError;
+            expect(apiError.status).toBe(422);
+            expect(apiError.code).toBeNull();
+            expect(apiError.message).toBe('The region filter is not supported.');
+        });
+    });
+
     it('turns a structured 422 into a typed client error', async () => {
         fetchMock.mockResolvedValue(jsonResponse({
             detail: { code: 'INVALID_FUEL_FILTER', message: 'The fuel filter is not supported.' },

@@ -137,12 +137,12 @@ describe('DataAnalytics', () => {
     renderWithProviders(<DataAnalytics />);
 
     expect((await screen.findAllByText('Historical fleet observation returned zero entries')).length).toBeGreaterThan(0);
-    expect(screen.getByText('The live dataset reported no fleet demand entries for this update.')).toBeTruthy();
+    expect(screen.getByText('The fleet observation reported no demand entries for this update.')).toBeTruthy();
     expect(screen.getByText('Source: Fleet intelligence live')).toBeTruthy();
     expect(screen.queryByText(/Live fleet data is unavailable/)).toBeNull();
   });
 
-  it('labels fallback figures as sample data when the API is unavailable', async () => {
+  it('labels fallback figures as a baseline estimate when the API is unavailable', async () => {
     fleetIntelligenceGetMock.mockRejectedValue(new Error('unavailable'));
     useAuthMock.mockReturnValue({ user: { role: 'ADMIN' } });
 
