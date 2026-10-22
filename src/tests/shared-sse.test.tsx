@@ -131,6 +131,44 @@ describe('shared SSE transport', () => {
         }
     });
 
+    it.each(['absent', 'disconnected'] as const)('reconciles active market queries once when the public owner is %s', async owner => {
+        vi.useFakeTimers();
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        const client = createQueryClient();
+        const keys = [
+            ['public', 'orderbook', 'listings', 'ASK'],
+            ['public', 'orderbook', 'counts', 'ASK'],
+            ['public', 'orderbook', 'snapshot', 'B30'],
+            ['private', [1, 'user', 'org', null], 'orderbook', 'my-orders'],
+        ];
+        const reads = keys.map(() => vi.fn().mockResolvedValue('current'));
+        const unobserve = keys.map((queryKey, index) => {
+            client.setQueryData(queryKey, 'previous');
+            return new QueryObserver(client, { queryKey, queryFn: reads[index], staleTime: Infinity }).subscribe(() => {});
+        });
+        const bridge = attachQueryInvalidation(client);
+        const publicView = owner === 'disconnected'
+            ? render(<Subscriber channel="orderbook" handler={() => queuePublicMarketRefresh()} />) : null;
+        const privateView = render(<Subscriber />);
+        try {
+            await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            const publicSource = Source.all.find(source => source.url.includes('/orderbook'));
+            const privateSource = Source.all.find(source => source.url.includes('/trades'))!;
+            act(() => { publicSource?.onopen?.(); publicSource?.onerror?.(); privateSource.onopen?.(); privateSource.onerror?.(); });
+            await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+            // No replacement public source opens or publishes an event.
+            act(() => Source.all.filter(source => source.url.includes('/trades')).at(-1)!.onopen?.());
+            await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+            reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
+            keys.forEach(key => expect(client.getQueryData(key)).toBe('current'));
+            await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+            reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
+        } finally {
+            publicView?.unmount(); privateView.unmount(); bridge.dispose();
+            unobserve.forEach(stop => stop()); client.clear(); vi.useRealTimers();
+        }
+    });
+
     it.each(['absent', 'disconnected'] as const)('keeps broad private recovery when the public owner is %s', async owner => {
         vi.useFakeTimers();
         vi.spyOn(Math, 'random').mockReturnValue(0);

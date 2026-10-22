@@ -2,6 +2,7 @@ import { API_URL } from '../../services/config';
 import { getAccessToken, getAuthGeneration, refreshAccessToken } from '../../services/authToken';
 import { invalidateReadCache, invalidateReadCacheWithCause, invalidateReadsForEvent } from '../../services/readCache';
 import { toTradeStreamPayload } from '../../api/mappers';
+import { queuePublicMarketRefresh } from '../../services/publicMarketSync';
 
 export type SSEChannel = 'prices' | 'orderbook' | 'trades';
 export type SSEHandler = (event: string, data: unknown) => void;
@@ -219,6 +220,7 @@ export function subscribeStream(channel: SSEChannel, scope: string, subscriber: 
                             invalidateReadCacheWithCause('event', 'trades:');
                         } else {
                             invalidateReadsForEvent(channel, 'reconnect');
+                            if (channel === 'trades') queuePublicMarketRefresh();
                         }
                         notify('reconnect', { reason: 'transport_reconnected' });
                     }
