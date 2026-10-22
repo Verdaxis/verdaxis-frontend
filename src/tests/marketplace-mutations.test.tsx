@@ -1,9 +1,13 @@
 import React from 'react';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryObserver, onlineManager } from '@tanstack/react-query';
 
 import { Marketplace } from '../components/Marketplace';
+import type { TFunction } from 'i18next';
+import type { OrderBookOrder } from '../types';
+import { useTakeTrade } from '../features/marketplace/hooks/useTakeTrade';
+import { QueryProvider } from '../lib/query/QueryProvider';
 import { ApiError, ApiOutcomeUnknownError } from '../services/api';
 import { clearAccessToken, getAuthGeneration, setAccessToken } from '../services/authToken';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
@@ -147,6 +151,47 @@ describe('Marketplace take execution', () => {
         expect(mocks.initiate.mock.calls[1][0].idempotency_key).toBe(first.idempotency_key);
     });
 
+    it('keeps the reviewed trade request when quantity changes before an explicit retry', async () => {
+        mocks.initiate.mockRejectedValueOnce(new ApiOutcomeUnknownError('timeout')).mockResolvedValueOnce(tradeResult);
+        const client = createQueryClient();
+        const t = ((key: string) => key) as TFunction;
+        const hook = renderHook(() => useTakeTrade({ userId: 'user-a', organizationId: 'org-a',
+            isMarketSupportActive: false, isHistorySelected: false, marketTab: 'market',
+            b100TradingEnabled: false, bioLngTradingEnabled: false, t, tRfq: t,
+            fetchProductCounts: vi.fn(), fetchListings: vi.fn(), currentSkip: 0, prefillAskOrder: vi.fn(),
+        }), { wrapper: ({ children }) => <QueryProvider client={client}>{children}</QueryProvider> });
+        try {
+            act(() => hook.result.current.openTradeModal(ask as OrderBookOrder));
+            act(() => hook.result.current.reviewTrade());
+            await act(async () => { await hook.result.current.confirmTrade(); });
+            const first = structuredClone(mocks.initiate.mock.calls[0][0]);
+            act(() => hook.result.current.setTradeQuantity(200));
+            await act(async () => { await hook.result.current.confirmTrade(); });
+            expect(mocks.initiate).toHaveBeenCalledTimes(2);
+            expect(mocks.initiate.mock.calls[1][0]).toEqual(first);
+            expect(first.quantity_mt).toBe(500);
+        } finally { hook.unmount(); client.clear(); }
+    });
+
+    it('keeps the current view after a pending take enters support A then support B', async () => {
+        let finish!: (value: typeof tradeResult) => void;
+        mocks.initiate.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+        const view = renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        await openTradeAndConfirm();
+        await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
+        mocks.support.active = true;
+        mocks.support.current = { id: 'support-a' };
+        setMarketSupportContextId('support-a');
+        view.rerender(<Marketplace />);
+        mocks.support.current = { id: 'support-b' };
+        setMarketSupportContextId('support-b');
+        view.rerender(<Marketplace />);
+        await act(async () => { finish(tradeResult); });
+        expect(screen.queryByText('Trade Request Sent')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Confirm Trade' })).toBeNull();
+        expect(mocks.initiate).toHaveBeenCalledTimes(1);
+    });
+
     it('blocks a trade retry after the auth generation changes', async () => {
         mocks.initiate.mockRejectedValueOnce(new ApiOutcomeUnknownError('timeout'));
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
@@ -174,7 +219,7 @@ describe('Marketplace take execution', () => {
         await openTradeAndConfirm();
         await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
 
-        mocks.user.current = { id: 'user-b', organization_id: 'org-b', role: 'BUYER' };
+        mocks.user.current = { id: 'user-a', organization_id: 'org-b', role: 'BUYER' };
         view.rerender(<Marketplace />);
         fireEvent.click(await screen.findByRole('button', { name: 'Lift Ask' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Submit Trade' }));
@@ -320,6 +365,27 @@ describe('Marketplace cancellation execution', () => {
         expect(mocks.cancel).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the current support dialog after a deferred cancellation success', async () => {
+        mocks.support.active = true;
+        mocks.support.current = { id: 'support-a' };
+        setMarketSupportContextId('support-a');
+        mocks.myOrders.mockResolvedValue([{ ...ownOrder, creation_method: 'MARKET_SUPPORT' }]);
+        let finish!: () => void;
+        mocks.cancel.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+        const view = renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        await openMyListingsRow();
+        await confirmCancellation();
+        await waitFor(() => expect(mocks.cancel).toHaveBeenCalledTimes(1));
+        mocks.support.current = { id: 'support-b' };
+        setMarketSupportContextId('support-b');
+        view.rerender(<Marketplace />);
+        await openMyListingsRow();
+        await act(async () => { finish(); });
+        expect(screen.getByText('Cancel Harbour')).toBeTruthy();
+        expect(screen.getByRole('textbox', { name: /cancellation reason/i })).toBeTruthy();
+        expect(mocks.cancel).toHaveBeenCalledTimes(1);
+    });
+
     it.each([412, 428])('reloads owned orders when cancellation is stale (%i)', async status => {
         mocks.cancel.mockRejectedValueOnce(new ApiError('stale', status));
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
@@ -363,7 +429,7 @@ describe('Marketplace cancellation execution', () => {
         await confirmCancellation();
         await waitFor(() => expect(mocks.cancel).toHaveBeenCalledTimes(1));
 
-        mocks.user.current = { id: 'user-b', organization_id: 'org-b', role: 'BUYER' };
+        mocks.user.current = { id: 'user-a', organization_id: 'org-b', role: 'BUYER' };
         const nextOrder = { ...ownOrder, id: 'own-b', delivery_point_name: 'Next Harbour' };
         mocks.myOrders.mockResolvedValue([nextOrder]);
         view.rerender(<Marketplace />);
@@ -422,6 +488,58 @@ describe('mutation settlement invalidation', () => {
         } finally {
             unsubscribe();
             clearAccessToken();
+        }
+    });
+
+    const settlementCases = (['take', 'create', 'update', 'cancel'] as const).flatMap(action =>
+        (['success', 'known error', 'unknown outcome'] as const).map(outcome => ({ action, outcome })));
+
+    it.each(settlementCases)('reconciles listings, counts, snapshot and my-orders for $action / $outcome', async ({ action, outcome }) => {
+        const api = await realApi();
+        clearMarketSupportContextId();
+        setAccessToken('matrix-token');
+        vi.useFakeTimers();
+        const client = createQueryClient();
+        const keys = [
+            ['public', 'orderbook', 'listings', 'ASK'],
+            ['public', 'orderbook', 'counts', 'ASK'],
+            ['public', 'orderbook', 'snapshot', 'B30'],
+            ['private', [getAuthGeneration(), 'user-a', 'org-a', null], 'orderbook', 'my-orders'],
+        ];
+        const reads = keys.map(() => vi.fn().mockResolvedValue(['current']));
+        const unobserve = keys.map((queryKey, index) => {
+            client.setQueryData(queryKey, ['previous']);
+            return new QueryObserver(client, { queryKey, queryFn: reads[index], staleTime: Infinity }).subscribe(() => {});
+        });
+        const bridge = attachQueryInvalidation(client);
+        const events: { prefixes: readonly string[]; cause: string }[] = [];
+        const detach = subscribeReadInvalidations(event => events.push(event));
+        let finish!: (value: Response) => void;
+        vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+        try {
+            const write = action === 'take'
+                ? api.trades.initiate({ order_id: 'b30-ask', quantity_mt: 500, expected_terms_digest: 'terms-digest-1', idempotency_key: 'matrix-key' })
+                : action === 'create' ? api.orderbook.create({ ...ask, idempotency_key: 'matrix-key' } as Parameters<typeof api.orderbook.create>[0])
+                : action === 'update' ? api.orderbook.update('own-1', { price_per_mt_usd: 920 }, 'matrix-key')
+                : api.orderbook.cancel('own-1', { reason: 'Stop', etag: '"v7"', idempotencyKey: 'matrix-key' });
+            // Attach the rejection handler before finishing the transport.
+            const settled = write.then(() => null, error => error);
+            await vi.advanceTimersByTimeAsync(600);
+            reads.forEach(read => expect(read).not.toHaveBeenCalled());
+            keys.forEach(key => expect(client.getQueryState(key)?.isInvalidated).toBe(true));
+            finish(outcome === 'success' ? response({ ...ask, ...tradeResult })
+                : outcome === 'known error' ? response({ detail: 'Rejected' }, 400)
+                : response({ detail: 'Idempotency key is busy; retry the same request' }, 503));
+            const error = await settled;
+            if (outcome === 'success') expect(error).toBeNull();
+            else expect(error).toBeInstanceOf(outcome === 'known error' ? ApiError : ApiOutcomeUnknownError);
+            expect(events.map(event => event.cause)).toEqual(['mutation-start', 'mutation-settled']);
+            expect(events.every(event => event.prefixes.includes('orderbook:'))).toBe(true);
+            await vi.advanceTimersByTimeAsync(500);
+            reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
+            keys.forEach(key => expect(client.getQueryData(key)).toEqual(['current']));
+        } finally {
+            detach(); bridge.dispose(); unobserve.forEach(stop => stop()); client.clear(); clearAccessToken();
         }
     });
 
