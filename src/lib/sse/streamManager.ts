@@ -1,6 +1,6 @@
 import { API_URL } from '../../services/config';
 import { getAccessToken, getAuthGeneration, refreshAccessToken } from '../../services/authToken';
-import { invalidateReadCache, invalidateReadsForEvent } from '../../services/readCache';
+import { invalidateReadCache, invalidateReadCacheWithCause, invalidateReadsForEvent } from '../../services/readCache';
 import { toTradeStreamPayload } from '../../api/mappers';
 
 export type SSEChannel = 'prices' | 'orderbook' | 'trades';
@@ -212,7 +212,14 @@ export function subscribeStream(channel: SSEChannel, scope: string, subscriber: 
                     setIsConnected(true);
                     backoffRef.current = INITIAL_RECONNECT_DELAY;
                     if (isReconnect) {
-                        invalidateReadsForEvent(channel, 'reconnect');
+                        // The connected public stream owns market recovery. A late
+                        // private reconnect must not dirty its completed market read.
+                        // Without that owner, retain the broad recovery fallback.
+                        if (channel === 'trades' && channels.get('orderbook')?.connected) {
+                            invalidateReadCacheWithCause('event', 'trades:');
+                        } else {
+                            invalidateReadsForEvent(channel, 'reconnect');
+                        }
                         notify('reconnect', { reason: 'transport_reconnected' });
                     }
                 };

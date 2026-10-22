@@ -2,6 +2,11 @@ import React, { StrictMode } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSSE } from '../hooks/useSSE';
+import { QueryObserver } from '@tanstack/react-query';
+import { createQueryClient } from '../lib/query/client';
+import { attachQueryInvalidation } from '../lib/query/invalidation';
+import { queuePublicMarketRefresh } from '../services/publicMarketSync';
+import { subscribeReadInvalidations } from '../services/readCache';
 
 const scope = vi.hoisted(() => ({ user: { id: 'user', organization_id: 'org' }, context: null as { id: string } | null }));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: scope.user }) }));
@@ -75,6 +80,91 @@ describe('shared SSE transport', () => {
         expect(Source.all[2].closed).toBe(true);
         await waitFor(() => expect(Source.all).toHaveLength(4));
         view.unmount();
+    });
+
+    it('does not repeat market reads for a late private reconnect after public recovery', async () => {
+        vi.useFakeTimers();
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        const client = createQueryClient();
+        const keys = [['public', 'orderbook', 'listings', 'ASK'], ['public', 'orderbook', 'counts', 'ASK']];
+        const reads = keys.map(() => vi.fn().mockResolvedValue('new'));
+        const unobserve = keys.map((queryKey, index) => {
+            client.setQueryData(queryKey, 'old');
+            return new QueryObserver(client, { queryKey, queryFn: reads[index], staleTime: Infinity }).subscribe(() => {});
+        });
+        const bridge = attachQueryInvalidation(client);
+        const invalidations = vi.fn();
+        const detach = subscribeReadInvalidations(invalidations);
+        const publicView = render(<Subscriber channel="orderbook" handler={() => queuePublicMarketRefresh()} />);
+        const privateView = render(<Subscriber />);
+        try {
+            await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            const publicSource = Source.all.find(source => source.url.includes('/orderbook'))!;
+            const privateSource = Source.all.find(source => source.url.includes('/trades'))!;
+            act(() => { publicSource.onopen?.(); privateSource.onopen?.(); publicSource.onerror?.(); });
+            await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+            const recoveredPublic = Source.all.filter(source => source.url.includes('/orderbook')).at(-1)!;
+            act(() => recoveredPublic.onopen?.());
+            await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+            act(() => recoveredPublic.emit('order_created', { id: 'fixture-order' }));
+            await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+            reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
+
+            // The private source recovers after that batch has already read.
+            act(() => privateSource.onerror?.());
+            await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+            const recoveredPrivate = Source.all.filter(source => source.url.includes('/trades')).at(-1)!;
+            invalidations.mockClear();
+            act(() => recoveredPrivate.onopen?.());
+            expect(invalidations).toHaveBeenCalledWith({ prefixes: ['trades:'], cause: 'event' });
+            // A queued public batch must not flush market work left by private recovery.
+            queuePublicMarketRefresh();
+            await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+            reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
+            expect(invalidations.mock.calls.filter(([event]) => event.prefixes.includes('orderbook:'))).toHaveLength(0);
+            act(() => recoveredPublic.emit('order_created', { id: 'next-order' }));
+            await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+            reads.forEach(read => expect(read).toHaveBeenCalledTimes(2));
+        } finally {
+            publicView.unmount(); privateView.unmount(); detach(); bridge.dispose();
+            unobserve.forEach(stop => stop()); client.clear(); vi.useRealTimers();
+        }
+    });
+
+    it.each(['absent', 'disconnected'] as const)('keeps broad private recovery when the public owner is %s', async owner => {
+        vi.useFakeTimers();
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        const invalidations = vi.fn();
+        const detach = subscribeReadInvalidations(invalidations);
+        const publicView = owner === 'disconnected' ? render(<Subscriber channel="orderbook" />) : null;
+        const privateView = render(<Subscriber />);
+        try {
+            await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            const privateSource = Source.all.find(source => source.url.includes('/trades'))!;
+            act(() => { privateSource.onopen?.(); privateSource.onerror?.(); });
+            await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+            invalidations.mockClear();
+            act(() => Source.all.filter(source => source.url.includes('/trades')).at(-1)!.onopen?.());
+            expect(invalidations).toHaveBeenCalledWith(expect.objectContaining({ prefixes: expect.arrayContaining(['orderbook:']), cause: 'event' }));
+            expect(invalidations).toHaveBeenCalledWith({ prefixes: ['trades:'], cause: 'event' });
+        } finally { publicView?.unmount(); privateView.unmount(); detach(); vi.useRealTimers(); }
+    });
+
+    it('keeps market invalidation for real private events and resets with a connected public owner', async () => {
+        const invalidations = vi.fn();
+        const detach = subscribeReadInvalidations(invalidations);
+        const publicView = render(<Subscriber channel="orderbook" />);
+        const privateView = render(<Subscriber />);
+        try {
+            await waitFor(() => expect(Source.all).toHaveLength(2));
+            act(() => Source.all.find(source => source.url.includes('/orderbook'))!.onopen?.());
+            const privateSource = Source.all.find(source => source.url.includes('/trades'))!;
+            for (const event of ['trade_created', 'reset']) {
+                invalidations.mockClear();
+                act(() => privateSource.emit(event, { reason: 'subscriber_overflow' }));
+                expect(invalidations).toHaveBeenCalledWith(expect.objectContaining({ prefixes: expect.arrayContaining(['orderbook:']), cause: 'event' }));
+            }
+        } finally { publicView.unmount(); privateView.unmount(); detach(); }
     });
 
     it('leaves no live source after StrictMode teardown', async () => {
