@@ -285,8 +285,7 @@ export function useTakeTrade({
         setTradeState('submitting');
         tradeInFlightRef.current = true;
         // Until the frozen request exists, the epoch is the whole scope test.
-        // A synchronous failure in that construction still reports an error
-        // instead of leaving the dialog in `submitting`.
+        // It also guards errors from synchronous request construction.
         let executionIsCurrent = () => executionEpoch === tradeEpochRef.current;
         // A late result never reaches another workspace. In the same workspace
         // under a replaced session it ends the dialog, as a cancellation does.

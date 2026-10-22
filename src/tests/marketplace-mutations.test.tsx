@@ -218,7 +218,7 @@ describe('Marketplace take execution', () => {
         expect(mocks.initiate).toHaveBeenCalledTimes(1);
     });
 
-    it('reports an error when the request cannot be built instead of staying in submitting', async () => {
+    it('reports an error when the request cannot be built', async () => {
         vi.stubGlobal('crypto', { randomUUID: () => { throw new Error('uuid unavailable'); } });
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
         await openTradeAndConfirm();
