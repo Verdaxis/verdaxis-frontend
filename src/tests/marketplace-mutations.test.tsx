@@ -358,7 +358,7 @@ describe('Marketplace cancellation execution', () => {
         await openMyListingsRow();
         await confirmCancellation();
         const retry = await screen.findByRole('button', { name: /retry safely with the same request/i });
-        mocks.support.current = { id: 'support-b' };
+        // The execution store changes before the provider accepts the new scope.
         setMarketSupportContextId('support-b');
         fireEvent.click(retry);
         expect(await screen.findByText(/account or assisted context changed/i)).toBeTruthy();
