@@ -109,7 +109,7 @@ describe('fleet_display_states', () => {
 
     renderWithProviders(<DataAnalytics />);
 
-    expect(await screen.findByText(loadingLabel)).toBeTruthy();
+    expect((await screen.findAllByText(loadingLabel)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/112\/323 delivered/).length).toBeGreaterThan(0);
     expect(screen.queryByText(historicalLabel)).toBeNull();
     expect(screen.queryByText(/^Source:/)).toBeNull();
