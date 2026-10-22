@@ -100,10 +100,11 @@ const readSources = (sources: unknown): string[] => {
  */
 const readFleetObservation = (fleetDocument: unknown): FleetObservation => {
     if (!isRecord(fleetDocument)) throw new Error('The fleet document is not an object.');
-    if (!Array.isArray(fleetDocument.entries)) throw new Error('The fleet entries are not a list.');
-    const entries = fleetDocument.entries.map(readFleetEntry);
-    const sources = readSources(fleetDocument.sources);
-    const reportedDate = formatReportedDate(fleetDocument.last_updated);
+    const { entries: rawEntries, sources: rawSources, last_updated: lastUpdated } = fleetDocument;
+    if (!Array.isArray(rawEntries)) throw new Error('The fleet entries are not a list.');
+    const entries = rawEntries.map(readFleetEntry);
+    const sources = readSources(rawSources);
+    const reportedDate = formatReportedDate(lastUpdated);
     if (reportedDate === null) throw new Error('The fleet update value is not a date.');
     return { entries, sources, reportedDate };
 };
