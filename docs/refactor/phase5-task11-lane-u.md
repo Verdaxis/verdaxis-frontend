@@ -3,25 +3,87 @@
 ## Scope and status
 
 Completed the fleet label and market read wrapper fixture batch on branch
-`feat/rust-phase-5-u`. The first round tested code commit
-`7c77f7b6a741deb69cec834c35cd12e811fe98c9`. The review fix round below
-supersedes it: its tested code commit is
-`9abf973bbb2b8f1d150008bca6546467e51f7910`.
-
-- `febfeb9a`: add typed producer, availability and demand read wrappers through
-  the shared fetch/error handler. Existing wrappers are unchanged. New read
-  results retain decimal strings and nullable fields.
-- `597b600c`: add `market_read_wrapper_cases` and `fleet_display_states` fixtures.
-- `9891973d`: retain fleet baseline values, label them as estimates, omit observed
-  date/source for fallback and loading states, and label reported observations
-  as historical. Mark derived demand as an estimate in English and Chinese.
-  Update only the authorized wording assertions in `data-analytics.test.tsx`.
-- `7c77f7b6`: allow the loading-label assertion to read both provenance panels.
+`feat/rust-phase-5-u`. The tested code commit is
+`15550edd36f01b4ba00f9f0e4b83a65d2483f6c9`. The earlier rounds tested
+`7c77f7b6a741deb69cec834c35cd12e811fe98c9` and
+`9abf973bbb2b8f1d150008bca6546467e51f7910`; their evidence stays below.
 
 No feature API/hooks, journey scripts, compliance cases or architecture files
 were changed. No structure or key relationship changed.
 
-## RED evidence recovered from the previous session
+## What the code does
+
+Market read wrappers (`src/services/api.ts`):
+
+- Typed producer, availability and demand read wrappers use the shared
+  fetch/error handler. Existing wrappers are unchanged.
+- Read results keep decimal strings and nullable fields as received.
+- Every year bound and limit that the caller sets is sent, zero included, so
+  the server decides whether the value is valid.
+- The availability and demand types use the existing market source, scope and
+  demo status types.
+- A 422 or 503 becomes a typed client error for the structured, list and text
+  forms of `detail`.
+
+Fleet display (`src/components/DataAnalytics.tsx`):
+
+- The page checks the whole fleet document before any state update. Entries
+  must be a list of objects with fuel and color text and non-negative integer
+  vessel counts and consumption. Sources must be a list of text. The update
+  value must be a calendar date, with an optional time that carries its UTC
+  offset.
+- A document that fails a check, a 503 and a network failure keep the baseline
+  values, labeled as a baseline estimate, with no source or date.
+- A date-only update value is shown as received, for example
+  `Updated: 2026-05-14`. A value with a time and an offset is shown in UTC.
+- Source and date appear only for a checked observation, which is labeled as a
+  historical observation. Loading placeholders are not shown as an observation.
+- A checked document with no entries shows the empty observation with its
+  source and date, not the baseline totals.
+- Derived demand is labeled as an estimate in English and Chinese.
+
+## Commits
+
+First round:
+
+- `febfeb9a`: add the typed market read wrappers.
+- `597b600c`: add `market_read_wrapper_cases` and `fleet_display_states` fixtures.
+- `9891973d`: label the fleet baseline values as estimates, omit the observed
+  date/source for baseline and loading states, and label reported observations
+  as historical. Update only the authorized wording assertions in
+  `data-analytics.test.tsx`.
+- `7c77f7b6`: allow the loading-label assertion to read both provenance panels.
+
+Second round:
+
+- `c273a28c`: tests only. Date-only fleet fixtures expect `Updated: 2026-05-14`
+  as received; one fixture with a time and an offset expects a UTC time.
+  Malformed documents (null or non-text sources, non-numeric, missing,
+  negative or fractional counts, a missing consumption figure, fuel or color,
+  and update values that are not dates) expect the labeled baseline. The empty
+  observation must not show baseline totals. The paywall test checks the
+  unlock after the subscription read. Market read fixtures add zero bounds and
+  the list and text forms of a 422 `detail`.
+- `12edc8b6`: check the whole fleet document before any state update; show a
+  date-only value as received; keep source and date only on a checked
+  observation; name the unavailable state and its label key `baseline`; use
+  neutral empty-observation text in both locales.
+- `38272e55`: send zero producer year bounds and a zero demand limit; type the
+  availability and demand market labels with the existing market types.
+- `9abf973b`: read the fleet document fields into local values first.
+
+Third round:
+
+- `15550edd`: the readiness test in `data-analytics.test.tsx` resolves the
+  fleet read with a date-only document, so it covers a checked observation.
+
+Commits that are not green alone:
+
+- `9891973d` alone fails one test, on the duplicate loading label; `7c77f7b6`
+  changed that test to read both panels.
+- `12edc8b6` alone fails only "sends zero bounds"; `38272e55` makes it pass.
+
+## First round evidence
 
 Host: M1 Pro, Node `v24.21.0`, through `heavy run 3600`.
 Local log: `work/gate-u-3.log`.
@@ -36,16 +98,12 @@ Individual gate exits, not that outer marker, establish the results below.
 
 The earlier `gate-u.log` failed during dependency installation, so its later
 failures are not RED evidence. The completed third log supersedes those runs.
-In `gate-u-2.log`, the GREEN run before `7c77f7b6` failed one test, on the
-duplicate loading label. `7c77f7b6` changed that test to read both panels, so
-`9891973d` alone is not green and `7c77f7b6` is the tested SHA of that round.
+`gate-u-2.log` shows the GREEN run of `9891973d` noted above.
 The untracked `tasks/gate-u.sh` was preserved, not committed or rerun: its outer
 exit does not aggregate gate failures and it changes the remote checkout.
 
-## Fresh handoff verification
-
-Host and toolchain as above; exact code SHA
-`7c77f7b6a741deb69cec834c35cd12e811fe98c9` was checked before the gates.
+Handoff verification on exact code SHA
+`7c77f7b6a741deb69cec834c35cd12e811fe98c9`, same host and toolchain.
 One fail-fast batched `heavy run 3600` call ran from
 `2026-10-22T13:05:23Z` to `2026-10-22T13:05:59Z`.
 Local log: `work/gate-u-handoff.log`; final marker `CALL_EXIT=0`.
@@ -67,26 +125,7 @@ artifact checks only. No artifact was published. Vite emitted its chunk-size
 warning; both artifact budget checks passed. No tests or builds ran on the
 controller Mac.
 
-## Review fix round
-
-The independent review asked for honest dates, a check of the whole fleet
-document, and a public record without host identity. Commits:
-
-- `c273a28c`: tests only. Date-only fleet fixtures expect `Updated: 2026-05-14`
-  as received; one fixture with a time and an offset expects a UTC time.
-  Malformed documents (null or non-text sources, non-numeric, missing,
-  negative or fractional counts, a missing consumption figure, fuel or color,
-  and update values that are not dates) expect the labeled baseline. The empty
-  observation must not show baseline totals. The paywall test checks the
-  unlock after the subscription read. Market read fixtures add zero bounds and
-  the list and text forms of a 422 `detail`.
-- `12edc8b6`: check the whole fleet document before any state update; show a
-  date-only value as received; keep source and date only on a checked
-  observation; rename the unavailable state and its label key to `baseline`;
-  use neutral empty-observation text in both locales.
-- `38272e55`: send zero producer year bounds and a zero demand limit; type the
-  availability and demand market labels with the existing market types.
-- `9abf973b`: read the fleet document fields into local values first.
+## Second round evidence
 
 One batched `heavy run 3600` call on the M1 Pro (Node `v24.21.0`) ran from
 `2026-10-22T13:43:46Z` to `2026-10-22T13:44:42Z`. Local log:
@@ -107,8 +146,25 @@ One batched `heavy run 3600` call on the M1 Pro (Node `v24.21.0`) ran from
 | `npm run build:check:prod` | `9abf973b` | 2026-10-22T13:44:42Z | 0 |
 
 The list and text 422 fixtures, the UTC time fixture, the paywall unlock
-check and the null-document case pass on the tests-only commit too: they
-cover behavior that was already correct.
+check and the null-document case pass on the tests-only commit too; they pin
+existing behavior.
+
+## Third round evidence
+
+One batched `heavy run 3600` call on the M1 Pro (Node `v24.21.0`) ran from
+`2026-10-22T13:51:45Z` to `2026-10-22T13:52:25Z`. Local log:
+`work/gate-u-fix2.log`; final marker `CALL_EXIT=0`. The round changes one test
+fixture and no application code, so it has no RED step.
+
+| Gate | SHA | UTC end | Exit/result |
+|---|---|---|---|
+| `npm test` (single-commit check) | `12edc8b6` | 2026-10-22T13:52:04Z | 1; only "sends zero bounds" failed, 1,224 passed |
+| Focused fixtures plus `data-analytics.test.tsx` | `15550edd` | 2026-10-22T13:52:06Z | 0; 39 passed |
+| `npm test` | `15550edd` | 2026-10-22T13:52:24Z | 0; 153 files, 1,225 tests passed |
+| `npm run typecheck` | `15550edd` | 2026-10-22T13:52:25Z | 0 |
+
+The i18n, contract and build gates of the second round cover the same
+application code and were not rerun.
 
 ## Deferred work and resume point
 
