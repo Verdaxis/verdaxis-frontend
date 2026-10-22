@@ -105,6 +105,25 @@ def journey_login_wrong_password(harness, state):
     return still_login and has_error and not harness.errors, f'url={page.url}'
 
 
+def seed_pagination(harness):
+    """Add rows after screenshots, preserving the committed seeded captures."""
+    from .seed_orders import ASK_METADATA
+    token = harness.login_token(SUPPLIER, PASSWORD)
+    products = harness.api_call('/api/catalog/products')['body']
+    points = harness.api_call('/api/catalog/delivery-points')['body']
+    product = next(row['id'] for row in products if row['market_product'] == 'B30')
+    point = next(row['id'] for row in points if row['name'] == 'Singapore')
+    for index in range(8):
+        result = harness.api_call('/api/orderbook', method='POST', token=token,
+                                  body={'side': 'ASK', 'product_id': product,
+                                        'delivery_point_id': point, 'quantity_mt': 200,
+                                        'price_per_mt_usd': 950 + index,
+                                        'availability_window': 'SPOT', **ASK_METADATA})
+        assert result['status'] in (200, 201), f'pagination seed failed: {result["status"]}'
+    for record in harness.ledger.records:
+        record['category'] = 'seed'
+
+
 def journey_marketplace_browse(harness, state):
     page = open_app(harness, BUYER, PASSWORD)
     page.locator('[data-tour="nav-MARKETPLACE"]').click()
@@ -131,15 +150,55 @@ def journey_marketplace_browse(harness, state):
     sg_rows = page.locator('[data-tour="marketplace-listing-row"]').count()
     detail_parts.append(f'Singapore rows={sg_rows}')
 
-    # Pagination appears once the filtered scope holds more than PAGE_SIZE rows.
+    # Require the fixture's second page; absence is a broken safety net.
+    first_ids = set(page.locator('[data-order-id]').evaluate_all(
+        '(rows) => rows.map(row => row.dataset.orderId)'))
     page_buttons = page.get_by_role('button', name='2', exact=True)
-    if page_buttons.count():
-        page_buttons.first.click()
+    assert page_buttons.count(), 'B30 Singapore fixture must have at least nine asks'
+    marker = len(harness.ledger.records)
+    page_buttons.first.evaluate('(button) => button.click()')
+    page.wait_for_timeout(900)
+    wait_listings(page)
+    second_ids = set(page.locator('[data-order-id]').evaluate_all(
+        '(rows) => rows.map(row => row.dataset.orderId)'))
+    assert first_ids and second_ids and first_ids.isdisjoint(second_ids), 'page 2 repeated page 1 ids'
+    assert any(row['route'] == '/api/orderbook/asks'
+               and row['params'].get('skip') == '8' and row['params'].get('limit') == '8'
+               for row in harness.ledger.records[marker:]), 'page 2 did not request skip=8,limit=8'
+    detail_parts.append('distinct page 2; skip=8,limit=8')
+
+    def reset_page(action):
+        button = page.get_by_role('button', name='2', exact=True).first
+        button.evaluate('(button) => button.click()')
         page.wait_for_timeout(900)
-        wait_listings(page)
-        detail_parts.append('page 2 opened')
-    else:
-        detail_parts.append('no second page (fewer than 9 rows)')
+        current_ids = set(page.locator('[data-order-id]').evaluate_all(
+            '(rows) => rows.map(row => row.dataset.orderId)'))
+        assert current_ids == second_ids, 'reset case did not start on page 2'
+        marker = len(harness.ledger.records)
+        action()
+        page.wait_for_timeout(900)
+        reads = [row for row in harness.ledger.records[marker:]
+                 if row['route'] == '/api/orderbook/asks']
+        assert reads and all(row['params'].get('skip', '0') == '0' for row in reads), 'filter kept page 2'
+
+    reset_page(lambda: page.locator('[data-market-product="B100"]').click())
+    page.locator('[data-market-product="B30"]').click()
+    page.wait_for_timeout(800)
+    def change_port():
+        page.locator('[data-tour="marketplace-port-select"]').click()
+        page.locator('[role="option"]', has_text='Rotterdam').first.click()
+    reset_page(change_port)
+    page.locator('[data-tour="marketplace-port-select"]').click()
+    page.locator('[role="option"]', has_text='Singapore').first.click()
+    page.wait_for_timeout(800)
+    def change_window():
+        page.locator('[data-tour="marketplace-window-select"]').click()
+        page.locator('[data-tour="marketplace-window-option-spot"]').first.click()
+    reset_page(change_window)
+    def change_sort():
+        page.get_by_role('combobox', name='Sort By', exact=True).click()
+        page.get_by_role('option', name='Price: High → Low', exact=True).click()
+    reset_page(change_sort)
 
     # Orderbook tab. It renders only for one exact product, port and window,
     # so the spot window is selected first (the empty state says so).
@@ -168,17 +227,124 @@ def journey_marketplace_deep_link(harness, state):
     (auth-refresh, api-auth-race).
     """
     page = open_app(harness, BUYER, PASSWORD)
-    page.evaluate(
-        "() => { history.pushState({}, '', '/app/m/b30/singapore/spot');"
-        " dispatchEvent(new PopStateEvent('popstate')); }")
-    page.wait_for_timeout(1500)
+    def navigate(path):
+        page.evaluate("path => { history.pushState({}, '', path); dispatchEvent(new PopStateEvent('popstate')); }", path)
+
+    def exact(product, port, path):
+        page.wait_for_selector(f'[data-tour-market-product="{product}"][data-tour-port="{port}"][data-tour-window="SPOT"]', timeout=30000)
+        page.wait_for_timeout(1000)
+        assert page.url == harness.base + path, f'exact slice URL changed: {page.url}'
+
+    navigate('/app/m/b30/singapore/spot')
+    exact('B30', 'Singapore', '/app/m/b30/singapore/spot')
     wait_listings(page, timeout=45000)
-    slice_chip = page.locator('[data-market-product="B30"][aria-pressed="true"]')
-    pressed = slice_chip.count()
-    url_kept = '/app/m/b30/singapore/spot' in page.url or '/app/marketplace' in page.url
-    port_label = page.locator('[data-tour="marketplace-port-select"]').inner_text() if page.locator('[data-tour="marketplace-port-select"]').count() else ''
-    return pressed == 1 and url_kept and not harness.errors, (
-        f'B30 chip active={pressed}; port={port_label!r}; url={page.url}')
+    navigate('/app/m/b30/rotterdam/spot')
+    exact('B30', 'Rotterdam', '/app/m/b30/rotterdam/spot')
+    page.go_back(wait_until='domcontentloaded')
+    exact('B30', 'Singapore', '/app/m/b30/singapore/spot')
+    page.go_forward(wait_until='domcontentloaded')
+    exact('B30', 'Rotterdam', '/app/m/b30/rotterdam/spot')
+    navigate('/app/m/b30/singapore/spot?product=B100')
+    exact('B30', 'Singapore', '/app/m/b30/singapore/spot')
+    navigate('/app/m/ucome-b100/rotterdam/spot')
+    exact('UCOME_B100', 'Singapore', '/app/m/ucome-b100/singapore/spot')
+    assert page.locator('[data-tour-market-product="UCOME_B100"][data-tour-port="Rotterdam"]').count() == 0
+    return not harness.errors, 'exact slice; slice-to-slice; back/forward; conflicting product removed; invalid lane rejected'
+
+
+def measurement_windows():
+    return [
+        Step('window-listings-visible-60s', window_listings),
+        Step('window-depth-visible-60s', window_depth),
+        Step('window-hidden-60s-resume', window_hidden),
+        Step('window-live-event-burst', window_event_burst),
+        Step('window-live-reconnect', window_reconnect),
+    ]
+
+
+def _measurement_market(harness, depth=False):
+    page = open_app(harness, BUYER, PASSWORD)
+    page.evaluate("() => { history.pushState({}, '', '/app/m/b30/singapore/spot'); dispatchEvent(new PopStateEvent('popstate')); }")
+    page.wait_for_selector('[data-tour-market-product="B30"][data-tour-port="Singapore"][data-tour-window="SPOT"]')
+    wait_listings(page)
+    if depth:
+        page.locator('[data-tour="marketplace-tab-orderbook"]').click()
+        wait_orderbook(page)
+    page.wait_for_timeout(2000)
+    return page
+
+
+def window_listings(harness, state):
+    page = _measurement_market(harness)
+    harness.begin_window()
+    page.wait_for_timeout(60000)
+    return not harness.errors, '60-second visible listings window'
+
+
+def window_depth(harness, state):
+    page = _measurement_market(harness, depth=True)
+    harness.begin_window()
+    page.wait_for_timeout(60000)
+    return not harness.errors, '60-second visible exact depth window'
+
+
+def window_hidden(harness, state):
+    page = _measurement_market(harness, depth=True)
+    harness.begin_window()
+    page.evaluate("() => { Object.defineProperty(document, 'visibilityState', {configurable:true, get:()=>'hidden'}); Object.defineProperty(document, 'hidden', {configurable:true, get:()=>true}); document.dispatchEvent(new Event('visibilitychange')); }")
+    page.wait_for_timeout(60000)
+    hidden_reads = sum(row['route'] == '/api/orderbook/snapshot' for row in harness.ledger.records)
+    assert hidden_reads == 0, 'snapshot polled while hidden'
+    page.evaluate("() => { Object.defineProperty(document, 'visibilityState', {configurable:true, get:()=>'visible'}); Object.defineProperty(document, 'hidden', {configurable:true, get:()=>false}); document.dispatchEvent(new Event('visibilitychange')); }")
+    page.wait_for_timeout(5000)
+    assert any(row['route'] == '/api/orderbook/snapshot' for row in harness.ledger.records), 'resume did not refresh depth'
+    return not harness.errors, '60 seconds hidden, then fixed 5-second resume; depth refreshed'
+
+
+def _event_order(harness, price):
+    from .seed_orders import ASK_METADATA
+    token = harness.login_token(SUPPLIER, PASSWORD)
+    products = harness.api_call('/api/catalog/products')['body']
+    points = harness.api_call('/api/catalog/delivery-points')['body']
+    result = harness.api_call('/api/orderbook', method='POST', token=token,
+                              body={'side': 'ASK',
+                                    'product_id': next(row['id'] for row in products if row['market_product'] == 'B30'),
+                                    'delivery_point_id': next(row['id'] for row in points if row['name'] == 'Singapore'),
+                                    'quantity_mt': 200, 'price_per_mt_usd': price,
+                                    'availability_window': 'SPOT', **ASK_METADATA})
+    assert result['status'] in (200, 201), f'event mutation failed: {result["status"]}'
+    return result['body']['id']
+
+
+def window_event_burst(harness, state):
+    # Disable only fallback polling before mount. Native SSE, fetch and batching
+    # remain real, so a visible change cannot be credited to the 10-second poll.
+    harness.context.add_init_script("""window.__journeySuppressedPolls = []; const interval = window.setInterval; window.setInterval = (fn, delay, ...args) => { if ([10000,60000].includes(delay)) window.__journeySuppressedPolls.push(delay); return interval(fn, [10000,60000].includes(delay) ? 3600000 : delay, ...args); };""")
+    harness.page.goto(harness.base + '/login', wait_until='domcontentloaded')
+    page = _measurement_market(harness)
+    assert page.evaluate('() => window.__journeySuppressedPolls.includes(60000)'), 'fallback suppression did not install before mount'
+    harness.begin_window()
+    last_id = None
+    for price in (880, 875, 870):
+        last_id = _event_order(harness, price)
+    page.locator(f'[data-order-id="{last_id}"]').wait_for(state='visible', timeout=8000)
+    harness.wait_window(15)
+    return not harness.errors, 'three committed orders changed visible listings with fallback polling disabled'
+
+
+def window_reconnect(harness, state):
+    page = _measurement_market(harness)
+    harness.begin_window()
+    import os
+    response = harness.context.request.post(
+        harness.base + '/.journeys/disconnect-streams',
+        headers={'x-journeys-control': os.environ['JOURNEYS_DISPOSABLE_TOKEN']})
+    assert response.status == 204, 'test relay did not disconnect native streams'
+    order_id = _event_order(harness, 865)
+    page.locator(f'[data-order-id="{order_id}"]').wait_for(state='visible', timeout=10000)
+    harness.wait_window(15)
+    assert any(row['kind'] == 'sse' for row in harness.ledger.records), 'no native stream reconnect attempt'
+    return not harness.errors, 'native source reconnect and committed visible order'
 
 
 def _rows(body):
@@ -324,8 +490,7 @@ def journey_trade_lifecycle(harness, state):
         return False, 'no fixture ASK available for the take journey'
     order_id = asks[0]
 
-    buyer = harness.__class__(supplier.context.browser, harness.base,
-                              harness.api_origin)
+    buyer = harness.child()
     bpage = open_app(buyer, BUYER, PASSWORD)
     bpage.locator('[data-tour="nav-MARKETPLACE"]').click()
     wait_listings(bpage)

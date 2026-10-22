@@ -1,3 +1,4 @@
+import type { NormalizedOrderWire, NormalizedTradeWire } from './mappers';
 /**
  * Compile-time contract test: the hand-written interfaces in `src/types.ts` and
  * `src/context/AuthContext.tsx` against the generated wire shapes in
@@ -68,7 +69,7 @@ expectTypeOf<OrderBookOrder['price_per_mt_usd']>().toEqualTypeOf<number>();
 expectTypeOf<OrderBookOrder['carbon_intensity_gco2_mj']>().toEqualTypeOf<number | null | undefined>();
 expectTypeOf<OrderBookOrder['benchmark_price_per_mt_usd']>().toEqualTypeOf<number | null | undefined>();
 expectTypeOf<OrderBookOrder['premium_discount_per_mt_usd']>().toEqualTypeOf<number | null | undefined>();
-expectTypeOf<typeof toOrderBookOrder>().parameter(0).toEqualTypeOf<WireOrder>();
+expectTypeOf<typeof toOrderBookOrder>().parameter(0).toEqualTypeOf<NormalizedOrderWire>();
 expectTypeOf<typeof toOrderBookOrder>().returns.toEqualTypeOf<OrderBookOrder>();
 
 expectTypeOf<WireTrade['quantity_mt']>().toEqualTypeOf<string>();
@@ -82,7 +83,7 @@ expectTypeOf<Trade['price_per_mt_usd']>().toEqualTypeOf<number>();
 expectTypeOf<Trade['final_quantity_mt']>().toEqualTypeOf<number | null | undefined>();
 expectTypeOf<Trade['final_price_per_mt']>().toEqualTypeOf<number | null | undefined>();
 expectTypeOf<Trade['final_total_usd']>().toEqualTypeOf<number | null | undefined>();
-expectTypeOf<typeof toTrade>().parameter(0).toEqualTypeOf<WireTrade>();
+expectTypeOf<typeof toTrade>().parameter(0).toEqualTypeOf<NormalizedTradeWire>();
 expectTypeOf<typeof toTrade>().returns.toEqualTypeOf<Trade>();
 
 expectTypeOf<WirePriceSummary['last_price']>().toEqualTypeOf<string | null | undefined>();

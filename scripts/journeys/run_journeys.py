@@ -135,33 +135,10 @@ def build_frontend(run, log_dir, api_origin):
     return dist
 
 
-def serve_static(dist, port):
-    """Serve the built bundle as an SPA (history fallback), like vite preview."""
-    import http.server
-    import threading
-    import urllib.parse
-
-    class Handler(http.server.SimpleHTTPRequestHandler):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=str(dist), **kwargs)
-
-        def do_GET(self):
-            if not Path(self.translate_path(self.path)).exists():
-                parsed = urllib.parse.urlparse(self.path)
-                if '.' not in Path(parsed.path).name:
-                    self.path = '/index.html'
-            super().do_GET()
-
-        def log_message(self, *_):
-            pass
-
-    class ReusableHTTPServer(http.server.ThreadingHTTPServer):
-        daemon_threads = True
-        allow_reuse_address = True
-
-    server = ReusableHTTPServer(('127.0.0.1', port), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    return server
+def serve_static(dist, port, api_origin=None, control_token=None):
+    """Keep the SPA server and the test-only stream relay on one origin."""
+    from stream_relay import serve_static as start_server
+    return start_server(dist, port, api_origin, control_token)
 
 
 def start_database(run, log_dir):
@@ -222,14 +199,14 @@ def ensure_browser_deps(log_dir):
     return deps
 
 
-def run_browser_phase(run, log_dir, base, api_origin, mode, only=None):
+def run_browser_phase(run, log_dir, base, api_origin, mode, only=None, streams='blocked', volume=False):
     """Drive journeys + screenshots inside the official Playwright image."""
     # The repository is mounted at /work inside the container; the harness
     # modules are imported from the mounted scripts directory, not the host
     # path that this process sees.
     container_scripts = '/work/' + str(SCRIPTS.relative_to(ROOT))
     script = f"""
-import json, os, sys
+import json, os, sys, time
 sys.path.insert(0, {container_scripts!r})
 sys.path.insert(0, '/deps')
 # The disposable backend's single-use token clears its rate limits between
@@ -240,7 +217,7 @@ except Exception:
     pass
 from playwright.sync_api import sync_playwright
 from journeys.browser_harness import Harness
-from journeys.journeys import steps
+from journeys.journeys import steps, seed_pagination, measurement_windows
 from journeys import screenshots
 
 try:
@@ -256,16 +233,32 @@ with sync_playwright() as playwright:
         # place orders and trade afterwards, and the order book, marketplace and
         # blotter screens would otherwise capture run-specific rows and every
         # compare would drift.
+        screenshot_ledgers = []
+        OriginalScreenshotHarness = screenshots.ScreenshotHarness
+        class RecordingScreenshotHarness(OriginalScreenshotHarness):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.category = 'screenshot'
+                screenshot_ledgers.append(self.ledger)
+        screenshots.ScreenshotHarness = RecordingScreenshotHarness
         if {mode!r} != 'off':
             shots = screenshots.run(browser, {base!r}, {api_origin!r}, mode={mode!r})
             results.extend([{{'name': 'screenshot:' + item['name'], **item}}
                             for item in shots])
-        selected = steps()
+        seed_harness = Harness(browser, {base!r}, {api_origin!r})
+        try:
+            seed_pagination(seed_harness)
+        finally:
+            seed_harness.close()
+        state['accounting'] = {{'pagination_seed': seed_harness.ledger.records,
+                               'screenshots': [record for ledger in screenshot_ledgers for record in ledger.records]}}
+        selected = steps() + (measurement_windows() if {volume!r} else [])
         if {only!r}:
             wanted = set({only!r}.split(','))
             selected = [s for s in selected if s.name in wanted]
         for step in selected:
-            harness = Harness(browser, {base!r}, {api_origin!r})
+            harness = Harness(browser, {base!r}, {api_origin!r}, streams={streams!r})
+            started = time.monotonic()
             try:
                 passed, detail = step.fn(harness, state)
                 error = ''
@@ -283,7 +276,11 @@ with sync_playwright() as playwright:
                 except Exception:
                     pass
             harness.close()
-            entry = {{'name': step.name, 'passed': bool(passed), 'detail': detail}}
+            measurement = harness.ledger.summary(time.monotonic() - getattr(harness, 'window_started', started))
+            measurement['stream_maxima'] = harness.stream_maxima
+            measurement['streams_after_close'] = harness.streams_after_close
+            entry = {{'name': step.name, 'passed': bool(passed), 'detail': detail,
+                      'measurement': measurement}}
             if error:
                 entry['error'] = error
             results.append(entry)
@@ -291,6 +288,7 @@ with sync_playwright() as playwright:
             print(f'  [{{mark}}] {{step.name}} {{detail or error}}', flush=True)
     finally:
         browser.close()
+json.dump(state.get('accounting', {{}}), open('/run/separate-ledgers.json', 'w'), indent=2)
 print('JOURNEYS_JSON:' + json.dumps(results))
 """
     script_path = run / 'browser_phase.py'
@@ -334,6 +332,41 @@ print('JOURNEYS_JSON:' + json.dumps(results))
     raise RuntimeError('browser phase produced no results JSON')
 
 
+def run_volume_samples(args):
+    """Record one pinned sample, using archived observations only for policy."""
+    from request_volume import make_sample, make_baseline, compare
+    if args.only or args.streams != 'live' or args.screenshots != 'compare':
+        raise SystemExit('volume requires all journeys, live streams and screenshot compare')
+    completed = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve()), '--backend', str(args.backend),
+         '--screenshots', 'compare', '--streams', 'live',
+         '--request-volume', args.request_volume, '--volume-sample'],
+        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    print(completed.stdout, flush=True)
+    reports = [line.split('[journeys] report: ', 1)[1] for line in completed.stdout.splitlines()
+               if line.startswith('[journeys] report: ')]
+    if completed.returncode or not reports:
+        return completed.returncode or 1
+    report = json.loads(Path(reports[-1]).read_text())
+    sample = make_sample(
+        {entry['name']: entry['measurement'] for entry in report['steps'] if 'measurement' in entry},
+        source_sha=report['frontend_sha'], backend_sha=report['backend_sha'],
+        streams='live', complete=report['complete'])
+    historical = json.loads(args.request_volume_history.read_text())['samples'] if args.request_volume_history else []
+    proposed = make_baseline([sample], historical=historical)
+    proposed['reports'] = reports
+    output = WORK_DIR / ('request-volume-' + time.strftime('%Y%m%d-%H%M%S') + '.json')
+    output.write_text(json.dumps(proposed, indent=2) + '\n')
+    print(f'[volume] proposed baseline: {output}', flush=True)
+    if args.request_volume == 'compare':
+        errors = compare(json.loads(args.request_volume_baseline.read_text()), proposed,
+                         enforce_stream_ceiling=args.enforce_stream_ceiling)
+        for error in errors:
+            print('[volume] FAIL ' + error, flush=True)
+        return int(bool(errors))
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--backend', type=Path, required=True,
@@ -348,7 +381,16 @@ def main():
                         default='compare',
                         help='off: journeys only; record: refresh baselines; '
                              'compare: fail on pixel drift (default)')
+    parser.add_argument('--streams', choices=['blocked', 'live'], default='blocked')
+    parser.add_argument('--request-volume', choices=['record', 'compare'])
+    parser.add_argument('--request-volume-baseline', type=Path,
+                        default=ROOT / 'scripts/journeys/request-volume-baseline.json')
+    parser.add_argument('--request-volume-history', type=Path)
+    parser.add_argument('--enforce-stream-ceiling', action='store_true')
+    parser.add_argument('--volume-sample', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.request_volume and not args.volume_sample:
+        return run_volume_samples(args)
 
     backend = args.backend.resolve()
     sha = command('git', '-C', str(backend), 'rev-parse', 'HEAD',
@@ -465,7 +507,8 @@ def main():
         with (log_dir / 'seed-orders.log').open('w') as log:
             completed = subprocess.run(
                 [sys.executable, str(SCRIPTS / 'journeys/seed_orders.py'),
-                 '--api', api_origin, '--password', 'Journeys-Password-7!'],
+                 '--api', api_origin, '--password', 'Journeys-Password-7!',
+                 '--request-ledger', str(run / 'seed-request-ledger.json')],
                 capture_output=True, text=True, timeout=300)
             log.write(completed.stdout)
             log.write(completed.stderr)
@@ -477,12 +520,15 @@ def main():
 
         # ---- 4. browser -------------------------------------------------
         print(f'[journeys] serving bundle at {base} and running browser phase...', flush=True)
-        static_server = serve_static(dist, static_port)
+        static_server = serve_static(dist, static_port, api_origin if args.streams == 'live' else None,
+                                     environment['DISPOSABLE_TEST_TOKEN'])
         wait_status(base + '/index.html', 30)
         (run / 'fixture.json').write_text(json.dumps(fixture_orders))
         entries = run_browser_phase(run, log_dir, base, api_origin,
-                                    args.screenshots, args.only)
+                                    args.screenshots, args.only, args.streams, bool(args.request_volume))
         report['steps'] = entries
+        report['separate_ledgers'] = json.loads((run / 'separate-ledgers.json').read_text())
+        report['separate_ledgers']['original_seed'] = json.loads((run / 'seed-request-ledger.json').read_text())
         report['complete'] = True
     except Exception as exc:  # noqa: BLE001 - reported below
         report['error'] = f'{type(exc).__name__}: {exc}'

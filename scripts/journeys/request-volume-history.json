@@ -1,0 +1,711 @@
+{
+  "provenance": "Decision 96: three pre-instrumentation samples at c3633f702d5ed01ed2e01f6906a7e67015d7283c; counts and route membership only",
+  "samples": [
+    {
+      "scenarios": {
+        "login-success": {
+          "rest_total": 10,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "login-wrong-password": {
+          "rest_total": 2,
+          "buckets": {
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "marketplace-browse-filter-paginate": {
+          "rest_total": 33,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 8,
+            "GET /api/orderbook/my": 1,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 5,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "marketplace-deep-link-slice": {
+          "rest_total": 22,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 3,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "place-bid": {
+          "rest_total": 19,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 2,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "place-ask": {
+          "rest_total": 19,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/bids": 3,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "trade-take-confirm-deliver-pay": {
+          "rest_total": 45,
+          "buckets": {
+            "GET /api/auth/me": 2,
+            "GET /api/auth/stream-token": 6,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 3,
+            "GET /api/notifications/unread-count": 3,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/trades/my": 7,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 3,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 3,
+            "POST /api/compliance/pricing-overlay": 2,
+            "POST /api/trades/": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/trades/{id}/confirm": 1
+          }
+        },
+        "notifications-list-mark-read": {
+          "rest_total": 12,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "PATCH /api/notifications/{id}/read": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "map-ports-eca-overlay": {
+          "rest_total": 20,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/news": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/map-summary/compact": 1,
+            "GET /api/ports": 1,
+            "GET /api/prices": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/vessels": 2,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/users/me/preferences/market_watch": 1
+          }
+        },
+        "public-landing": {
+          "rest_total": 4,
+          "buckets": {
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/orderbook/aggregated": 1,
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "public-content-page": {
+          "rest_total": 1,
+          "buckets": {
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "window-listings-visible-60s": {
+          "rest_total": 7,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1
+          }
+        },
+        "window-depth-visible-60s": {
+          "rest_total": 14,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 6,
+            "GET /api/trade-tape": 2
+          }
+        },
+        "window-hidden-60s-resume": {
+          "rest_total": 8,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1
+          }
+        },
+        "window-live-event-burst": {
+          "rest_total": 9,
+          "buckets": {
+            "GET /api/orderbook/asks": 3,
+            "GET /api/orderbook/product-counts": 3,
+            "POST /api/compliance/pricing-overlay": 3
+          }
+        },
+        "window-live-reconnect": {
+          "rest_total": 4,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1,
+            "POST /api/compliance/pricing-overlay": 1
+          }
+        }
+      }
+    },
+    {
+      "scenarios": {
+        "login-success": {
+          "rest_total": 9,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "login-wrong-password": {
+          "rest_total": 2,
+          "buckets": {
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "marketplace-browse-filter-paginate": {
+          "rest_total": 33,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 8,
+            "GET /api/orderbook/my": 1,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 5,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "marketplace-deep-link-slice": {
+          "rest_total": 22,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 3,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "place-bid": {
+          "rest_total": 19,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 2,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "place-ask": {
+          "rest_total": 19,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/bids": 3,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "trade-take-confirm-deliver-pay": {
+          "rest_total": 45,
+          "buckets": {
+            "GET /api/auth/me": 2,
+            "GET /api/auth/stream-token": 6,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 3,
+            "GET /api/notifications/unread-count": 3,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/trades/my": 7,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 3,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 3,
+            "POST /api/compliance/pricing-overlay": 2,
+            "POST /api/trades/": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/trades/{id}/confirm": 1
+          }
+        },
+        "notifications-list-mark-read": {
+          "rest_total": 12,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "PATCH /api/notifications/{id}/read": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "map-ports-eca-overlay": {
+          "rest_total": 20,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/news": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/map-summary/compact": 1,
+            "GET /api/ports": 1,
+            "GET /api/prices": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/vessels": 2,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/users/me/preferences/market_watch": 1
+          }
+        },
+        "public-landing": {
+          "rest_total": 4,
+          "buckets": {
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/orderbook/aggregated": 1,
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "public-content-page": {
+          "rest_total": 1,
+          "buckets": {
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "window-listings-visible-60s": {
+          "rest_total": 7,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1
+          }
+        },
+        "window-depth-visible-60s": {
+          "rest_total": 14,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 6,
+            "GET /api/trade-tape": 2
+          }
+        },
+        "window-hidden-60s-resume": {
+          "rest_total": 8,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1
+          }
+        },
+        "window-live-event-burst": {
+          "rest_total": 9,
+          "buckets": {
+            "GET /api/orderbook/asks": 3,
+            "GET /api/orderbook/product-counts": 3,
+            "POST /api/compliance/pricing-overlay": 3
+          }
+        },
+        "window-live-reconnect": {
+          "rest_total": 4,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1,
+            "POST /api/compliance/pricing-overlay": 1
+          }
+        }
+      }
+    },
+    {
+      "scenarios": {
+        "login-success": {
+          "rest_total": 11,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "login-wrong-password": {
+          "rest_total": 2,
+          "buckets": {
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "marketplace-browse-filter-paginate": {
+          "rest_total": 33,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 8,
+            "GET /api/orderbook/my": 1,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 5,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "marketplace-deep-link-slice": {
+          "rest_total": 22,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 3,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "place-bid": {
+          "rest_total": 19,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 2,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "place-ask": {
+          "rest_total": 19,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/bids": 3,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "trade-take-confirm-deliver-pay": {
+          "rest_total": 45,
+          "buckets": {
+            "GET /api/auth/me": 2,
+            "GET /api/auth/stream-token": 6,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 3,
+            "GET /api/notifications/unread-count": 3,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/trades/my": 7,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 3,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 3,
+            "POST /api/compliance/pricing-overlay": 2,
+            "POST /api/trades/": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/trades/{id}/confirm": 1
+          }
+        },
+        "notifications-list-mark-read": {
+          "rest_total": 12,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "PATCH /api/notifications/{id}/read": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          }
+        },
+        "map-ports-eca-overlay": {
+          "rest_total": 20,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/news": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/map-summary/compact": 1,
+            "GET /api/ports": 1,
+            "GET /api/prices": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/vessels": 2,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/users/me/preferences/market_watch": 1
+          }
+        },
+        "public-landing": {
+          "rest_total": 4,
+          "buckets": {
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/orderbook/aggregated": 1,
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "public-content-page": {
+          "rest_total": 1,
+          "buckets": {
+            "POST /api/auth/refresh": 1
+          }
+        },
+        "window-listings-visible-60s": {
+          "rest_total": 7,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1
+          }
+        },
+        "window-depth-visible-60s": {
+          "rest_total": 14,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 6,
+            "GET /api/trade-tape": 2
+          }
+        },
+        "window-hidden-60s-resume": {
+          "rest_total": 8,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1
+          }
+        },
+        "window-live-event-burst": {
+          "rest_total": 9,
+          "buckets": {
+            "GET /api/orderbook/asks": 3,
+            "GET /api/orderbook/product-counts": 3,
+            "POST /api/compliance/pricing-overlay": 3
+          }
+        },
+        "window-live-reconnect": {
+          "rest_total": 4,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1,
+            "POST /api/compliance/pricing-overlay": 1
+          }
+        }
+      }
+    }
+  ]
+}

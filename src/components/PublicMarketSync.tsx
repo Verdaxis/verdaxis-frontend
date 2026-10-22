@@ -15,7 +15,9 @@ export const PublicMarketSync: React.FC = () => {
             queuePublicMarketRefresh();
             return;
         }
-        if (event === 'reset' || event === 'reconnect') queuePublicMarketRefresh();
+        if (['order_created', 'order_cancelled', 'orders_matched', 'reset', 'reconnect'].includes(event)) {
+            queuePublicMarketRefresh();
+        }
     }, []);
 
     useSSE('orderbook', handleEvent);

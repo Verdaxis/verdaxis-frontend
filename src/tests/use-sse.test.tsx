@@ -8,9 +8,13 @@ import { cachedRead, invalidateReadCache } from '../services/readCache';
 const authTokenMocks = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
   refreshAccessToken: vi.fn(),
+  getAuthGeneration: vi.fn(() => 1),
 }));
 
 vi.mock('../services/authToken', () => authTokenMocks);
+const acceptedScope = vi.hoisted(() => ({ user: { id: 'user-1', organization_id: 'org-1' } }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: acceptedScope.user }) }));
+vi.mock('../context/MarketSupportContext', () => ({ useMarketSupport: () => ({ context: null }) }));
 
 type FakeEvent = {
   data?: string;
@@ -62,6 +66,7 @@ describe('useSSE', () => {
 
   beforeEach(() => {
     invalidateReadCache();
+    acceptedScope.user = { id: 'user-1', organization_id: 'org-1' };
     fetchMock.mockReset();
     authTokenMocks.getAccessToken.mockReset();
     authTokenMocks.refreshAccessToken.mockReset();
@@ -260,6 +265,7 @@ describe('useSSE', () => {
     const { rerender } = render(<Harness channel="trades" scopeKey="user-1:org-1" />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    acceptedScope.user = { id: 'user-2', organization_id: 'org-2' };
     rerender(<Harness channel="trades" scopeKey="user-2:org-2" />);
     await act(async () => {
       resolveToken(new Response(JSON.stringify({ stream_token: 'old-stream-token' }), {

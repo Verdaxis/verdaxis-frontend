@@ -69,11 +69,20 @@ const LOCAL_API_PATTERNS = [
 // stylesheet from the total, while the base build — whose map chunk hash has no
 // dash — counted it. With the fix this route counts it again, which is the
 // +831 gzip bytes above and not a payload change.
+//
+// Step 8 decision FE-B1: adopting Query (runtime, hooks and feature adapters)
+// grows the marketplace first load, so that one ceiling is re-baselined to the
+// measured value plus 2 %, rounded up to the next 100 bytes. It moves once at
+// the Task 7 merge (310,300 -> 324,200, measured 317,759 staging and 317,735
+// production) and once more at the Task 8 merge (324,200 -> 325,000, measured
+// 318,590 staging and 318,597 production). No other route ceiling moves, and
+// the way chunks are counted is unchanged. Task 10 looks for savings to win the
+// growth back. See docs/refactor/step8-marketplace-budget.md.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
   { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
   // authenticated marketplace workspace
-  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 310300 },
+  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 325000 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
   { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
   // authenticated command center

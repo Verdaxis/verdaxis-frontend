@@ -12,6 +12,8 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+REQUESTS = []
+
 ASK_METADATA = {
     'certification_declared': True,
     'msds_available': True,
@@ -26,6 +28,7 @@ ASK_METADATA = {
 
 
 def call(origin, path, method='GET', token=None, body=None, form=None):
+    REQUESTS.append({"method": method, "route": path, "category": "seed"})
     headers = {}
     data = None
     if token:
@@ -64,6 +67,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--api', required=True, help='backend origin')
     parser.add_argument('--password', required=True)
+    parser.add_argument('--request-ledger')
     args = parser.parse_args()
     origin = args.api.rstrip('/')
 
@@ -96,6 +100,9 @@ def main():
         if status not in (200, 201):
             raise SystemExit(f'BID seed failed: HTTP {status}: {payload}')
         created['bids'].append(payload['id'])
+    if args.request_ledger:
+        from pathlib import Path
+        Path(args.request_ledger).write_text(json.dumps(REQUESTS, indent=2) + '\n')
     print(json.dumps(created), flush=True)
     return 0
 

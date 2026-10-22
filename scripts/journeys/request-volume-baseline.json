@@ -1,0 +1,3672 @@
+{
+  "schema_version": 2,
+  "decision": 96,
+  "samples": [
+    {
+      "source_sha": "4967a6526aed2e511e82daaca08ff0013938c184",
+      "backend_sha": "56d7577085af99411a6f9c3e34e64ad929d09954",
+      "scenario_version": "step8-v1",
+      "streams": "live",
+      "complete": true,
+      "scenarios": {
+        "login-success": {
+          "duration_seconds": 2.3875805330462754,
+          "rest_total": 11,
+          "requests_per_minute": 276.4304662670024,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 50.26008477581861,
+            "GET /api/notifications": 25.130042387909306,
+            "GET /api/notifications/unread-count": 25.130042387909306,
+            "GET /api/trades/my": 25.130042387909306,
+            "GET /api/trades/summary": 25.130042387909306,
+            "GET /api/users/me/preferences": 25.130042387909306,
+            "GET /api/watchlists/{id}/events": 25.130042387909306,
+            "POST /api/auth/login": 25.130042387909306,
+            "POST /api/auth/refresh": 25.130042387909306,
+            "POST /api/watchlists/me": 25.130042387909306
+          },
+          "categories": {
+            "browser": 13
+          },
+          "failed_attempts": 0,
+          "sse_starts": 2,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 1
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            }
+          ]
+        },
+        "login-wrong-password": {
+          "duration_seconds": 2.006431326037273,
+          "rest_total": 2,
+          "requests_per_minute": 59.80767865950414,
+          "buckets": {
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1
+          },
+          "bucket_rates": {
+            "POST /api/auth/login": 29.90383932975207,
+            "POST /api/auth/refresh": 29.90383932975207
+          },
+          "categories": {
+            "browser": 3
+          },
+          "failed_attempts": 0,
+          "sse_starts": 1,
+          "stream_maxima": {
+            "orderbook:public": 1
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "marketplace-browse-filter-paginate": {
+          "duration_seconds": 18.48170847003348,
+          "rest_total": 37,
+          "requests_per_minute": 120.1187651888104,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 9,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 9,
+            "POST /api/watchlists/me": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 6.492906226422184,
+            "GET /api/catalog/delivery-points": 3.246453113211092,
+            "GET /api/catalog/products": 3.246453113211092,
+            "GET /api/notifications": 3.246453113211092,
+            "GET /api/notifications/unread-count": 3.246453113211092,
+            "GET /api/orderbook/asks": 29.218078018899824,
+            "GET /api/orderbook/product-counts": 12.985812452844367,
+            "GET /api/orderbook/snapshot": 3.246453113211092,
+            "GET /api/trade-tape": 3.246453113211092,
+            "GET /api/trades/my": 3.246453113211092,
+            "GET /api/trades/summary": 3.246453113211092,
+            "GET /api/users/me/preferences": 3.246453113211092,
+            "GET /api/watchlists/{id}/events": 3.246453113211092,
+            "POST /api/auth/login": 3.246453113211092,
+            "POST /api/auth/refresh": 3.246453113211092,
+            "POST /api/compliance/pricing-overlay": 29.218078018899824,
+            "POST /api/watchlists/me": 3.246453113211092
+          },
+          "categories": {
+            "browser": 40
+          },
+          "failed_attempts": 0,
+          "sse_starts": 3,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "market_product": "B30",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "sort_by": "price_asc",
+                "skip": "8",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B100",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "1379d36c-1ca9-55b7-9c0d-5235a0ba1f36",
+                "market_product": "B30",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "1379d36c-1ca9-55b7-9c0d-5235a0ba1f36",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "8",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_desc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trade-tape",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "limit": "20",
+                "skip": "0"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "marketplace-deep-link-slice": {
+          "duration_seconds": 9.17880056379363,
+          "rest_total": 22,
+          "requests_per_minute": 143.8096394867566,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 3,
+            "POST /api/watchlists/me": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 13.073603589705145,
+            "GET /api/catalog/delivery-points": 6.536801794852573,
+            "GET /api/catalog/products": 6.536801794852573,
+            "GET /api/notifications": 6.536801794852573,
+            "GET /api/notifications/unread-count": 6.536801794852573,
+            "GET /api/orderbook/asks": 26.14720717941029,
+            "GET /api/orderbook/product-counts": 13.073603589705145,
+            "GET /api/trades/my": 6.536801794852573,
+            "GET /api/trades/summary": 6.536801794852573,
+            "GET /api/users/me/preferences": 6.536801794852573,
+            "GET /api/watchlists/{id}/events": 6.536801794852573,
+            "POST /api/auth/login": 6.536801794852573,
+            "POST /api/auth/refresh": 6.536801794852573,
+            "POST /api/compliance/pricing-overlay": 19.610405384557716,
+            "POST /api/watchlists/me": 6.536801794852573
+          },
+          "categories": {
+            "browser": 25
+          },
+          "failed_attempts": 0,
+          "sse_starts": 3,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "1379d36c-1ca9-55b7-9c0d-5235a0ba1f36",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "1379d36c-1ca9-55b7-9c0d-5235a0ba1f36",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "1379d36c-1ca9-55b7-9c0d-5235a0ba1f36",
+                "market_product": "UCOME_B100",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "UCOME_B100",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "place-bid": {
+          "duration_seconds": 6.3211884428747,
+          "rest_total": 19,
+          "requests_per_minute": 180.3458337466617,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/asks": 2,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/compliance/pricing-overlay": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 18.98377197333281,
+            "GET /api/catalog/delivery-points": 9.491885986666405,
+            "GET /api/catalog/products": 9.491885986666405,
+            "GET /api/notifications": 9.491885986666405,
+            "GET /api/notifications/unread-count": 9.491885986666405,
+            "GET /api/orderbook/asks": 18.98377197333281,
+            "GET /api/orderbook/product-counts": 18.98377197333281,
+            "GET /api/trades/my": 9.491885986666405,
+            "GET /api/trades/summary": 9.491885986666405,
+            "GET /api/users/me/preferences": 9.491885986666405,
+            "GET /api/watchlists/{id}/events": 9.491885986666405,
+            "POST /api/auth/login": 9.491885986666405,
+            "POST /api/auth/refresh": 9.491885986666405,
+            "POST /api/compliance/pricing-overlay": 9.491885986666405,
+            "POST /api/orderbook": 9.491885986666405,
+            "POST /api/watchlists/me": 9.491885986666405
+          },
+          "categories": {
+            "browser": 22,
+            "assertion": 3
+          },
+          "failed_attempts": 0,
+          "sse_starts": 3,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/my",
+              "params": {
+                "limit": "20"
+              },
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/my",
+              "params": {
+                "limit": "20"
+              },
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            }
+          ]
+        },
+        "place-ask": {
+          "duration_seconds": 6.8585070699919015,
+          "rest_total": 19,
+          "requests_per_minute": 166.21693152258368,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/bids": 3,
+            "GET /api/orderbook/product-counts": 2,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/orderbook": 1,
+            "POST /api/watchlists/me": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 17.49651910764039,
+            "GET /api/catalog/delivery-points": 8.748259553820194,
+            "GET /api/catalog/products": 8.748259553820194,
+            "GET /api/notifications": 8.748259553820194,
+            "GET /api/notifications/unread-count": 8.748259553820194,
+            "GET /api/orderbook/bids": 26.244778661460582,
+            "GET /api/orderbook/product-counts": 17.49651910764039,
+            "GET /api/trades/my": 8.748259553820194,
+            "GET /api/trades/summary": 8.748259553820194,
+            "GET /api/users/me/preferences": 8.748259553820194,
+            "GET /api/watchlists/{id}/events": 8.748259553820194,
+            "POST /api/auth/login": 8.748259553820194,
+            "POST /api/auth/refresh": 8.748259553820194,
+            "POST /api/orderbook": 8.748259553820194,
+            "POST /api/watchlists/me": 8.748259553820194
+          },
+          "categories": {
+            "browser": 22,
+            "assertion": 3
+          },
+          "failed_attempts": 0,
+          "sse_starts": 3,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"656cc9be-52cd-4823-91a4-7da9ac198dce\",\"d962352e-8203-4076-b905-41d9775c7e7d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/bids",
+              "params": {
+                "skip": "0",
+                "limit": "5",
+                "side": "BID"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/my",
+              "params": {
+                "limit": "20"
+              },
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/bids",
+              "params": {
+                "sort_by": "price_desc",
+                "skip": "0",
+                "limit": "8",
+                "side": "BID"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/my",
+              "params": {
+                "limit": "20"
+              },
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/bids",
+              "params": {
+                "sort_by": "price_desc",
+                "skip": "0",
+                "limit": "8",
+                "side": "BID"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            }
+          ]
+        },
+        "trade-take-confirm-deliver-pay": {
+          "duration_seconds": 11.053004045970738,
+          "rest_total": 45,
+          "requests_per_minute": 244.2774822817746,
+          "buckets": {
+            "GET /api/auth/me": 2,
+            "GET /api/auth/stream-token": 6,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/notifications": 3,
+            "GET /api/notifications/unread-count": 3,
+            "GET /api/orderbook/asks": 4,
+            "GET /api/orderbook/product-counts": 4,
+            "GET /api/trades/my": 7,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 3,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 3,
+            "POST /api/compliance/pricing-overlay": 2,
+            "POST /api/trades/": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/trades/{id}/confirm": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/me": 10.856776990301094,
+            "GET /api/auth/stream-token": 32.57033097090328,
+            "GET /api/catalog/delivery-points": 5.428388495150547,
+            "GET /api/catalog/products": 5.428388495150547,
+            "GET /api/notifications": 16.28516548545164,
+            "GET /api/notifications/unread-count": 16.28516548545164,
+            "GET /api/orderbook/asks": 21.71355398060219,
+            "GET /api/orderbook/product-counts": 21.71355398060219,
+            "GET /api/trades/my": 37.99871946605383,
+            "GET /api/trades/summary": 5.428388495150547,
+            "GET /api/users/me/preferences": 16.28516548545164,
+            "GET /api/watchlists/{id}/events": 5.428388495150547,
+            "POST /api/auth/login": 5.428388495150547,
+            "POST /api/auth/refresh": 16.28516548545164,
+            "POST /api/compliance/pricing-overlay": 10.856776990301094,
+            "POST /api/trades/": 5.428388495150547,
+            "POST /api/watchlists/me": 5.428388495150547,
+            "PUT /api/trades/{id}/confirm": 5.428388495150547
+          },
+          "categories": {
+            "browser": 54,
+            "assertion": 4
+          },
+          "failed_attempts": 0,
+          "sse_starts": 9,
+          "stream_maxima": {
+            "orderbook:public": 2,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2,
+            "trades:[1,\"656cc9be-52cd-4823-91a4-7da9ac198dce\",\"d962352e-8203-4076-b905-41d9775c7e7d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/trades/",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "20",
+                "status_group": "all"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "PUT",
+              "route": "/api/trades/{id}/confirm",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "20",
+                "status_group": "all"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "20",
+                "status_group": "all"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "status_group": "completed"
+              },
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "PUT",
+              "route": "/api/trades/{id}/deliver",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/trades/{id}/pay",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "20",
+                "status_group": "all"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "20",
+                "status_group": "all"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "20",
+                "status_group": "all"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            }
+          ]
+        },
+        "notifications-list-mark-read": {
+          "duration_seconds": 4.373046710854396,
+          "rest_total": 12,
+          "requests_per_minute": 164.6449369527379,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/watchlists/{id}/events": 1,
+            "PATCH /api/notifications/{id}/read": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 27.44082282545632,
+            "GET /api/notifications": 13.72041141272816,
+            "GET /api/notifications/unread-count": 13.72041141272816,
+            "GET /api/trades/my": 13.72041141272816,
+            "GET /api/trades/summary": 13.72041141272816,
+            "GET /api/users/me/preferences": 13.72041141272816,
+            "GET /api/watchlists/{id}/events": 13.72041141272816,
+            "PATCH /api/notifications/{id}/read": 13.72041141272816,
+            "POST /api/auth/login": 13.72041141272816,
+            "POST /api/auth/refresh": 13.72041141272816,
+            "POST /api/watchlists/me": 13.72041141272816
+          },
+          "categories": {
+            "browser": 15,
+            "assertion": 2
+          },
+          "failed_attempts": 0,
+          "sse_starts": 3,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "PATCH",
+              "route": "/api/notifications/{id}/read",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            }
+          ]
+        },
+        "map-ports-eca-overlay": {
+          "duration_seconds": 6.24268839485012,
+          "rest_total": 20,
+          "requests_per_minute": 192.22487558243898,
+          "buckets": {
+            "GET /api/auth/stream-token": 2,
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/news": 1,
+            "GET /api/notifications": 1,
+            "GET /api/notifications/unread-count": 1,
+            "GET /api/orderbook/map-summary/compact": 1,
+            "GET /api/ports": 1,
+            "GET /api/prices": 1,
+            "GET /api/trades/my": 1,
+            "GET /api/trades/summary": 1,
+            "GET /api/users/me/preferences": 1,
+            "GET /api/vessels": 2,
+            "GET /api/watchlists/{id}/events": 1,
+            "POST /api/auth/login": 1,
+            "POST /api/auth/refresh": 1,
+            "POST /api/watchlists/me": 1,
+            "PUT /api/users/me/preferences/market_watch": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 19.2224875582439,
+            "GET /api/catalog/delivery-points": 9.61124377912195,
+            "GET /api/catalog/products": 9.61124377912195,
+            "GET /api/news": 9.61124377912195,
+            "GET /api/notifications": 9.61124377912195,
+            "GET /api/notifications/unread-count": 9.61124377912195,
+            "GET /api/orderbook/map-summary/compact": 9.61124377912195,
+            "GET /api/ports": 9.61124377912195,
+            "GET /api/prices": 9.61124377912195,
+            "GET /api/trades/my": 9.61124377912195,
+            "GET /api/trades/summary": 9.61124377912195,
+            "GET /api/users/me/preferences": 9.61124377912195,
+            "GET /api/vessels": 19.2224875582439,
+            "GET /api/watchlists/{id}/events": 9.61124377912195,
+            "POST /api/auth/login": 9.61124377912195,
+            "POST /api/auth/refresh": 9.61124377912195,
+            "POST /api/watchlists/me": 9.61124377912195,
+            "PUT /api/users/me/preferences/market_watch": 9.61124377912195
+          },
+          "categories": {
+            "browser": 23,
+            "assertion": 1
+          },
+          "failed_attempts": 0,
+          "sse_starts": 3,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/users/me/preferences",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "POST",
+              "route": "/api/watchlists/me",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/summary",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trades/my",
+              "params": {
+                "skip": "0",
+                "limit": "8"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/watchlists/{id}/events",
+              "params": {
+                "limit": "25"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/news",
+              "params": {
+                "limit": "10"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/ports",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/map-summary/compact",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/vessels",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/vessels",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/prices",
+              "params": {
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "PUT",
+              "route": "/api/users/me/preferences/market_watch",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/ports",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            }
+          ]
+        },
+        "public-landing": {
+          "duration_seconds": 0.8685974748805165,
+          "rest_total": 4,
+          "requests_per_minute": 276.30750369498156,
+          "buckets": {
+            "GET /api/catalog/delivery-points": 1,
+            "GET /api/catalog/products": 1,
+            "GET /api/orderbook/aggregated": 1,
+            "POST /api/auth/refresh": 1
+          },
+          "bucket_rates": {
+            "GET /api/catalog/delivery-points": 69.07687592374539,
+            "GET /api/catalog/products": 69.07687592374539,
+            "GET /api/orderbook/aggregated": 69.07687592374539,
+            "POST /api/auth/refresh": 69.07687592374539
+          },
+          "categories": {
+            "browser": 5
+          },
+          "failed_attempts": 0,
+          "sse_starts": 1,
+          "stream_maxima": {
+            "orderbook:public": 1
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "GET",
+              "route": "/api/orderbook/aggregated",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            }
+          ]
+        },
+        "public-content-page": {
+          "duration_seconds": 0.5024054560344666,
+          "rest_total": 1,
+          "requests_per_minute": 119.42545463893968,
+          "buckets": {
+            "POST /api/auth/refresh": 1
+          },
+          "bucket_rates": {
+            "POST /api/auth/refresh": 119.42545463893968
+          },
+          "categories": {
+            "browser": 2
+          },
+          "failed_attempts": 0,
+          "sse_starts": 1,
+          "stream_maxima": {
+            "orderbook:public": 1
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/refresh",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            }
+          ]
+        },
+        "window-listings-visible-60s": {
+          "duration_seconds": 60.02098074601963,
+          "rest_total": 7,
+          "requests_per_minute": 6.997553101926827,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 0.9996504431324038,
+            "GET /api/notifications": 1.9993008862648076,
+            "GET /api/notifications/unread-count": 1.9993008862648076,
+            "GET /api/orderbook/asks": 0.9996504431324038,
+            "GET /api/orderbook/product-counts": 0.9996504431324038
+          },
+          "categories": {
+            "browser": 8
+          },
+          "failed_attempts": 0,
+          "sse_starts": 1,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "window-depth-visible-60s": {
+          "duration_seconds": 60.06201987690292,
+          "rest_total": 14,
+          "requests_per_minute": 13.985543638418747,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 6,
+            "GET /api/trade-tape": 2
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 0.9989674027441962,
+            "GET /api/notifications": 1.9979348054883923,
+            "GET /api/notifications/unread-count": 1.9979348054883923,
+            "GET /api/orderbook/product-counts": 0.9989674027441962,
+            "GET /api/orderbook/snapshot": 5.993804416465177,
+            "GET /api/trade-tape": 1.9979348054883923
+          },
+          "categories": {
+            "browser": 15
+          },
+          "failed_attempts": 0,
+          "sse_starts": 1,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trade-tape",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "limit": "20",
+                "skip": "0"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trade-tape",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "limit": "20",
+                "skip": "0"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "window-hidden-60s-resume": {
+          "duration_seconds": 65.07194352406077,
+          "rest_total": 8,
+          "requests_per_minute": 7.376450955741269,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/notifications": 2,
+            "GET /api/notifications/unread-count": 2,
+            "GET /api/orderbook/product-counts": 1,
+            "GET /api/orderbook/snapshot": 1,
+            "GET /api/trade-tape": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 0.9220563694676587,
+            "GET /api/notifications": 1.8441127389353174,
+            "GET /api/notifications/unread-count": 1.8441127389353174,
+            "GET /api/orderbook/product-counts": 0.9220563694676587,
+            "GET /api/orderbook/snapshot": 0.9220563694676587,
+            "GET /api/trade-tape": 0.9220563694676587
+          },
+          "categories": {
+            "browser": 9
+          },
+          "failed_attempts": 0,
+          "sse_starts": 1,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/notifications/unread-count",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/snapshot",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/trade-tape",
+              "params": {
+                "market_product": "B30",
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "limit": "20",
+                "skip": "0"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "window-live-event-burst": {
+          "duration_seconds": 15.033431826159358,
+          "rest_total": 9,
+          "requests_per_minute": 35.91994204944991,
+          "buckets": {
+            "GET /api/orderbook/asks": 3,
+            "GET /api/orderbook/product-counts": 3,
+            "POST /api/compliance/pricing-overlay": 3
+          },
+          "bucket_rates": {
+            "GET /api/orderbook/asks": 11.973314016483302,
+            "GET /api/orderbook/product-counts": 11.973314016483302,
+            "POST /api/compliance/pricing-overlay": 11.973314016483302
+          },
+          "categories": {
+            "assertion": 12,
+            "browser": 9
+          },
+          "failed_attempts": 0,
+          "sse_starts": 0,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/orderbook",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/orderbook",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/orderbook",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            }
+          ]
+        },
+        "window-live-reconnect": {
+          "duration_seconds": 15.041942437877879,
+          "rest_total": 4,
+          "requests_per_minute": 15.955386147180288,
+          "buckets": {
+            "GET /api/auth/stream-token": 1,
+            "GET /api/orderbook/asks": 1,
+            "GET /api/orderbook/product-counts": 1,
+            "POST /api/compliance/pricing-overlay": 1
+          },
+          "bucket_rates": {
+            "GET /api/auth/stream-token": 3.988846536795072,
+            "GET /api/orderbook/asks": 3.988846536795072,
+            "GET /api/orderbook/product-counts": 3.988846536795072,
+            "POST /api/compliance/pricing-overlay": 3.988846536795072
+          },
+          "categories": {
+            "assertion": 4,
+            "browser": 6
+          },
+          "failed_attempts": 0,
+          "sse_starts": 2,
+          "stream_maxima": {
+            "orderbook:public": 1,
+            "trades:[1,\"b0a7512c-aede-4878-8c26-0c141bf947c9\",\"49e85dfc-68eb-4c56-bebd-f70b0fdc0b3d\",null]": 2
+          },
+          "streams_after_close": 0,
+          "records": [
+            {
+              "method": "POST",
+              "route": "/api/auth/login",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/products",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/catalog/delivery-points",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "POST",
+              "route": "/api/orderbook",
+              "params": {},
+              "category": "assertion",
+              "kind": "rest",
+              "outcome": "started"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/orderbook",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/product-counts",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "availability_window": "SPOT",
+                "include_off_spec": "false"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/orderbook/asks",
+              "params": {
+                "delivery_point_id": "73835e92-820e-584b-8280-bb61c63aa28e",
+                "market_product": "B30",
+                "availability_window": "SPOT",
+                "sort_by": "price_asc",
+                "skip": "0",
+                "limit": "8",
+                "side": "ASK"
+              },
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/auth/stream-token",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "POST",
+              "route": "/api/compliance/pricing-overlay",
+              "params": {},
+              "category": "browser",
+              "kind": "rest",
+              "outcome": "finished"
+            },
+            {
+              "method": "GET",
+              "route": "/api/stream/trades",
+              "params": {},
+              "category": "browser",
+              "kind": "sse",
+              "outcome": "failed"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "policy": {
+    "login-success": {
+      "tolerance": 2,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/watchlists/me"
+      ]
+    },
+    "login-wrong-password": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "POST /api/auth/login",
+        "POST /api/auth/refresh"
+      ]
+    },
+    "marketplace-browse-filter-paginate": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/my",
+        "GET /api/orderbook/product-counts",
+        "GET /api/orderbook/snapshot",
+        "GET /api/trade-tape",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/compliance/pricing-overlay",
+        "POST /api/watchlists/me"
+      ]
+    },
+    "marketplace-deep-link-slice": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/product-counts",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/compliance/pricing-overlay",
+        "POST /api/watchlists/me"
+      ]
+    },
+    "place-bid": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/product-counts",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/compliance/pricing-overlay",
+        "POST /api/orderbook",
+        "POST /api/watchlists/me"
+      ]
+    },
+    "place-ask": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/bids",
+        "GET /api/orderbook/product-counts",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/orderbook",
+        "POST /api/watchlists/me"
+      ]
+    },
+    "trade-take-confirm-deliver-pay": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/me",
+        "GET /api/auth/stream-token",
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/product-counts",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/compliance/pricing-overlay",
+        "POST /api/trades/",
+        "POST /api/watchlists/me",
+        "PUT /api/trades/{id}/confirm"
+      ]
+    },
+    "notifications-list-mark-read": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/watchlists/{id}/events",
+        "PATCH /api/notifications/{id}/read",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/watchlists/me"
+      ]
+    },
+    "map-ports-eca-overlay": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/news",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/map-summary/compact",
+        "GET /api/ports",
+        "GET /api/prices",
+        "GET /api/trades/my",
+        "GET /api/trades/summary",
+        "GET /api/users/me/preferences",
+        "GET /api/vessels",
+        "GET /api/watchlists/{id}/events",
+        "POST /api/auth/login",
+        "POST /api/auth/refresh",
+        "POST /api/watchlists/me",
+        "PUT /api/users/me/preferences/market_watch"
+      ]
+    },
+    "public-landing": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/catalog/delivery-points",
+        "GET /api/catalog/products",
+        "GET /api/orderbook/aggregated",
+        "POST /api/auth/refresh"
+      ]
+    },
+    "public-content-page": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "POST /api/auth/refresh"
+      ]
+    },
+    "window-listings-visible-60s": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/product-counts"
+      ]
+    },
+    "window-depth-visible-60s": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/product-counts",
+        "GET /api/orderbook/snapshot",
+        "GET /api/trade-tape"
+      ]
+    },
+    "window-hidden-60s-resume": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/notifications",
+        "GET /api/notifications/unread-count",
+        "GET /api/orderbook/product-counts",
+        "GET /api/orderbook/snapshot",
+        "GET /api/trade-tape"
+      ]
+    },
+    "window-live-event-burst": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/product-counts",
+        "POST /api/compliance/pricing-overlay"
+      ]
+    },
+    "window-live-reconnect": {
+      "tolerance": 0,
+      "allowed_routes": [
+        "GET /api/auth/stream-token",
+        "GET /api/orderbook/asks",
+        "GET /api/orderbook/product-counts",
+        "POST /api/compliance/pricing-overlay"
+      ]
+    }
+  },
+  "reports": [
+    "/home/verdaxis-test/.verdaxis-journeys/run-20261018-124643/journeys-report.json"
+  ]
+}

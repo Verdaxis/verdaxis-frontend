@@ -40,7 +40,20 @@ const removeOldestValue = () => {
     if (oldestKey !== undefined) values.delete(oldestKey);
 };
 
-export const invalidateReadCache = (...resourcePrefixes: string[]): void => {
+export type ReadInvalidationCause = 'explicit' | 'event' | 'mutation-start' | 'mutation-settled' | 'scope-clear';
+export interface ReadInvalidation {
+    prefixes: readonly string[];
+    cause: ReadInvalidationCause;
+}
+const invalidationListeners = new Set<(event: ReadInvalidation) => void>();
+
+export const subscribeReadInvalidations = (listener: (event: ReadInvalidation) => void): (() => void) => {
+    invalidationListeners.add(listener);
+    return () => { invalidationListeners.delete(listener); };
+};
+
+export const invalidateReadCacheWithCause = (cause: ReadInvalidationCause, ...resourcePrefixes: string[]): void => {
+    for (const listener of invalidationListeners) listener({ prefixes: resourcePrefixes, cause });
     if (resourcePrefixes.length === 0) {
         values.clear();
         pending.clear();
@@ -58,6 +71,10 @@ export const invalidateReadCache = (...resourcePrefixes: string[]): void => {
             pending.delete(key);
         }
     }
+};
+
+export const invalidateReadCache = (...resourcePrefixes: string[]): void => {
+    invalidateReadCacheWithCause('explicit', ...resourcePrefixes);
 };
 
 export const setReadCachePrincipal = (userId?: string | null, organizationId?: string | null): void => {
@@ -85,21 +102,21 @@ export const invalidateReadsForEvent = (
         || event === 'reconnect'
     );
     if (invalidatesAllPublicMarketReads) {
-        invalidateReadCache(...PUBLIC_MARKET_CACHE_PREFIXES);
+        invalidateReadCacheWithCause('event', ...PUBLIC_MARKET_CACHE_PREFIXES);
         // Broad trade-stream signals also invalidate private trade history.
-        if (channel === 'trades') invalidateReadCache('trades:');
+        if (channel === 'trades') invalidateReadCacheWithCause('event', 'trades:');
         return;
     }
 
     if (channel === 'prices') {
-        invalidateReadCache('prices:', 'curves:');
+        invalidateReadCacheWithCause('event', 'prices:', 'curves:');
         return;
     }
     if (channel === 'orderbook') {
-        invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
+        invalidateReadCacheWithCause('event', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
         return;
     }
-    invalidateReadCache('trades:', 'trade-tape:', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
+    invalidateReadCacheWithCause('event', 'trades:', 'trade-tape:', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
 };
 
 export const cachedRead = <T>(
@@ -147,6 +164,26 @@ export const cachedRead = <T>(
     });
     pending.set(key, { promise: request, resourceKey, refresh });
     return request;
+};
+
+/**
+ * Stores a value that another reader already fetched, such as a Query-owned
+ * marketplace read. Legacy callers that still pass through `cachedRead` then
+ * reuse that request instead of asking the API a second time for the same
+ * reference data.
+ */
+export const primeReadCache = <T>(
+    resourceKey: string,
+    scope: 'public' | 'private',
+    ttlMs: number,
+    value: T,
+): void => {
+    values.set(scopedKey(resourceKey, scope), {
+        expiresAt: Date.now() + ttlMs,
+        resourceKey,
+        value,
+    });
+    while (values.size > MAX_CACHE_ENTRIES) removeOldestValue();
 };
 
 if (typeof window !== 'undefined') {

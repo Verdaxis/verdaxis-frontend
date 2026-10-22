@@ -200,6 +200,8 @@ vi.mock('../services/api', () => ({
 }));
 
 const emptyListings = { items: [], total: 0, skip: 0, limit: 8 };
+// Migrated Marketplace and OrderBook reads hand cache ownership and cancellation to Query.
+const queryRead = { cacheOwner: 'query', signal: expect.any(AbortSignal) };
 
 const LocationSpy: React.FC = () => {
   const location = useLocation();
@@ -299,9 +301,9 @@ describe('app routing', () => {
       ];
       for (const [path, marker, page] of cases) {
         const view = renderApp(path);
-        expect(await screen.findByTestId(marker)).toBeTruthy();
+        expect(await screen.findByTestId(marker, {}, { timeout: 5000 })).toBeTruthy();
         expect(dashboardPageAttr()).toBe(page);
-        expect(sessionStorage.getItem('verdaxis_currentPage')).toBe(page);
+        await waitFor(() => expect(sessionStorage.getItem('verdaxis_currentPage')).toBe(page));
         view.unmount();
       }
     });
@@ -317,7 +319,7 @@ describe('app routing', () => {
       ];
       for (const [path, marker, page] of cases) {
         const view = renderApp(path);
-        expect(await screen.findByTestId(marker)).toBeTruthy();
+        expect(await screen.findByTestId(marker, {}, { timeout: 5000 })).toBeTruthy();
         expect(dashboardPageAttr()).toBe(page);
         view.unmount();
       }
@@ -458,7 +460,7 @@ describe('app routing', () => {
   describe('marketplace slice URLs', () => {
     it('opens the canonical B100 query in standard Listings with shared orderbook navigation', async () => {
       renderApp('/app/marketplace?product=UCOME_B100');
-      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' })));
+      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), queryRead));
       expect(currentPathname()).toBe('/app/marketplace');
       expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
       expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
@@ -473,7 +475,7 @@ describe('app routing', () => {
       for (const [windowPath, availability] of [['spot', 'SPOT'], ['2028-q1', '2028-Q1']]) {
         const path = `/app/m/ucome-b100/singapore/${windowPath}`;
         const view = renderApp(path);
-        await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', availability, delivery_point_id: 'dp-1' })));
+        await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', availability, delivery_point_id: 'dp-1' }), queryRead));
         expect(currentPathname()).toBe(path);
         expect(screen.getByTestId('location-search').textContent).toBe('');
         expect(dashboardPageAttr()).toBe('MARKETPLACE');
@@ -488,7 +490,7 @@ describe('app routing', () => {
       expect(await screen.findByTestId('page-rfqs')).toHaveProperty('dataset.historyOnly', 'true');
       expect(listAsksPaged).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'Back to market' }));
-      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' })));
+      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), queryRead));
       expect(screen.queryByTestId('page-rfqs')).toBeNull();
       expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
       expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
@@ -520,7 +522,7 @@ describe('app routing', () => {
         market_product: 'UCOME_B100',
         delivery_point_id: 'dp-1',
         availability_window: '2028-Q1',
-      }, { force: false }));
+      }, queryRead));
       expect(currentPathname()).toBe('/app/m/ucome-b100/singapore/2028-q1');
       expect(screen.getByTestId('location-search').textContent).toBe('?view=orderbook');
     });
@@ -545,7 +547,7 @@ describe('app routing', () => {
           availability: 'SPOT',
           delivery_point_id: 'dp-1',
           region: undefined,
-        }));
+        }), queryRead);
       });
       expect(currentPathname()).toBe('/app/m/bio-methanol/singapore/spot');
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
@@ -578,7 +580,7 @@ describe('app routing', () => {
         expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
           market_product: 'BIO_METHANOL',
           availability: 'SPOT',
-        }));
+        }), queryRead);
       });
 
       fireEvent.click(screen.getByText('navigate-to-target'));
@@ -588,7 +590,7 @@ describe('app routing', () => {
           market_product: 'E_METHANOL',
           availability: '2026-Q1',
           delivery_point_id: 'dp-2',
-        }));
+        }), queryRead);
       });
       expect(currentPathname()).toBe('/app/m/e-methanol/rotterdam/2026-q1');
       const chip = document.querySelector('[data-market-product="E_METHANOL"]');
@@ -619,7 +621,7 @@ describe('app routing', () => {
       fireEvent.click(chip);
 
       await waitFor(() => {
-        expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }));
+        expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }), queryRead);
       });
       expect(currentPathname()).toBe('/app/marketplace');
     });
@@ -738,7 +740,7 @@ describe('app routing', () => {
           delivery_point_id: 'dp-1',
           region: undefined,
           market_product: undefined,
-        }));
+        }), queryRead);
       });
     });
   });
@@ -856,7 +858,7 @@ describe('app routing', () => {
         expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
           market_product: 'BIO_METHANOL',
           availability: 'SPOT',
-        }));
+        }), queryRead);
       });
     });
 

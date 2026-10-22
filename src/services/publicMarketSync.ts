@@ -10,6 +10,12 @@ interface RefreshSubscriber {
 // Batch bursts from duplicate or reconnect signals before refreshing each mounted view.
 const REFRESH_DEBOUNCE_MS = 500;
 const subscribers = new Set<RefreshSubscriber>();
+const batchListeners = new Set<() => void>();
+
+export const subscribePublicMarketBatch = (listener: () => void): (() => void) => {
+    batchListeners.add(listener);
+    return () => { batchListeners.delete(listener); };
+};
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 const runSubscriber = (subscriber: RefreshSubscriber): void => {
@@ -35,6 +41,7 @@ export const queuePublicMarketRefresh = (): void => {
     refreshTimer = setTimeout(() => {
         refreshTimer = null;
         subscribers.forEach(runSubscriber);
+        batchListeners.forEach(listener => listener());
     }, REFRESH_DEBOUNCE_MS);
 };
 

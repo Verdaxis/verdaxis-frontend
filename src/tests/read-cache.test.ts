@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import { api } from '../services/api';
+import { marketplaceApi } from '../features/marketplace/api/marketplaceApi';
 import { clearAccessToken, setAccessToken } from '../services/authToken';
 import { cachedRead, invalidateReadCache, setReadCachePrincipal } from '../services/readCache';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
@@ -312,5 +313,32 @@ describe('bounded API read cache', () => {
         for (const resourceKey of [...marketResources, 'watchlists:test', 'trades:test']) await read(resourceKey);
         expect(loads.get('trades:test')).toHaveBeenCalledTimes(6);
         expect(loads.get('orderbook:test')).toHaveBeenCalledTimes(4);
+    });
+
+    it('lets a legacy catalog read reuse the Query-owned marketplace read', async () => {
+        setAccessToken('access-token-catalog');
+        const wireProducts = [{
+            id: 'product-1', name: 'B30', market_product: 'B30', fuel_type: 'Biofuel',
+            fuel_grade: 'B30', unit: 'MT', min_lot_size: '200.00', is_active: true,
+            execution_mode: 'ORDERBOOK',
+        }];
+        const wirePoints = [
+            { id: 'dp-sg', name: 'Singapore', region: 'Asia', timezone: 'Asia/Singapore', is_active: true },
+        ];
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+            const url = String(input);
+            if (url.includes('/catalog/products')) return jsonResponse(wireProducts);
+            if (url.includes('/catalog/delivery-points')) return jsonResponse(wirePoints);
+            throw new Error(`unexpected catalog read: ${url}`);
+        });
+
+        const products = await marketplaceApi.products();
+        const points = await marketplaceApi.deliveryPoints();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+
+        // The order window still reads the catalog through the shared cache.
+        await expect(api.catalog.products()).resolves.toEqual(products);
+        await expect(api.catalog.deliveryPoints()).resolves.toEqual(points);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 });
