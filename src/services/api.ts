@@ -664,6 +664,77 @@ export interface AdminInvitationResponse {
     reissued: boolean;
 }
 
+/**
+ * Public market reads keep the wire decimal spelling at this boundary.
+ *
+ * `src/api/decimals.ts` converts decimals for the app types that declare a
+ * `number`. These reads have no app type yet, and Phase 5 fixes their client
+ * contract as "decimal string or null", so a consumer that needs a number
+ * calls `parseWireDecimal` itself. That also keeps a missing value (`null`)
+ * distinct from a real zero.
+ */
+export interface ProducerProjectRead {
+    id: string;
+    name: string;
+    fuel_type: string;
+    capacity_kt_per_year: string | null;
+    country: string;
+    region: string | null;
+    lat: number | null;
+    lng: number | null;
+    cod_date: string | null;
+    cod_year: number | null;
+    status: string;
+    data_source: string | null;
+    gena_project_id: string | null;
+    organization_id: string | null;
+    feedstock: string | null;
+    technology: string | null;
+    carbon_intensity_gco2_mj: string | null;
+    notes: string | null;
+    created_at: string;
+}
+
+export type AvailabilityLevelRead = 'AVAILABLE' | 'LIMITED' | 'NONE';
+
+export interface PortFuelAvailabilityRead {
+    port_id: string;
+    port_name: string;
+    lat: number;
+    lng: number;
+    fuel_type: string;
+    market_product_code: string;
+    total_stock_mt: string | null;
+    supplier_count: number;
+    availability_level: AvailabilityLevelRead;
+    avg_price_per_mt: string | null;
+    source_kind: string;
+    scope: string;
+    demo_status: string;
+    unknown_count: number;
+}
+
+export type UrgencyLevelRead = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface DemandSignalRead {
+    fuel_type: string;
+    region: string;
+    market_product_code: string | null;
+    delivery_point_id: string | null;
+    delivery_point_name: string | null;
+    availability_window_code: string | null;
+    volume_mt: string | null;
+    max_price_per_mt: string | null;
+    urgency: UrgencyLevelRead;
+    bid_count: number;
+    earliest_delivery: string;
+    created_at: string;
+    source_kind: string;
+    scope: string;
+    demo_status: string;
+    unknown_count: number;
+}
+
 export const api = {
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
@@ -1170,6 +1241,45 @@ export const api = {
                 method: 'POST',
                 headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
             })));
+        },
+    },
+
+    producers: {
+        list: async (params?: {
+            fuel_type?: string;
+            country?: string;
+            status?: string;
+            cod_year_min?: number;
+            cod_year_max?: number;
+        }): Promise<ProducerProjectRead[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.country) searchParams.append('country', params.country);
+            if (params?.status) searchParams.append('status', params.status);
+            if (params?.cod_year_min) searchParams.append('cod_year_min', String(params.cod_year_min));
+            if (params?.cod_year_max) searchParams.append('cod_year_max', String(params.cod_year_max));
+            const query = searchParams.toString();
+            return fetchApi(`/producers${query ? `?${query}` : ''}`);
+        },
+    },
+
+    availability: {
+        list: async (params?: { fuel_type?: string }): Promise<PortFuelAvailabilityRead[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            const query = searchParams.toString();
+            return fetchApi(`/availability${query ? `?${query}` : ''}`);
+        },
+    },
+
+    demand: {
+        signals: async (params?: { fuel_type?: string; region?: string; limit?: number }): Promise<DemandSignalRead[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.limit) searchParams.append('limit', String(params.limit));
+            const query = searchParams.toString();
+            return fetchApi(`/demand${query ? `?${query}` : ''}`);
         },
     },
 
