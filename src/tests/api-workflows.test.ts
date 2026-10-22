@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, ApiError } from './api';
-import { setAccessToken } from './authToken';
-import { invalidateAllReads } from './readCache';
+import { api, ApiError } from '../services/api';
+import { setAccessToken } from '../services/authToken';
+import { invalidateAllReads } from '../services/readCache';
 
 beforeEach(() => {
   invalidateAllReads();

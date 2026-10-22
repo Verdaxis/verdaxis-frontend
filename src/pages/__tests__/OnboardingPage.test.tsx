@@ -1,11 +1,11 @@
 import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { OnboardingPage } from './OnboardingPage';
-import { loadNamespace } from '../i18n';
-import { renderWithProviders } from '../tests/test-utils';
+import { OnboardingPage } from '../OnboardingPage';
+import { loadNamespace } from '../../i18n';
+import { renderWithProviders } from '../../tests/test-utils';
 
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ token: 'synthetic-session' }) }));
+vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ token: 'synthetic-session' }) }));
 afterEach(() => vi.restoreAllMocks());
 
 it.each([
