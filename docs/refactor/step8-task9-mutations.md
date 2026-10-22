@@ -45,18 +45,28 @@ measurements are part of this round. Decision 96 limits and baselines are unchan
 | Checkpoint | Focused | U | B | J | V |
 |---|---:|---:|---:|---:|---|
 | Prior code `ecc6464e` | 0 | 0 (1,167 tests) | 0 | 0 (11 journeys) | J: 9 comparisons, all within 0.002 |
-| Current review round | Pending | Pending | Pending | Pending | Included in J |
+| Review round `8754a997` | 0 (214 tests) | 0 (1,190 tests) | 0 | 0 (11 journeys) | J: 9 comparisons, all within 0.002 |
 
-Current review checks are in progress. Resume point: finish focused checks, U,
-B and J, record the decision 96 table, push `refactor/fe-step8`, and read CI #96.
+The review-round checks completed on 22 October 2026. U includes both TypeScript
+checks, translations, OpenAPI source/types and request classification. B includes
+both target builds and artifact checks. J includes live streams, screenshot
+comparison and the decision 96 request-volume comparison.
+
+The host call logs confirm U, B and J exit code 0. Their results were recovered
+after the SSH interruption; no test rerun was needed. CI #96 passed on `8754a997`
+(run `39722997448`). The final record commit uses the same code and test tree;
+its CI result is checked after publication. Task 9 implementation and host gates
+are complete. Task 10 requires a separate brief.
 
 ## Decision 96 volume record
 
-Prior code checkpoint, 16 scenarios at or below baseline:
+Review round `8754a997`, all 16 scenarios at or below the unchanged baseline.
+Candidate backend: `56d7577085af99411a6f9c3e34e64ad929d09954`. The comparison
+includes route allowlists and stream lifecycle checks, not only REST totals.
 
 | Scenario | Baseline | Candidate | Delta |
 |---|---:|---:|---:|
-| login-success | 11 | 10 | -1 |
+| login-success | 11 | 9 | -2 |
 | login-wrong-password | 2 | 2 | 0 |
 | marketplace-browse-filter-paginate | 37 | 35 | -2 |
 | marketplace-deep-link-slice | 22 | 19 | -3 |
