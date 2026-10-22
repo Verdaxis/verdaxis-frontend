@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from '../services/api';
 import { setAccessToken } from '../services/authToken';
-import { invalidateAllReads } from '../services/readCache';
+import { invalidateReadCache } from '../services/readCache';
 
 beforeEach(() => {
-  invalidateAllReads();
+  invalidateReadCache();
   setAccessToken('synthetic-session');
 });
 afterEach(() => vi.restoreAllMocks());
