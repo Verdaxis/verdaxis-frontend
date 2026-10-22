@@ -1,8 +1,105 @@
 # Step 8 Task 9: Marketplace actions and mutation invalidation
 
-## Current checkpoint — 22 October 2026
+## Reconnect blocker fix — 22 October 2026
 
-**Task 9 is blocked on decision 96 request volume. Do not start Task 10.**
+Code commit: `ecc6464e` (`fix(stream): let the public owner recover market reads`).
+The first post-fix decision 96 comparison passes all 16 scenarios, including
+reconnect **4 → 4**. Focused, final U, B, J and V all pass. No baseline,
+volume limit, screenshot, financial guard, or dirty-event rerun rule changed.
+Both test hosts report no remaining `fe-step8` units. Task 10 is not started.
+**Resume point:** PM review of this reconnect fix and the completed Task 9 gates.
+
+### Cause and ordering evidence
+
+The original baseline and failing candidate ledgers have no per-record clock.
+Their archived backend HTTP logs supply the timestamps below (UTC). Request
+start estimates subtract the logged request duration from its finish time.
+
+| Evidence | Sequence |
+|---|---|
+| Baseline `run-20261018-124643` | Fixture POST finishes 12:55:03.293; public stream opens 03.512; counts/ASK finish 04.160/04.258; private stream opens 04.496; no second market pair. |
+| Failed candidate `run-20261022-013713` | Public stream opens 01:46:00.448; fixture POST finishes 01.620; ASK/counts start about 01.704/01.864 and finish 01.945/01.972; private stream opens 02.061; second counts/ASK finish 03.000/03.217. |
+
+The public reconnect queues a 500 ms batch. Its read covers the fixture order.
+The later private reconnect calls `invalidateReadsForEvent('trades', 'reconnect')`,
+which also dirties all public market keys. It does not queue its own public
+batch, so it can leave work for a pending batch or a later public event. If it
+arrives after the first read started, the bridge correctly refuses to treat that
+read as covering the later signal. The redundant *signal*, not the financial
+mutation or the required dirty rerun, is the defect.
+
+A temporary instrumented diagnostic (`work/t9-reconnect-trace.log`, exit 0)
+observed the opposite ordering: private reconnect at 02:03:22.667, public at
+23.034, one batch at 23.535, one market pair at 23.549/23.552. That diagnostic
+is not gate evidence or a replacement volume sample. An earlier diagnostic
+selected no windows and is explicitly not test evidence. All temporary edits
+were removed before RED/GREEN and gates.
+
+### Fix and deterministic regression
+
+The stream manager now gives a **connected public orderbook owner** sole
+responsibility for market recovery on a private transport reconnect. That
+private reconnect still invalidates `trades:` and delivers its callback. With
+no connected public owner, broad recovery remains. Real trade events and
+resets retain broad invalidation; the Query bridge is unchanged.
+
+`shared-sse.test.tsx` uses fake timers and real stream/Query integration: public
+reconnect, fixture event, completed ASK/counts batch, then late private
+reconnect and a queued batch. Parent RED: expected one read, received two
+(`work/t9-reconnect-red.log`, `CALL_EXIT=1`). After the fix, that test passes;
+another committed order still reads again. Additional cases cover absent and
+disconnected public owners, real private events, and overflow resets.
+Focused checks: 10 files, 115 tests plus typecheck, exit 0
+(`work/t9-reconnect-focused.log`).
+
+### Post-fix gates
+
+- B: exit 0, both builds, both unchanged budget checks, 23 artifact tests
+  (`work/t9-reconnect-UB.log`).
+- First U: exit 1, 1,165 passed / 2 failed. B100 supplier declaration timed
+  out at 15 seconds; green-fuels could not find `Lift Ask`. These failures
+  also appear in the prior handoff logs; no timeout or test was changed.
+- Final U: exit 0, 151 files / 1,167 tests, both type checks, i18n, OpenAPI,
+  API types, and manifest checks (`work/t9-reconnect-U-final.log`;
+  `UNIT_EXIT=0`, `U_CHECKS_EXIT=0`, `GATE_U_EXIT=0`, `CALL_EXIT=0`).
+  This rerun used unchanged tests and timeouts, with `--maxWorkers=1`.
+  The first U failure remains recorded above.
+- J: exit 0, all 11 journeys, all 9 screenshots, all 16 volume scenarios
+  (`work/t9-reconnect-J.log`). V is covered by J; largest screenshot ratio
+  0.000897, below 0.002.
+- CI #96: pass on code head `ecc6464e`, run `39711427783`.
+
+J used prod test host `heavy run 3600`, pinned backend
+`56d7577085af99411a6f9c3e34e64ad929d09954`, `--screenshots compare`,
+`--streams live`, and `--request-volume compare`. U/B/focused checks used
+staging test host `heavy run 3600`. No local tests, load tests, or speed tests
+ran. Full J evidence: `run-20261022-031725/journeys-report.json` and
+`request-volume-20261022-032618.json` under the test user's
+`.verdaxis-journeys`; local copies are `work/t9-reconnect-journeys-report.json`
+and `work/t9-reconnect-volume.json`.
+
+| Scenario | Baseline | Candidate | Delta |
+|---|---:|---:|---:|
+| login-success | 11 | 10 | -1 |
+| login-wrong-password | 2 | 2 | 0 |
+| marketplace-browse-filter-paginate | 37 | 35 | -2 |
+| marketplace-deep-link-slice | 22 | 19 | -3 |
+| place-bid | 19 | 18 | -1 |
+| place-ask | 19 | 18 | -1 |
+| trade-take-confirm-deliver-pay | 45 | 40 | -5 |
+| notifications-list-mark-read | 12 | 11 | -1 |
+| map-ports-eca-overlay | 20 | 19 | -1 |
+| public-landing | 4 | 4 | 0 |
+| public-content-page | 1 | 1 | 0 |
+| window-listings-visible-60s | 7 | 7 | 0 |
+| window-depth-visible-60s | 14 | 14 | 0 |
+| window-hidden-60s-resume | 8 | 8 | 0 |
+| window-live-event-burst | 9 | 9 | 0 |
+| window-live-reconnect | 4 | 4 | 0 |
+
+## Previous checkpoint — 22 October 2026
+
+**Task 9 was blocked on decision 96 request volume. Do not start Task 10.**
 The historical green results below predate the final code head. The current
 code head is `867950567767c06b7f5fc9fa3a51d7759cfb93ea`, already pushed to
 `refactor/fe-step8`. No source change was needed in this continuation.
