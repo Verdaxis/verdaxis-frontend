@@ -708,9 +708,9 @@ export interface PortFuelAvailabilityRead {
     supplier_count: number;
     availability_level: AvailabilityLevelRead;
     avg_price_per_mt: string | null;
-    source_kind: string;
-    scope: string;
-    demo_status: string;
+    source_kind: MarketSourceKind;
+    scope: MarketScope;
+    demo_status: MarketDemoStatus;
     unknown_count: number;
 }
 
@@ -729,9 +729,9 @@ export interface DemandSignalRead {
     bid_count: number;
     earliest_delivery: string;
     created_at: string;
-    source_kind: string;
-    scope: string;
-    demo_status: string;
+    source_kind: MarketSourceKind;
+    scope: MarketScope;
+    demo_status: MarketDemoStatus;
     unknown_count: number;
 }
 
@@ -1256,8 +1256,9 @@ export const api = {
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.country) searchParams.append('country', params.country);
             if (params?.status) searchParams.append('status', params.status);
-            if (params?.cod_year_min) searchParams.append('cod_year_min', String(params.cod_year_min));
-            if (params?.cod_year_max) searchParams.append('cod_year_max', String(params.cod_year_max));
+            // A zero bound is a value, not a missing filter, so it is sent too.
+            if (params?.cod_year_min !== undefined) searchParams.append('cod_year_min', String(params.cod_year_min));
+            if (params?.cod_year_max !== undefined) searchParams.append('cod_year_max', String(params.cod_year_max));
             const query = searchParams.toString();
             return fetchApi(`/producers${query ? `?${query}` : ''}`);
         },
@@ -1277,7 +1278,8 @@ export const api = {
             const searchParams = new URLSearchParams();
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);
-            if (params?.limit) searchParams.append('limit', String(params.limit));
+            // A zero limit is sent too, so the server can reject it instead of using its default.
+            if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
             const query = searchParams.toString();
             return fetchApi(`/demand${query ? `?${query}` : ''}`);
         },
