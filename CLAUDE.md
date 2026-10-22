@@ -11,7 +11,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Framework:** React 19 + TypeScript, bundled with Vite 7 (Node 24)
 - **Routing:** react-router-dom v7 (BrowserRouter, all routes defined in `App.tsx`)
 - **Styling:** Tailwind CSS with `darkMode: 'class'`, custom `verdaxis` color tokens in `tailwind.config.js`
-- **State Management:** React Context (Auth, Theme, Copilot, Notifications) -- no Redux/Zustand
+- **State Management:** React Context (Auth, Theme, Copilot, Notifications); TanStack Query v5 for Marketplace/OrderBook server state -- no Redux/Zustand
 - **Charts:** Recharts
 - **Maps:** Mapbox GL JS for port intelligence; Leaflet + react-leaflet for the producer map
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
@@ -41,7 +41,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
-- **Auth:** Private requests include `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`. Only the exact public GET allowlist for market, reference catalog, and role-independent port reads omits credentials, support context, and JSON request headers. Catalog cache keys retain their private principal scope.
+- **Auth:** Private requests include `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`. Only the exact public GET allowlist for market, reference catalog, and role-independent port reads omits credentials, support context, and JSON request headers. Public-allowlisted catalog reads use public cache keys. TanStack Query owns Marketplace and OrderBook reads through feature adapters; the legacy cache remains for unmigrated callers. Private Query keys include auth generation, user, organization and Market Support context.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
@@ -53,7 +53,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 - **Icons:** Always from `lucide-react`. Import only the icons you need.
 - **Decimal boundary:** Backend `Decimal` fields arrive as JSON strings and are converted to numbers exactly once by the mappers in `src/api/` (see Known Gotchas). Components never call `Number()` on wire data; displays use the shared formatters in `src/utils/numberFormat.ts`.
 - **Context usage:** Use `useAuth()`, `useTheme()`, `useCopilotContext()`, `useNotifications()` hooks, never access contexts directly.
-- **File organization:** Top-level components in `src/components/` for major views. Subdirectories for related groups (layout, map, compliance, ui, public, buyer, supplier, ai, fleet, notifications).
+- **File organization:** Marketplace and OrderBook live in `src/features/{marketplace,orderbook}/` with components, hooks and API adapters; their old `src/components/` paths remain re-export shims. Other major views remain in `src/components/` and its related subdirectories. `src/lib/query/` owns Query lifecycle and invalidation; `src/lib/sse/streamManager.ts` serves the compatible `useSSE` hook, including legacy consumers.
 - **No CSS modules or styled-components.** All styling is Tailwind. Global styles are minimal and live in `src/index.css`.
 - After completing work, update ARCHITECTURE.md if file structure or key relationships changed.
 

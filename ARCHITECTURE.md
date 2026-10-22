@@ -53,7 +53,11 @@ index.html
 
 **Market Support.** The admin remains the authenticated principal. The browser persists only an opaque context id. `MarketSupportContext` rehydrates server state and expires it; `api.ts` sends the context header only to the narrow customer route allowlist. Capability discovery recognizes `MARKET_SUPPORT_LISTINGS` and `MARKET_SUPPORT_AUTHORIZATIONS`, while the server eligibility result remains authoritative. Entry requires an approved `REAL` organization and an `ORDER_CREATE`/`ORDER_CANCEL` scope. Both assisted BID and ASK use `OrderPlaceModal` and `MarketSupportFinalConfirmation`. Unsupported mutations and trade execution stay blocked.
 
-**Cached reads.** `readCache.ts` keys private reads by the auth generation, accepted account/organization, and assisted context. Mutations and market stream events invalidate affected keys. Results from an obsolete scope cannot repopulate the cache.
+**Cached reads.** TanStack Query owns Marketplace catalog, listings, counts, owned orders, pricing overlays, and OrderBook snapshots. Feature adapters call the retained API client with `cacheOwner: 'query'`, bypassing legacy value and pending storage; `src/api/` remains the decimal boundary. Query-owned catalog responses also prime the legacy reference cache for the external order modal. `readCache.ts` remains transitional storage for unmigrated views, not a second cache in front of feature reads. Both private key families include auth generation, accepted account/organization, and assisted context. Scope changes detach pending private reads and remove private Query entries; late results cannot restore an obsolete scope.
+
+**Refresh ownership.** API writes mark matching keys stale at mutation start and schedule one active visible refresh at settlement. The invalidation bridge shares the public market batch and retains one dirty rerun for events received during a read. A batch needs no extra read only when that read started after the batch's last committed event. The pricing overlay is keyed by settled ASK ids and stays outside generic market invalidation. The external order modal refreshes My Listings explicitly on close; placed orders and the take dialog's two-second success display rely on the bridge, not a second explicit read. Hidden/inactive keys stay stale without a fetch; visible fallback intervals remain 60 seconds for listings/counts and 10 seconds for depth.
+
+**Shared streams.** `hooks/useSSE.ts` subscribes to `lib/sse/streamManager.ts`. The manager owns one physical public connection per channel and one private trades connection per accepted scope, invalidates reads and maps trade payloads once, then fans out to existing consumers. Legacy views already use this shared transport without moving their REST state to Query. Final unsubscribe closes the source and clears pending token/reconnect work; no prices subscriber was added.
 
 **Decimal boundary.** The backend serializes `Decimal` as a JSON string. `src/api/decimals.ts` converts each one (`parseWireDecimal`, `requireWireDecimal`), and `src/api/mappers.ts` applies one mapper per wire shape — typed from the generated wire types in `src/api/contract.ts` to the app types — at every entry point: each `services/api.ts` method, the public ticker's direct fetches in `data/fuelPrices.ts`, and the trade stream in `useSSE`. A component therefore never sees a wire string. Money and unit prices render with `formatUsd` and quantities and measurements with `formatQuantity` (`src/utils/numberFormat.ts`), so no displayed text depends on how the wire spells a number (tracker decision 71). The cache stores raw wire bodies and every mapper runs outside it. `docs/refactor/api-type-drift.md` records the entry points and the shapes still open.
 
@@ -67,7 +71,7 @@ index.html
 
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
 
-**Private stream recovery.** Only a private trade-stream `reset` with reason `subscriber_overflow` retains the last acknowledged replay cursor. `useSSE` still invalidates affected REST reads and delivers the reset callback before reconnect; other resets, `auth_revoked`, and user, organization, or Market Support scope changes clear the cursor. A connected public orderbook stream owns market recovery, so a private transport reconnect invalidates only private trade history in that case. If the public stream is absent or disconnected, private reconnect retains broad market invalidation. Actual private trade events and resets always retain their market invalidation.
+**Private stream recovery.** Only a private trade-stream `reset` with reason `subscriber_overflow` retains the last acknowledged replay cursor. `useSSE` still invalidates affected REST reads and delivers the reset callback before reconnect; other resets, `auth_revoked`, and user, organization, or Market Support scope changes clear the cursor. A connected public orderbook stream owns market recovery, so a private transport reconnect invalidates only private trade history in that case. If the public stream is absent or disconnected, private reconnect retains broad market invalidation and queues one public batch reconciliation for active Query reads and legacy refresh subscribers. Actual private trade events and resets always retain their market invalidation.
 
 **Canonical products.** B30 (`c4cecebc-3d2d-5840-8021-57a9a11bc673`) and B100 (`74eb9cb5-f0e3-55f1-b82c-fe29b7c45bf5`) retain scalar biofuel contracts, fixed ISO specifications, whole-fuel CI methods and the 200 MT catalog minimum. UCOME_B100 retains its separate UUID, typed terms, 1 MT minimum and Singapore lane. Scalar biofuel suppliers enter through ASK declarations, not an undeclared direct take of a BID.
 
@@ -110,7 +114,9 @@ src/
     admin/market-support/           eligible-organization entry
     market-support/                 acting banner and final order confirmation
     public/                         localized public shell and components
-  features/marketplace/             Marketplace workspace: components/, hooks/ (useMarketplaceQueries, useMarketplaceSelection), api/ (Query keys, options, read adapters)
+  features/marketplace/             Marketplace composition and unchanged presentation components; old component path is a re-export shim
+    hooks/                          useMarketplaceSelection, useMarketplaceQueries, useTakeTrade, useCancelOrder
+    api/                            Query keys/options and shared-client read/write adapters
   features/orderbook/               OrderBook workspace: components/, api/ (Query keys, options, read adapter)
   features/orderbook/hooks/useOrderBookSnapshot.ts
                                     Query-owned market-slice snapshot: registers its reads with the shared
@@ -132,7 +138,9 @@ src/
     orderTerms.ts                   applies every product terms layer in one pass
     publicMarketSync.ts             shared market invalidation subscriber
     analytics.ts                    optional consent-gated Umami adapter
-  hooks/                            workspace readiness, SSE, preferences, watchlists
+  lib/sse/streamManager.ts           shared public/private transport, replay, token, reconnect and subscriber lifecycle
+  hooks/useSSE.ts                    compatible subscription hook for feature and legacy consumers
+  hooks/                            workspace readiness, preferences, watchlists
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/brandImages.ts              srcSet ladders for the WebP brand images
   utils/                            market identity, slice URLs, axis and display helpers
@@ -165,7 +173,12 @@ scripts/
 | Area | Source | Tests/checks |
 |---|---|---|
 | Routes and sidebar | `App.tsx`, `layout/sidebarConfig.ts`, `types.ts` | `app-routing.test.tsx`, `sidebar-config.test.ts` |
-| Marketplace/order entry | `Marketplace.tsx`, `OrderBook.tsx`, `OrderPlaceModal.tsx`, `api.ts` | `marketplace-green-fuels.test.tsx`, `order-place-modal.test.tsx`, `api-*.test.ts` |
+| Marketplace presentation/selection | `features/marketplace/components/`, `hooks/useMarketplaceSelection.ts` | `marketplace-structure.test.tsx`, `marketplace-selection.test.tsx`, `marketplace-green-fuels.test.tsx` |
+| Feature read contract and lifecycle | `features/{marketplace,orderbook}/api/`, `useMarketplaceQueries.ts`, `lib/query/` | `feature-api-contracts.test.ts`, `feature-query-options.test.ts`, `marketplace-query-lifecycle.test.tsx`, `query-client.test.tsx`, `query-invalidation.test.tsx`, `query-scope.test.tsx` |
+| OrderBook depth and clock | `features/orderbook/`, `lib/query/snapshotRequests.ts`, `refreshRegistry.ts` | `orderbook-{structure,interactions,query-lifecycle}.test.tsx`, `snapshot-requests.test.ts`, `snapshot-freshness.test.tsx`, `refresh-lifecycle.test.ts` |
+| Take/cancel and external order entry | `useTakeTrade.ts`, `useCancelOrder.ts`, `OrderPlaceModal.tsx`, `api.ts` | `marketplace-mutations.test.tsx`, `query-scope.test.tsx`, product take suites, `order-place-modal*.test.tsx`, `api-*.test.ts` |
+| Shared transport and freshness fan-out | `lib/sse/streamManager.ts`, `hooks/useSSE.ts`, `services/publicMarketSync.ts` | `shared-sse.test.tsx`, `use-sse.test.tsx`, `public-market-sync.test.tsx`, `read-cache.test.ts` |
+| Integrated journeys and request counts | `scripts/journeys/` | eleven journeys, nine screenshot comparisons, three candidate count samples; `docs/refactor/step8-verification.md` records gate status |
 | Forward Curve | `ForwardCurveWorkspace.tsx`, `utils/forwardCurveAxis.ts` | `forward-curve-workspace.test.tsx`, `forward-curve-axis.test.ts` |
 | Intelligence Map | `src/components/BuyerMap.tsx` | `src/tests/buyer-map-i18n.test.tsx` |
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
