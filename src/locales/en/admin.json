@@ -572,5 +572,6 @@
   "errors.code.ORGANIZATION_JOIN_USER_INELIGIBLE": "Approve the user and verify their email before membership.",
   "errors.code.ORGANIZATION_JOIN_ORG_INELIGIBLE": "Approve the organization before membership.",
   "errors.code.ORGANIZATION_JOIN_ROLE_MISMATCH": "The user role does not match the organization's trading side.",
-  "errors.code.ORGANIZATION_JOIN_MEMBERSHIP_CONFLICT": "The user already belongs to another organization."
+  "errors.code.ORGANIZATION_JOIN_MEMBERSHIP_CONFLICT": "The user already belongs to another organization.",
+  "errors.code.KYC_NOTIFICATION_FAILED": "The decision was saved, but its notification email failed. Reload before taking another action."
 }

@@ -572,5 +572,6 @@
   "errors.code.ORGANIZATION_JOIN_USER_INELIGIBLE": "请先批准用户并验证其邮箱。",
   "errors.code.ORGANIZATION_JOIN_ORG_INELIGIBLE": "请先批准该机构。",
   "errors.code.ORGANIZATION_JOIN_ROLE_MISMATCH": "用户角色与机构交易方不匹配。",
-  "errors.code.ORGANIZATION_JOIN_MEMBERSHIP_CONFLICT": "该用户已属于其他机构。"
+  "errors.code.ORGANIZATION_JOIN_MEMBERSHIP_CONFLICT": "该用户已属于其他机构。",
+  "errors.code.KYC_NOTIFICATION_FAILED": "该决定已保存，但通知邮件发送失败。请先刷新后再执行其他操作。"
 }

@@ -513,6 +513,18 @@ const UsersTab: React.FC = () => {
       setReviewCase(await api.admin.reviewCase(reviewCase.user_id));
       await load();
     } catch (error) {
+      // The review decision commits before its notification email is sent.
+      // A 502 KYC_NOTIFICATION_FAILED therefore means the decision took
+      // effect: reload the case so the operator sees the committed state
+      // instead of repeating the approve action against it.
+      if (error instanceof ApiError && error.code === 'KYC_NOTIFICATION_FAILED') {
+        try {
+          setReviewCase(await api.admin.reviewCase(reviewCase.user_id));
+          await load();
+        } catch (refreshError) {
+          console.error('[admin] reviewStep refresh after notification failure', refreshError);
+        }
+      }
       setReviewError(safeAdminError(error, t, language, 'users.error.reviewStep'));
     } finally {
       setReviewActioning(false);
