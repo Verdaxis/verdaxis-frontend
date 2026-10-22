@@ -176,20 +176,35 @@ describe('Marketplace take execution', () => {
     it('keeps the current view after a pending take enters support A then support B', async () => {
         let finish!: (value: typeof tradeResult) => void;
         mocks.initiate.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
-        const view = renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
-        await openTradeAndConfirm();
-        await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
-        mocks.support.active = true;
-        mocks.support.current = { id: 'support-a' };
-        setMarketSupportContextId('support-a');
-        view.rerender(<Marketplace />);
-        mocks.support.current = { id: 'support-b' };
-        setMarketSupportContextId('support-b');
-        view.rerender(<Marketplace />);
-        await act(async () => { finish(tradeResult); });
-        expect(screen.queryByText('Trade Request Sent')).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Confirm Trade' })).toBeNull();
-        expect(mocks.initiate).toHaveBeenCalledTimes(1);
+        const client = createQueryClient();
+        const t = ((key: string) => key) as TFunction;
+        const hook = renderHook(() => useTakeTrade({ userId: 'user-a', organizationId: 'org-a',
+            isMarketSupportActive: mocks.support.active, isHistorySelected: false, marketTab: 'market',
+            b100TradingEnabled: false, bioLngTradingEnabled: false, t, tRfq: t,
+            fetchProductCounts: vi.fn(), fetchListings: vi.fn(), currentSkip: 0, prefillAskOrder: vi.fn(),
+        }), { wrapper: ({ children }) => <QueryProvider client={client}>{children}</QueryProvider> });
+        try {
+            act(() => hook.result.current.openTradeModal(ask as OrderBookOrder));
+            act(() => hook.result.current.reviewTrade());
+            let pending!: Promise<void>;
+            act(() => { pending = hook.result.current.confirmTrade(); });
+            await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
+            mocks.support.active = true;
+            mocks.support.current = { id: 'support-a' };
+            setMarketSupportContextId('support-a');
+            hook.rerender();
+            mocks.support.current = { id: 'support-b' };
+            setMarketSupportContextId('support-b');
+            hook.rerender();
+            const demoOrder = { ...ask, id: 'demo-b', is_demo_listing: true } as OrderBookOrder;
+            act(() => hook.result.current.openTradeModal(demoOrder));
+            expect(hook.result.current.tradeState).toBe('confirming');
+            await act(async () => { finish(tradeResult); await pending; });
+            expect(hook.result.current.selectedOrder?.id).toBe('demo-b');
+            expect(hook.result.current.tradeState).toBe('confirming');
+            expect(hook.result.current.tradeResult).toBeNull();
+            expect(mocks.initiate).toHaveBeenCalledTimes(1);
+        } finally { hook.unmount(); client.clear(); }
     });
 
     it('blocks a trade retry after the auth generation changes', async () => {
