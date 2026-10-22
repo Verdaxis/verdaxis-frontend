@@ -138,12 +138,16 @@ export const DataAnalytics: React.FC = () => {
         : t(`dataAnalytics.fuels.${translationKey(fuel)}`, { defaultValue: t('dataAnalytics.fuels.other') });
     const statusLabel = (status: string) => t(`dataAnalytics.status.${translationKey(status)}`, { defaultValue: t('dataAnalytics.status.unknown') });
     const countryLabel = (country: string) => t(`countries.${translationKey(country)}`, { defaultValue: t('countries.unknown') });
-    const fleetSource = fleetDataState === 'live' || fleetDataState === 'empty'
+    // A published document is a historical observation: show the date and
+    // source it reports. A loading, unavailable or malformed read is a
+    // baseline estimate instead, so it has no observed date or source to show.
+    const showsObservation = fleetDataState === 'live' || fleetDataState === 'empty';
+    const fleetSource = showsObservation
         ? fleetSources.join(', ') || t('dataAnalytics.provenance.sourceUnknown')
-        : t('dataAnalytics.provenance.sampleSource');
-    const fleetUpdatedAt = (fleetDataState === 'live' || fleetDataState === 'empty') && fleetLastUpdated
+        : '';
+    const fleetUpdatedAt = showsObservation && fleetLastUpdated
         ? formatObservedAt(fleetLastUpdated)
-        : t('dataAnalytics.provenance.noLiveUpdate');
+        : t('dataAnalytics.provenance.noReportedDate');
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -163,7 +167,7 @@ export const DataAnalytics: React.FC = () => {
                     <span className="font-semibold text-slate-700 dark:text-slate-300">{t('dataAnalytics.provenance.producerMetrics')}:</span>
                     {' '}{t('dataAnalytics.provenance.staticDataset')} · {t('dataAnalytics.provenance.vintage', { date: PRODUCER_DATASET_VINTAGE })}
                 </div>
-                <div className={`rounded border px-3 py-2 ${fleetDataState === 'sample'
+                <div className={`rounded border px-3 py-2 ${fleetDataState === 'sample' || fleetDataState === 'loading'
                     ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300'
                     : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-700/40 dark:bg-blue-950/30 dark:text-blue-300'}`}>
                     <span className="font-semibold">{t('dataAnalytics.provenance.fleetMetrics')}:</span>
@@ -267,7 +271,7 @@ export const DataAnalytics: React.FC = () => {
                     </div>
                     <div className="p-4 space-y-4">
                         <div
-                            className={`rounded border px-3 py-2 text-[11px] ${fleetDataState === 'sample'
+                            className={`rounded border px-3 py-2 text-[11px] ${fleetDataState === 'sample' || fleetDataState === 'loading'
                                 ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300'
                                 : fleetDataState === 'empty'
                                     ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400'
@@ -277,8 +281,15 @@ export const DataAnalytics: React.FC = () => {
                             <div className="font-semibold">
                                 {t(`dataAnalytics.provenance.fleetState.${fleetDataState}`)}
                             </div>
-                            <div>{t('dataAnalytics.provenance.source', { source: fleetSource })}</div>
-                            <div>{t('dataAnalytics.provenance.updated', { date: fleetUpdatedAt })}</div>
+                            {showsObservation ? (
+                                <>
+                                    <div>{t('dataAnalytics.provenance.source', { source: fleetSource })}</div>
+                                    <div>{t('dataAnalytics.provenance.updated', { date: fleetUpdatedAt })}</div>
+                                    <div>{t('dataAnalytics.provenance.historicalNote')}</div>
+                                </>
+                            ) : (
+                                <div>{t('dataAnalytics.provenance.baselineNotice')}</div>
+                            )}
                             <div>{t('dataAnalytics.provenance.demandMethod')}</div>
                         </div>
                         {fleetDataState === 'empty' ? (

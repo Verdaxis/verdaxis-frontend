@@ -139,7 +139,7 @@
     "demand": {
       "title": "Demand: Dual-Fuel Fleet",
       "averageConsumption": "Avg consumption: {{amount}} MT/yr per vessel",
-      "estimatedDemand": "Est. demand: {{amount}}",
+      "estimatedDemand": "Estimated demand (derived): {{amount}}",
       "pendingDeliveries": "Pending deliveries",
       "empty": "The live dataset reported no fleet demand entries for this update."
     },
@@ -152,20 +152,21 @@
       "source": "Source: {{source}}",
       "updated": "Updated: {{date}}",
       "sourceUnknown": "Source not supplied by the API",
-      "sampleSource": "Verdaxis illustrative sample",
-      "noLiveUpdate": "No live update time",
+      "baselineNotice": "Baseline estimate: no observed date or source.",
+      "noReportedDate": "No reported date",
+      "historicalNote": "Reported by the dataset publisher; Verdaxis cannot certify facts the publisher did not record.",
       "demandMethod": "Estimate method: delivered vessels × average annual consumption per vessel.",
       "fleetState": {
-        "loading": "Loading live fleet data; the values below are an illustrative sample.",
-        "live": "Live fleet dataset",
-        "empty": "Live fleet dataset returned zero entries",
-        "sample": "Live fleet data is unavailable; the values below are an illustrative sample."
+        "loading": "Live fleet data is still loading; the values below are a baseline estimate.",
+        "live": "Historical fleet observation",
+        "empty": "Historical fleet observation returned zero entries",
+        "sample": "Live fleet data is unavailable; the values below are a baseline estimate."
       }
     },
     "balance": {
       "title": "Supply vs Demand Snapshot",
       "producing": "ktpa Producing",
-      "estimatedDemand": "MT/yr Est. Demand"
+      "estimatedDemand": "MT/yr Estimated demand (derived)"
     },
     "paywall": {
       "title": "Unlock Full Supply & Demand Intelligence",

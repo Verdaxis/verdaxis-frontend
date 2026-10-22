@@ -136,7 +136,7 @@ describe('DataAnalytics', () => {
 
     renderWithProviders(<DataAnalytics />);
 
-    expect((await screen.findAllByText('Live fleet dataset returned zero entries')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Historical fleet observation returned zero entries')).length).toBeGreaterThan(0);
     expect(screen.getByText('The live dataset reported no fleet demand entries for this update.')).toBeTruthy();
     expect(screen.getByText('Source: Fleet intelligence live')).toBeTruthy();
     expect(screen.queryByText(/Live fleet data is unavailable/)).toBeNull();
@@ -148,9 +148,9 @@ describe('DataAnalytics', () => {
 
     renderWithProviders(<DataAnalytics />);
 
-    expect((await screen.findAllByText('Live fleet data is unavailable; the values below are an illustrative sample.')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Source: Verdaxis illustrative sample')).toBeTruthy();
-    expect(screen.getByText('Updated: No live update time')).toBeTruthy();
+    expect((await screen.findAllByText('Live fleet data is unavailable; the values below are a baseline estimate.')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Baseline estimate: no observed date or source.')).toBeTruthy();
+    expect(screen.queryByText(/^Source:/)).toBeNull();
     expect(contentReadyMock).toHaveBeenLastCalledWith('DATA_ANALYTICS', true);
   });
 
