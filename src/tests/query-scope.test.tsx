@@ -82,6 +82,7 @@ describe('accepted Query scope lifecycle', () => {
             if (change === 'organization') identity.user = { id: 'a', organization_id: 'org-b' };
             else { identity.support = { id: 'support-b' }; setMarketSupportContextId('support-b'); }
             hook.rerender();
+            expect(hook.result.current.myOrdersError).toBeNull();
             const nextOrder = { ...order, id: 'order-b', etag: '"v2"' };
             await act(async () => { await hook.result.current.handleCancelOrder(nextOrder); });
             await act(async () => { finish(); await pending; });

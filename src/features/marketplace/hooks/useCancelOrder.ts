@@ -77,6 +77,7 @@ export function useCancelOrder({
         setCancellationOutcomeUnknown(false);
         setCancellationLoading(false);
         setPendingCancellation(null);
+        setMyOrdersError(null);
     }, [userId, organizationId, marketSupportContextId]);
 
     useEffect(() => {
