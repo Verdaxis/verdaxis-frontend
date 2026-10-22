@@ -45,7 +45,7 @@ measurements are part of this round. Decision 96 limits and baselines are unchan
 | Checkpoint | Focused | U | B | J | V |
 |---|---:|---:|---:|---:|---|
 | Prior code `ecc6464e` | 0 | 0 (1,167 tests) | 0 | 0 (11 journeys) | J: 9 comparisons, all within 0.002 |
-| Review round `8754a997` | 0 (214 tests) | 0 (1,190 tests) | 0 | 0 (11 journeys) | J: 9 comparisons, all within 0.002 |
+| Review round `8754a997` | 0 (214 tests; pre-commit working tree based on `2c832279`) | 0 (1,190 tests) | 0 | 0 (11 journeys) | J: 9 comparisons, all within 0.002 |
 
 The review-round checks completed on 22 October 2026. U includes both TypeScript
 checks, translations, OpenAPI source/types and request classification. B includes
