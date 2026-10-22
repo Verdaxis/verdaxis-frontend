@@ -67,7 +67,7 @@ describe('DataAnalytics', () => {
     await waitFor(() => expect(subscriptionsMeMock).toHaveBeenCalled());
     expect(contentReadyMock).toHaveBeenLastCalledWith('DATA_ANALYTICS', false);
 
-    await act(async () => resolveFleet({ entries: [], sources: [], last_updated: '' }));
+    await act(async () => resolveFleet({ entries: [], sources: [], last_updated: '2026-05-14' }));
     await waitFor(() => expect(contentReadyMock).toHaveBeenLastCalledWith('DATA_ANALYTICS', true));
   });
 
