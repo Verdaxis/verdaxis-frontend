@@ -43,6 +43,7 @@ vi.mock('../components/admin/product-analytics/ProductAnalyticsWorkspace', () =>
 }));
 
 import { AdminDashboard } from '../components/admin/AdminDashboard';
+import { ApiError } from '../services/api';
 import i18n, { loadNamespace } from '../i18n';
 
 const reviewCase = {
@@ -221,6 +222,38 @@ describe('admin onboarding review', () => {
     });
     expect(await screen.findByText('Invitation ready')).toBeTruthy();
     expect(screen.getByText(/Northstar Shipping/)).toBeTruthy();
+  });
+
+  it('kyc committed notification failure refreshes case without resubmit', async () => {
+    const verifiedPending = { ...reviewCase, email_verified: true };
+    const committed = { ...verifiedPending, account_status: 'APPROVED', requested_organizations: [] };
+    mocks.reviewCase.mockResolvedValueOnce(verifiedPending).mockResolvedValueOnce(committed);
+    mocks.approveUser.mockRejectedValueOnce(new ApiError(
+      'The decision was saved, but the notification email failed.',
+      502,
+      'KYC_NOTIFICATION_FAILED',
+    ));
+
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Hapag-Lloyd AG');
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve account' }));
+
+    // The server kept the decision; the panel must reload it rather than
+    // leave the approve action in place for a repeat submission.
+    expect(mocks.approveUser).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.reviewCase).toHaveBeenCalledTimes(2));
+    expect(mocks.reviewCase).toHaveBeenLastCalledWith('user-1');
+    const complete = await screen.findByRole('button', { name: 'Onboarding complete' });
+    expect((complete as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Approve account' })).toBeNull();
+    // The operator sees the mapped notification-failure message, not a bare code.
+    expect(screen.getByRole('alert').textContent).toContain('notification email failed');
   });
 
   it('does not expose unknown organization or outreach enums in Chinese', async () => {
