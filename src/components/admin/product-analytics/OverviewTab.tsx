@@ -87,7 +87,8 @@ export const OverviewTab: React.FC<{
             {data.needs_attention.map(item => (
               <li key={item.rule} className="flex items-center gap-2 text-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" aria-hidden />
-                {t(`pa.attention.${item.rule}`, { count: item.count === null ? '—' : item.count })}
+                {/* An unavailable count renders as an explicit marker, never a fabricated zero. */}
+                {t(`pa.attention.${item.rule}`, { value: item.count === null ? '—' : item.count })}
               </li>
             ))}
           </ul>
