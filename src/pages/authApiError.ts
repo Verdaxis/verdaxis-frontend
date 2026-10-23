@@ -19,12 +19,14 @@ export function formatLocalizedAuthError(
 ): string {
   const outer = payload && typeof payload === 'object' ? payload as ErrorPayload : {};
   // Unmoved routes still answer with a FastAPI validation list: [{msg, ...}].
-  const validationMessage = Array.isArray(outer.detail)
+  // An empty or unusable list falls through to the next shape, not to ''.
+  const joinedValidation = Array.isArray(outer.detail)
     ? outer.detail
         .map(item => item && typeof item === 'object' ? text((item as ErrorPayload).msg) : null)
         .filter(Boolean)
         .join(' ')
     : null;
+  const validationMessage = text(joinedValidation);
   const detail = outer.detail && typeof outer.detail === 'object' && !Array.isArray(outer.detail)
     ? outer.detail as ErrorPayload
     : {};
