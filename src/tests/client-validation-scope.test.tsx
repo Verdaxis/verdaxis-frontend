@@ -40,7 +40,50 @@ describe('server-side validation stays visible', () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain('/auth/survey');
     // The overlength answer was not accepted as a completed survey.
     expect(await screen.findByText(/referral_source must be at most 500/i)).toBeTruthy();
-    expect(screen.queryByText('Sign in')).toBeNull();
+    expect(screen.queryByText('Sign In')).toBeNull();
+  });
+
+  it('completes the survey step after a 500 from the survey endpoint', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ email: 'a@example.test' })) // verify-email
+      .mockResolvedValueOnce(Response.json({ detail: 'survey unavailable' }, { status: 500 }));
+    renderWithProviders(<VerifyEmailPage />, { route: '/verify-email?token=synthetic' });
+
+    fireEvent.click(await screen.findByText('Fuel Buyer'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    // The survey stays best-effort: a server failure completes the step.
+    expect(await screen.findByText('Sign In')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('completes the survey step after a 403 from the survey endpoint', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ email: 'a@example.test' })) // verify-email
+      .mockResolvedValueOnce(Response.json({ detail: { code: 'FORBIDDEN', message: 'Not allowed' } }, { status: 403 }));
+    renderWithProviders(<VerifyEmailPage />, { route: '/verify-email?token=synthetic' });
+
+    fireEvent.click(await screen.findByText('Fuel Buyer'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Sign In')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('completes the survey step when the request fails on the network', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ email: 'a@example.test' })) // verify-email
+      .mockRejectedValueOnce(new TypeError('network down'));
+    renderWithProviders(<VerifyEmailPage />, { route: '/verify-email?token=synthetic' });
+
+    fireEvent.click(await screen.findByText('Fuel Buyer'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Sign In')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('shows the structured country rejection on organization creation', async () => {
