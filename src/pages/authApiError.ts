@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 type ErrorPayload = {
   code?: unknown;
   message?: unknown;
+  msg?: unknown;
   detail?: unknown;
 };
 
@@ -17,8 +18,19 @@ export function formatLocalizedAuthError(
   fallbackKey: string,
 ): string {
   const outer = payload && typeof payload === 'object' ? payload as ErrorPayload : {};
-  const detail = outer.detail && typeof outer.detail === 'object' ? outer.detail as ErrorPayload : {};
-  const message = text(detail.message) ?? text(outer.message) ?? text(outer.detail) ?? text(payload);
+  // Unmoved routes still answer with a FastAPI validation list: [{msg, ...}].
+  // An empty or unusable list falls through to the next shape, not to ''.
+  const joinedValidation = Array.isArray(outer.detail)
+    ? outer.detail
+        .map(item => item && typeof item === 'object' ? text((item as ErrorPayload).msg) : null)
+        .filter(Boolean)
+        .join(' ')
+    : null;
+  const validationMessage = text(joinedValidation);
+  const detail = outer.detail && typeof outer.detail === 'object' && !Array.isArray(outer.detail)
+    ? outer.detail as ErrorPayload
+    : {};
+  const message = validationMessage ?? text(detail.message) ?? text(outer.message) ?? text(outer.detail) ?? text(payload);
   const code = text(detail.code) ?? text(outer.code) ?? (message ? ERROR_CODE_ALIASES[message] : undefined);
   const fallback = t(fallbackKey);
   const isZh = document.documentElement.lang.startsWith('zh');

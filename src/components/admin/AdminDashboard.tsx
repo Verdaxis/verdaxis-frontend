@@ -20,6 +20,7 @@ import {
   AdminInvitationOrganization,
   AdminInvitationResponse,
   ApiError,
+  ApiOutcomeUnknownError,
   OnboardingAttentionItem,
   api,
 } from '../../services/api';
@@ -513,6 +514,25 @@ const UsersTab: React.FC = () => {
       setReviewCase(await api.admin.reviewCase(reviewCase.user_id));
       await load();
     } catch (error) {
+      // The review decision commits before its notification email is sent.
+      // A 502 KYC_NOTIFICATION_FAILED therefore means the decision took
+      // effect: reload the case so the operator sees the committed state
+      // instead of repeating the approve action against it. The client wraps
+      // 5xx mutation failures as outcome-unknown, so read the cause.
+      const cause = error instanceof ApiOutcomeUnknownError ? error.cause : error;
+      if (cause instanceof ApiError && cause.code === 'KYC_NOTIFICATION_FAILED') {
+        try {
+          setReviewCase(await api.admin.reviewCase(reviewCase.user_id));
+          await load();
+        } catch (refreshError) {
+          console.error('[admin] reviewStep refresh after notification failure', refreshError);
+          // The displayed case state is untrusted until a reload succeeds;
+          // close it so the stale action cannot be repeated blindly.
+          closeReview();
+        }
+        setReviewError(safeAdminError(cause, t, language, 'users.error.reviewStep'));
+        return;
+      }
       setReviewError(safeAdminError(error, t, language, 'users.error.reviewStep'));
     } finally {
       setReviewActioning(false);

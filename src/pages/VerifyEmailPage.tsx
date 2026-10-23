@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { localizedAuthError } from './authApiError';
 
 type VerifyState = 'loading' | 'success' | 'error';
 
@@ -23,6 +24,7 @@ const VerifyEmailPage: React.FC = () => {
   const [referralSource, setReferralSource]   = useState('');
   const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveyDone, setSurveyDone]           = useState(false);
+  const [surveyError, setSurveyError]         = useState<string | null>(null);
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -55,8 +57,9 @@ const VerifyEmailPage: React.FC = () => {
   const handleSurveySubmit = async () => {
     if (!selectedUseCase || !verifiedEmail) return;
     setSurveySubmitting(true);
+    setSurveyError(null);
     try {
-      await fetch(`${API_URL}/auth/survey`, {
+      const res = await fetch(`${API_URL}/auth/survey`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -65,10 +68,25 @@ const VerifyEmailPage: React.FC = () => {
           referral_source: referralSource || undefined,
         }),
       });
+      if (res.ok) {
+        setSurveyDone(true);
+      } else if (res.status === 422) {
+        // A rejected answer (for example an overlength referral source) keeps
+        // the form so it can be corrected. Every other failure — the survey
+        // is optional — completes the step like a network failure does.
+        const errData = await res.json().catch(() => null);
+        if (errData && typeof errData === 'object' && 'detail' in errData) {
+          setSurveyError(localizedAuthError(errData, t, 'verifyEmail.survey.error', 'survey submit failed'));
+        } else {
+          setSurveyDone(true);
+        }
+      } else {
+        setSurveyDone(true);
+      }
     } catch {
       // Non-blocking — survey is best-effort
-    } finally {
       setSurveyDone(true);
+    } finally {
       setSurveySubmitting(false);
     }
   };
@@ -152,6 +170,10 @@ const VerifyEmailPage: React.FC = () => {
                     onChange={e => setReferralSource(e.target.value)}
                     className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
                   />
+
+                  {surveyError && (
+                    <p role="alert" className="text-sm text-red-400">{surveyError}</p>
+                  )}
 
                   {/* Actions */}
                   <div className="flex items-center gap-3">

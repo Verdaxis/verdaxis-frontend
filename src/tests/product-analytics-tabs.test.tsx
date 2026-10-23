@@ -17,6 +17,15 @@ import i18n, { loadNamespace } from '../i18n';
 const noop = () => undefined;
 
 describe('overview tab', () => {
+  it('keeps an unavailable attention count distinct from zero', () => {
+    const data = paOverview();
+    data.needs_attention = [{ rule: 'approved_members_never_logged_in', count: null }];
+    render(<MemoryRouter><OverviewTab data={data} compare onSelectTab={noop} /></MemoryRouter>);
+    const attention = screen.getByTestId('needs-attention');
+    expect(attention.textContent).toContain('—');
+    expect(attention.textContent).not.toMatch(/\b0\b/);
+  });
+
   it('renders the lifecycle spine with counts, deltas, and no conversion rates', () => {
     render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={noop} /></MemoryRouter>);
     const spine = screen.getByTestId('lifecycle-spine');

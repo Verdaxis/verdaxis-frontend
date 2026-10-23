@@ -177,10 +177,10 @@
   "pa.balance.bids": "Bids",
   "pa.balance.asks": "Asks",
   "pa.attention.none": "Nothing needs attention in this period.",
-  "pa.attention.approved_members_never_logged_in": "{{count}} approved member(s) have never logged in",
-  "pa.attention.signup_submission_drop": "Signups started ({{count}}) but none submitted",
+  "pa.attention.approved_members_never_logged_in": "{{value}} approved member(s) have never logged in",
+  "pa.attention.signup_submission_drop": "Signups started ({{value}}) but none submitted",
   "pa.attention.one_sided_live_market": "Live market is one-sided (bids or asks only)",
-  "pa.attention.elevated_login_failures": "Elevated login failures ({{count}})",
+  "pa.attention.elevated_login_failures": "Elevated login failures ({{value}})",
   "pa.attention.degraded_analytics_collection": "Behavioral analytics collection is degraded",
   "pa.acquisition.direct": "Direct / unknown",
   "pa.acquisition.unit": "Visits",
@@ -572,5 +572,6 @@
   "errors.code.ORGANIZATION_JOIN_USER_INELIGIBLE": "Approve the user and verify their email before membership.",
   "errors.code.ORGANIZATION_JOIN_ORG_INELIGIBLE": "Approve the organization before membership.",
   "errors.code.ORGANIZATION_JOIN_ROLE_MISMATCH": "The user role does not match the organization's trading side.",
-  "errors.code.ORGANIZATION_JOIN_MEMBERSHIP_CONFLICT": "The user already belongs to another organization."
+  "errors.code.ORGANIZATION_JOIN_MEMBERSHIP_CONFLICT": "The user already belongs to another organization.",
+  "errors.code.KYC_NOTIFICATION_FAILED": "The decision was saved, but its notification email failed. Reload before taking another action."
 }
