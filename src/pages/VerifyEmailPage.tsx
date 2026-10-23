@@ -70,11 +70,18 @@ const VerifyEmailPage: React.FC = () => {
       });
       if (res.ok) {
         setSurveyDone(true);
-      } else {
-        // A rejected answer (for example an overlength referral source) must
-        // stay visible; only network failures are non-blocking.
+      } else if (res.status === 422) {
+        // A rejected answer (for example an overlength referral source) keeps
+        // the form so it can be corrected. Every other failure — the survey
+        // is optional — completes the step like a network failure does.
         const errData = await res.json().catch(() => null);
-        setSurveyError(localizedAuthError(errData, t, 'verifyEmail.survey.error', 'survey submit failed'));
+        if (errData && typeof errData === 'object' && 'detail' in errData) {
+          setSurveyError(localizedAuthError(errData, t, 'verifyEmail.survey.error', 'survey submit failed'));
+        } else {
+          setSurveyDone(true);
+        }
+      } else {
+        setSurveyDone(true);
       }
     } catch {
       // Non-blocking — survey is best-effort
