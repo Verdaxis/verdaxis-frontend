@@ -67,7 +67,9 @@ const reviewCase = {
 
 describe('admin onboarding review', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset (not just clear) so queued one-use implementations from a failed
+    // test cannot leak into the next one and corrupt its preconditions.
+    vi.resetAllMocks();
     mocks.users.mockResolvedValue({
       total: 1,
       items: [{

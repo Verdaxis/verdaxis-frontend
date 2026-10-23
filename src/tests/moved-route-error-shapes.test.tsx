@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import KycPage from '../pages/KycPage';
 import { OnboardingPage } from '../pages/OnboardingPage';
@@ -61,6 +61,12 @@ describe('moved-route error shapes at page level', () => {
 
   it('keeps the localized fallback when the envelope carries no message', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ detail: { code: 'DOCUMENT_REJECTED' } }, { status: 422 }));
+    await submitKyc();
+    expect(await screen.findByText('Submission failed. Please try again.')).toBeTruthy();
+  });
+
+  it('keeps the localized fallback when the validation list is empty', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ detail: [] }, { status: 422 }));
     await submitKyc();
     expect(await screen.findByText('Submission failed. Please try again.')).toBeTruthy();
   });

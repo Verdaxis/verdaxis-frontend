@@ -10,6 +10,7 @@ import { api, ApiError } from '../services/api';
 import { setAccessToken } from '../services/authToken';
 import { invalidateReadCache } from '../services/readCache';
 import { renderWithProviders } from './test-utils';
+import { paMeta } from './product-analytics-fixtures';
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ token: 'synthetic-session' }) }));
 afterEach(() => vi.restoreAllMocks());
@@ -97,6 +98,40 @@ describe('client keeps tenant-scope failures', () => {
     const url = String(fetchMock.mock.calls[0][0]);
     expect(url).toContain('start=2020-01-01T00%3A00%3A00Z');
     expect(url).toContain('end=2020-01-08T00%3A00%3A00Z');
+  });
+
+  it('reports the previous-comparison window underflow separately', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      detail: { code: 'PREVIOUS_WINDOW_OUT_OF_DOMAIN', message: 'The comparison window precedes recorded history' },
+    }, { status: 422 }));
+    await expect(api.productAnalytics.overview({
+      start: '2026-01-01T00:00:00Z', end: '2026-01-08T00:00:00Z', compare: true,
+    })).rejects.toMatchObject({ status: 422, code: 'PREVIOUS_WINDOW_OUT_OF_DOMAIN' });
+    const url = String(fetchMock.mock.calls[0][0]);
+    expect(url).toContain('/product-analytics/overview');
+    expect(url).not.toContain('compare=false');
+  });
+
+  it('sends the requested period for the reliability audit activity', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      meta: paMeta(),
+      collector: { status: 'ok', diagnostic: null, last_observation_at: null },
+      login_failures: { total: { value: 0, previous: null, suppressed: false }, categories: [], trend: [] },
+      frontend_errors: { total: { value: 0, previous: null, suppressed: false }, by_route_family: [], by_category: [] },
+      backend_unavailable: { total: { value: 0, previous: null, suppressed: false }, by_route_family: [] },
+      navigation_latency: [],
+      audit_activity: [],
+    }));
+    const result = await api.productAnalytics.reliability({
+      start: '2026-07-01T00:00:00Z', end: '2026-07-08T00:00:00Z',
+    });
+    expect(result.audit_activity).toEqual([]);
+    // Only the requested half-open window is asked for; the rows shown can
+    // come from no other period.
+    const url = String(fetchMock.mock.calls[0][0]);
+    expect(url).toContain('/product-analytics/reliability');
+    expect(url).toContain('start=2026-07-01T00%3A00%3A00Z');
+    expect(url).toContain('end=2026-07-08T00%3A00%3A00Z');
   });
 
   it('does not mint a free tier when the subscription read fails on scope', async () => {
