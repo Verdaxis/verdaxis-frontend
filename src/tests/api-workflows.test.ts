@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, ApiError } from '../services/api';
+import { api, ApiError, ApiOutcomeUnknownError } from '../services/api';
 import { setAccessToken } from '../services/authToken';
 import { invalidateReadCache } from '../services/readCache';
 
@@ -67,5 +67,22 @@ describe('client error contracts', () => {
   it('preserves subscription scope failures instead of manufacturing a free tier', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ detail: { code: 'ORGANIZATION_REQUIRED', message: 'Organization required' } }, { status: 403 }));
     await expect(api.subscriptions.me()).rejects.toMatchObject({ status: 403, code: 'ORGANIZATION_REQUIRED' });
+  });
+
+  it('wraps a review-decision 502 as outcome-unknown with the original error on the cause', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+      detail: { code: 'KYC_NOTIFICATION_FAILED', message: 'The decision was saved, but the notification email failed.' },
+    }, { status: 502 }));
+    const error = await api.admin.approveUser('user-1').catch((caught: unknown) => caught);
+    // PUT /auth/approve/{user_id} is a mutation, so the client classifies the
+    // 502 as outcome-unknown; the committed-decision code stays reachable on
+    // the wrapped cause.
+    expect(error).toBeInstanceOf(ApiOutcomeUnknownError);
+    const cause = (error as ApiOutcomeUnknownError).cause;
+    expect(cause).toBeInstanceOf(ApiError);
+    expect((cause as ApiError).code).toBe('KYC_NOTIFICATION_FAILED');
+    expect((cause as ApiError).status).toBe(502);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/auth/approve/user-1');
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('PUT');
   });
 });
