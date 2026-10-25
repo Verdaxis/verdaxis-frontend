@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { clearAccessToken, getAccessToken, refreshAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 import { api } from '../services/api';
@@ -261,6 +261,129 @@ describe('AuthProvider token bootstrap', () => {
 
     await expect(refreshAccessToken()).resolves.toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('AuthProvider saved onboarding answer', () => {
+  const storageKey = 'verdaxis_onboarding_survey';
+  const answer = { email: 'profile@example.com', use_case: 'buyer', referral_source: 'Conference' };
+  let surveyResponse: () => Promise<Response>;
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    clearAccessToken();
+    localStorage.clear();
+    localStorage.setItem(storageKey, JSON.stringify(answer));
+    window.history.replaceState({}, '', '/login');
+    surveyResponse = async () => new Response(null, { status: 204 });
+    fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith('/auth/survey')) return surveyResponse();
+      if (String(input).endsWith('/auth/me')) {
+        return new Response(JSON.stringify({
+          email: 'profile@example.com', id: 'user-profile', role: 'BUYER',
+          first_name: 'Profile', last_name: 'User', status: 'APPROVED', organization_id: null,
+        }));
+      }
+      return new Response(null, { status: 401 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    clearAccessToken();
+    localStorage.clear();
+    window.history.replaceState({}, '', '/');
+  });
+
+  async function signIn(button = 'profile login') {
+    render(<AuthProvider><Probe /></AuthProvider>);
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: button }));
+    });
+    expect(screen.getByTestId('email').textContent).toBe('profile@example.com');
+  }
+
+  function surveyCalls() {
+    return fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/auth/survey'));
+  }
+
+  it.each(['profile login', 'switch account'])('submits once with bearer auth and no email after %s', async button => {
+    await signIn(button);
+    await waitFor(() => expect(surveyCalls()).toHaveLength(1));
+    const options = (surveyCalls()[0] as unknown as [unknown, RequestInit])[1];
+    expect(new Headers(options.headers).get('Authorization')).toBe(
+      `Bearer ${button === 'profile login' ? 'profile-access-token' : 'new-access-token'}`,
+    );
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body as string)).toEqual({ use_case: 'buyer', referral_source: 'Conference' });
+    await waitFor(() => expect(localStorage.getItem(storageKey)).toBeNull());
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'profile login' })); });
+    expect(surveyCalls()).toHaveLength(1);
+  });
+
+  it('leaves another email answer untouched', async () => {
+    localStorage.setItem(storageKey, JSON.stringify({ ...answer, email: 'other@example.com' }));
+    await signIn();
+    expect(surveyCalls()).toHaveLength(0);
+    expect(JSON.parse(localStorage.getItem(storageKey)!).email).toBe('other@example.com');
+  });
+
+  it('does not send a survey when no answer is saved', async () => {
+    localStorage.removeItem(storageKey);
+    await signIn();
+    expect(surveyCalls()).toHaveLength(0);
+  });
+
+  it.each([400, 401, 403, 409, 422, 429])('clears an answer after HTTP %s without changing sign-in state', async status => {
+    surveyResponse = async () => new Response(JSON.stringify({ detail: 'Not accepted' }), { status });
+    await signIn();
+    await waitFor(() => expect(surveyCalls()).toHaveLength(1));
+    await waitFor(() => expect(localStorage.getItem(storageKey)).toBeNull());
+    expect(screen.getByTestId('authenticated').textContent).toBe('true');
+    expect(screen.getByTestId('backend-unavailable').textContent).toBe('false');
+  });
+
+  it.each(['network', 'server'])('keeps an answer after a %s failure for the next sign-in', async failure => {
+    surveyResponse = async () => {
+      if (failure === 'network') throw new TypeError('Network unavailable');
+      return new Response(null, { status: 503 });
+    };
+    await signIn();
+    await waitFor(() => expect(surveyCalls()).toHaveLength(1));
+    expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual(answer);
+    surveyResponse = async () => new Response(null, { status: 204 });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'profile login' })); });
+    await waitFor(() => expect(surveyCalls()).toHaveLength(2));
+    await waitFor(() => expect(localStorage.getItem(storageKey)).toBeNull());
+  });
+
+  it('does not wait for the survey response before completing sign-in', async () => {
+    let resolve!: (response: Response) => void;
+    surveyResponse = () => new Promise<Response>(done => { resolve = done; });
+    await signIn();
+    expect(surveyCalls()).toHaveLength(1);
+    expect(screen.getByTestId('loading').textContent).toBe('false');
+    await act(async () => { resolve(new Response(null, { status: 204 })); });
+    await waitFor(() => expect(localStorage.getItem(storageKey)).toBeNull());
+  });
+
+  it.each(['getItem', 'removeItem'] as const)('keeps sign-in working when storage %s throws', async method => {
+    vi.spyOn(Storage.prototype, method).mockImplementation(() => {
+      throw new DOMException('Storage unavailable', 'SecurityError');
+    });
+    await signIn();
+    expect(screen.getByTestId('authenticated').textContent).toBe('true');
+    expect(screen.getByTestId('backend-unavailable').textContent).toBe('false');
+    expect(surveyCalls()).toHaveLength(method === 'getItem' ? 0 : 1);
+  });
+
+  it('ignores malformed saved JSON', async () => {
+    localStorage.setItem(storageKey, '{');
+    await signIn();
+    expect(surveyCalls()).toHaveLength(0);
   });
 });
 
