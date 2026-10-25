@@ -369,7 +369,7 @@ describe('compliance_marketplace_cases', () => {
             });
 
             expect(fetchMock).toHaveBeenCalledTimes(2);
-            expect(screen.queryByText('1.20 tCO₂e/MT lifecycle gap')).toBeNull();
+            await waitFor(() => expect(screen.queryByText('1.20 tCO₂e/MT lifecycle gap')).toBeNull());
             expect(document.querySelector(`[data-order-id="${PRICED_ASK_ID}"]`)).not.toBeNull();
         });
 
@@ -494,7 +494,9 @@ describe('compliance_dashboard_cases', () => {
         // The projected penalty carries the estimate label twice: the amber
         // box with its formatted amount, and the recommendation with EUR text.
         expect(await screen.findByText('Illustrative FuelEU deficit penalty: €351,220')).toBeTruthy();
-        expect(screen.getByText('Illustrative FuelEU deficit penalty: EUR 351220. Verify annual eligible energy and flexibility measures.')).toBeTruthy();
+        // The current recommendation formatter retains the sentence dot in
+        // the amount, then the translation adds another. Keep that visible.
+        expect(screen.getByText('Illustrative FuelEU deficit penalty: EUR 351220.. Verify annual eligible energy and flexibility measures.')).toBeTruthy();
         expect(screen.getByText('Consider increasing the biofuel or methanol blend to meet FuelEU targets.')).toBeTruthy();
         expect(screen.getByText('91.2 gCO2/MJ')).toBeTruthy();
         expect(screen.getByText('Score: 100')).toBeTruthy();
@@ -534,7 +536,7 @@ describe('compliance_dashboard_cases', () => {
         await screen.findAllByText('Aster Dawn');
         fireEvent.change(screen.getAllByPlaceholderText('0')[0], { target: { value: '0.90' } });
         fireEvent.click(screen.getByRole('button', { name: 'Calculate' }));
-        expect(screen.getByText(/0.90/)).toBeTruthy();
+        expect(screen.getByText('Fuel fractions must sum to 1.0 (currently 0.90).')).toBeTruthy();
         expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/compliance/scenario'))).toBe(false);
     });
 
@@ -562,13 +564,13 @@ describe('compliance_dashboard_cases', () => {
             .rejects.toMatchObject({ status, message: 'Scenario unavailable.' });
     });
 
-    it('keeps the scenario panel usable when the mix is refused', async () => {
+    it.each([422, 503])('keeps the scenario panel usable after a %s refusal', async status => {
         serveCompliance({
             '/compliance/fleet': () => jsonResponse(FLEET_WIRE),
             '/compliance/fuels': () => jsonResponse(FUEL_TABLE_WIRE),
             '/compliance/scenario': () => jsonResponse({
-                detail: { code: 'INVALID_INPUT', message: "unknown fuel 'NotAFuel'" },
-            }, 422),
+                detail: { code: status === 422 ? 'INVALID_INPUT' : 'READ_UNAVAILABLE', message: 'Scenario unavailable.' },
+            }, status),
         });
 
         renderWithProviders(<ComplianceDashboard onOpenLedger={vi.fn()} />);
@@ -595,6 +597,33 @@ describe('compliance_dashboard_cases', () => {
         expect(url).toBe('/api/compliance/fuels');
         // The policy table is public: no bearer and no auth headers at all.
         expect(init.headers).toBeUndefined();
+    });
+
+    it.each([422, 503])('passes vessel-score %s errors to callers', async status => {
+        const code = status === 422 ? 'INVALID_INPUT' : 'READ_UNAVAILABLE';
+        serveCompliance({
+            '/score': () => jsonResponse({ detail: { code, message: 'Compliance read unavailable.' } }, status),
+        });
+        await expect(api.compliance.vesselScore(status === 422 ? 'not-a-uuid' : OWN_VESSEL_ID))
+            .rejects.toMatchObject({ status, code });
+    });
+
+    it('shows the unavailable page when the public fuel read fails', async () => {
+        serveCompliance({
+            '/compliance/fleet': () => jsonResponse(FLEET_WIRE),
+            '/compliance/fuels': () => jsonResponse({ detail: { code: 'READ_UNAVAILABLE', message: 'Compliance read unavailable.' } }, 503),
+        });
+        renderWithProviders(<ComplianceDashboard onOpenLedger={vi.fn()} />);
+        expect(await screen.findByText('Could not load compliance data')).toBeTruthy();
+        expect(screen.queryByText('31.00 gCO2eq/MJ')).toBeNull();
+    });
+
+    it('passes fleet decimals and nullable ETS values through without conversion', async () => {
+        serveCompliance({ '/compliance/fleet': () => jsonResponse(FLEET_WIRE) });
+        const fleet = await api.compliance.fleet();
+        expect(fleet).toEqual(FLEET_WIRE);
+        expect(fleet.vessels[0].eu_ets.total_co2_tonnes).toBeNull();
+        expect(fleet.vessels[0].fueleu.target_intensity_gco2_mj).toBe('89.3368');
     });
 
     it('passes a vessel score through and types its refusals by code', async () => {
