@@ -265,8 +265,12 @@ test('fails when a chunk statically linked from the entry carries the tour libra
 });
 
 test('fails when a route statically imports the chart vendor chunk', () => {
+  // The compliance route owns two chunk stems, `Compliance-` and `compliance-`.
+  // The fixture writes both, and a case-insensitive filesystem (macOS) keeps one
+  // physical file for them, so the source goes to the lowercase stem: every
+  // fixture then keeps the import on all platforms.
   const root = fixture(PROD, {
-    chunks: { Compliance: 'import{a}from"./vendor-recharts-test.js";export const a = 1;' },
+    chunks: { compliance: 'import{a}from"./vendor-recharts-test.js";export const a = 1;' },
   });
   assert.throws(
     () => checkBuildArtifacts({ root, target: 'production' }),
