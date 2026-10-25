@@ -166,9 +166,59 @@ fixture and no application code, so it has no RED step.
 The i18n, contract and build gates of the second round cover the same
 application code and were not rerun.
 
+## Compliance batch
+
+Added `src/tests/phase5-compliance-client.test.tsx` with
+`compliance_marketplace_cases` and `compliance_dashboard_cases`. The tests use
+real compliance client methods with stubbed HTTP responses. Catalog and
+orderbook neighbours are isolated; the Marketplace Query adapter, hook and
+listing presentation remain real. No application code, query freshness policy,
+UI layout or file relationship changed.
+
+Coverage includes all five compliance methods: pricing overlay, fleet, fuels,
+vessel score and scenario. Fixtures preserve decimal strings, nullable ETS
+values and null overlay entries. Marketplace checks cover sorted unique ASK
+ids, no BID overlay, lifecycle/unpriced labels, and removal of a displayed hint
+after a null, 422 or 503 result. Dashboard checks cover populated/empty/error
+states, illustrative labels, scenario defaults, an explicit year, an exact
+generic label and fractions inside/outside the UI tolerance. Mix values within
+tolerance pass through unchanged for server normalization.
+
+Local commits:
+
+- `3469f102`: initial compliance response cases, committed before any fix.
+- `f369eb1a`: complete response cases and wait for asynchronous presentation.
+- `22b085c7`: scope the scenario recommendation assertion to all rendered rows.
+
+This is a tests-only batch. The first two calls exposed fixture/assertion issues,
+not an application-code change. No separate RED host call was required.
+
+M1 Pro verification at code SHA
+`22b085c79d874fa59c139dd10bb2ec7a0e6e636e`, Node `v24.21.0`, completed on
+2026-10-25 from 08:44:03Z to 08:44:44Z. Each command below returned exit 0:
+
+| Gate | Result |
+|---|---|
+| Focused compliance file | 30 passed |
+| `npm test` | 154 files, 1,255 tests passed |
+| `npm run typecheck` | 0 |
+| `npm run i18n:check` | 0 |
+| `npm run check:openapi` | 0 |
+| `npm run check:api-types` | 0 |
+| `npm run build:staging` and `build:check:staging` | 0 / 0 |
+| `npm run build:prod` and `build:check:prod` | 0 / 0 |
+
+Lint was not run: this checkout has no lint script or linter configuration.
+The final call marker was `CALL_EXIT=0`. Build checks used the same public
+placeholder as earlier rounds; no artifact was published. A final-head repeat
+includes this documentation commit; its exact SHA and command exits are retained
+in the private completion record. No tests or builds ran on the controller Mac.
+No push was made. Contract observations and owner follow-ups are private.
+
 ## Deferred work and resume point
 
-- Compliance fixtures wait for Tasks 8a, 9 and 10 and renewed lane authorization.
+- Compliance fixtures are complete for the composed read contracts. Live backend
+  journeys remain separate work.
 - Live journeys wait for their routes. No journey or screenshot was run.
 - Measurements: not run (decision 110).
 - CI is not claimed: the current frontend workflow runs on pushes to `staging`
