@@ -497,7 +497,7 @@ describe('compliance_dashboard_cases', () => {
         // The current recommendation formatter retains the sentence dot in
         // the amount, then the translation adds another. Keep that visible.
         expect(screen.getByText('Illustrative FuelEU deficit penalty: EUR 351220.. Verify annual eligible energy and flexibility measures.')).toBeTruthy();
-        expect(screen.getByText('Consider increasing the biofuel or methanol blend to meet FuelEU targets.')).toBeTruthy();
+        expect(screen.getAllByText('Consider increasing the biofuel or methanol blend to meet FuelEU targets.')).toHaveLength(3);
         expect(screen.getByText('91.2 gCO2/MJ')).toBeTruthy();
         expect(screen.getByText('Score: 100')).toBeTruthy();
         expect(screen.getByText('40')).toBeTruthy();
