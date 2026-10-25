@@ -214,9 +214,9 @@ const withoutPrivateHeaders = (headers?: RequestInit['headers']): Headers => {
     return publicHeaders;
 };
 
-const handleResponse = async (res: Response, contextId?: string | null) => {
+const handleResponse = async (res: Response, contextId?: string | null, silent = false) => {
     if (!res.ok) {
-        if (res.status === 429) {
+        if (res.status === 429 && !silent) {
             // Surface throttling globally — callers routinely swallow request
             // errors, which made 429s invisible (Sprint 3 item 15). The
             // ToastProvider listens for this event.
@@ -665,6 +665,18 @@ export interface AdminInvitationResponse {
 }
 
 export const api = {
+    auth: {
+        submitSurvey: async (answer: { use_case: string; referral_source?: string }): Promise<void> => {
+            const res = await fetchWithTimeout(`${API_URL}/auth/survey`, {
+                method: 'POST',
+                headers: withAuthHeader(),
+                body: JSON.stringify({ use_case: answer.use_case, referral_source: answer.referral_source }),
+            });
+            // Best-effort onboarding must not emit a global rate-limit error.
+            await handleResponse(res, null, true);
+        },
+    },
+
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
             const data: unknown = await fetchApi('/users/me/preferences', { headers: getHeaders() });

@@ -49,7 +49,7 @@ index.html
 
 ## Security and state boundaries
 
-**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token.
+**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token. Email verification saves the optional onboarding survey in guarded local storage through `services/onboardingSurvey.ts`. Once `AuthProvider.login` accepts a profile, it starts a non-blocking authenticated survey submission only for the same email. A successful submission or a 4xx clears the saved answer; network and server failures leave it for the next sign-in. This best-effort API call does not emit a global rate-limit error.
 
 **Market Support.** The admin remains the authenticated principal. The browser persists only an opaque context id. `MarketSupportContext` rehydrates server state and expires it; `api.ts` sends the context header only to the narrow customer route allowlist. Capability discovery recognizes `MARKET_SUPPORT_LISTINGS` and `MARKET_SUPPORT_AUTHORIZATIONS`, while the server eligibility result remains authoritative. Entry requires an approved `REAL` organization and an `ORDER_CREATE`/`ORDER_CANCEL` scope. Both assisted BID and ASK use `OrderPlaceModal` and `MarketSupportFinalConfirmation`. Unsupported mutations and trade execution stay blocked.
 

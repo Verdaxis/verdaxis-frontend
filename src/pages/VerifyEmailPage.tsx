@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { saveOnboardingSurvey } from '../services/onboardingSurvey';
 
 type VerifyState = 'loading' | 'success' | 'error';
 
@@ -21,7 +22,6 @@ const VerifyEmailPage: React.FC = () => {
 
   const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null);
   const [referralSource, setReferralSource]   = useState('');
-  const [surveySubmitting, setSurveySubmitting] = useState(false);
   const [surveyDone, setSurveyDone]           = useState(false);
 
   useEffect(() => {
@@ -52,25 +52,13 @@ const VerifyEmailPage: React.FC = () => {
     verify();
   }, [searchParams]);
 
-  const handleSurveySubmit = async () => {
+  const handleSurveySubmit = () => {
     if (!selectedUseCase || !verifiedEmail) return;
-    setSurveySubmitting(true);
-    try {
-      await fetch(`${API_URL}/auth/survey`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: verifiedEmail,
-          use_case: selectedUseCase,
-          referral_source: referralSource || undefined,
-        }),
-      });
-    } catch {
-      // Non-blocking — survey is best-effort
-    } finally {
-      setSurveyDone(true);
-      setSurveySubmitting(false);
-    }
+    saveOnboardingSurvey(verifiedEmail, {
+      use_case: selectedUseCase,
+      referral_source: referralSource || undefined,
+    });
+    setSurveyDone(true);
   };
 
   if (!ready) return null;
@@ -157,10 +145,9 @@ const VerifyEmailPage: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={handleSurveySubmit}
-                      disabled={!selectedUseCase || surveySubmitting}
+                      disabled={!selectedUseCase}
                       className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
                     >
-                      {surveySubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
                       {t('verifyEmail.continue')}
                     </button>
                     <button
