@@ -339,11 +339,15 @@ describe('AuthProvider saved onboarding answer', () => {
 
   it.each([400, 401, 403, 409, 422, 429])('clears an answer after HTTP %s without changing sign-in state', async status => {
     surveyResponse = async () => new Response(JSON.stringify({ detail: 'Not accepted' }), { status });
+    const rateLimited = vi.fn();
+    window.addEventListener('verdaxis:rate-limited', rateLimited);
     await signIn();
     await waitFor(() => expect(surveyCalls()).toHaveLength(1));
     await waitFor(() => expect(localStorage.getItem(storageKey)).toBeNull());
     expect(screen.getByTestId('authenticated').textContent).toBe('true');
     expect(screen.getByTestId('backend-unavailable').textContent).toBe('false');
+    window.removeEventListener('verdaxis:rate-limited', rateLimited);
+    expect(rateLimited).not.toHaveBeenCalled();
   });
 
   it.each(['network', 'server'])('keeps an answer after a %s failure for the next sign-in', async failure => {
