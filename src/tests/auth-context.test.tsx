@@ -375,9 +375,11 @@ describe('AuthProvider saved onboarding answer', () => {
   });
 
   it.each(['getItem', 'removeItem'] as const)('keeps sign-in working when storage %s throws', async method => {
-    const original = Storage.prototype[method];
+    const original: (this: Storage, key: string) => string | null | void = Storage.prototype[method];
     vi.spyOn(Storage.prototype, method).mockImplementation(function (this: Storage, key: string) {
-      if (this === localStorage) throw new DOMException('Storage unavailable', 'SecurityError');
+      if (this === localStorage && key === storageKey) {
+        throw new DOMException('Storage unavailable', 'SecurityError');
+      }
       return original.call(this, key);
     });
     await signIn();

@@ -29,10 +29,14 @@ shape, email mismatch, absent/malformed answers, 204/4xx cleanup, retry after
 network/5xx failure, non-blocking sign-in, storage failures and EUR punctuation.
 
 The first M1 batch at `73e09be30894e648824afcfbe1d9e214070cd69f`
-returned 1 for focused tests and the full unit suite. One fixture also blocked
-session-storage cleanup during bootstrap; the correction limits the failure to
-local storage. Typecheck, i18n, OpenAPI/API-type checks, both builds and both
-artifact checks returned 0 in that batch.
+returned 1 for focused tests and the full unit suite. One fixture blocked
+token-storage cleanup during bootstrap as well as survey cleanup. A second
+batch at `382a386b105576a780068f53a17839c8e437294b` still blocked legacy
+token cleanup and had a TypeScript error in the fixture. The final correction
+limits the injected failure to the survey's storage key and gives the original
+storage method an explicit callable type. The first batch's typecheck returned
+0; both batches' i18n, OpenAPI/API-type checks, builds and artifact checks
+returned 0.
 
 The final-head batch uses the same gate set as lane U:
 
@@ -53,7 +57,7 @@ All tests and builds run on the separate M1 through `heavy run 3600`, never on
 the controller Mac. The detached wrapper log prints the exact SHA, actual host,
 UTC times, each command's own exit code and `CALL_EXIT`. The script enables
 `pipefail` and aggregates failures. Final evidence is in the controller's
-`/private/tmp/fe-small-fixes-gate-2.log`; the completion report states the exact
+`/private/tmp/fe-small-fixes-gate-3.log`; the completion report states the exact
 SHA and result. The public Mapbox placeholder is used only for artifact checks.
 
 No push, deployment, live journey or measurement is authorized or performed.
