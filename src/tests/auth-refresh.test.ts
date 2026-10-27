@@ -133,6 +133,17 @@ describe('shared auth refresh', () => {
         }
     });
 
+    it.each([undefined, -1, 999999, '1'])('retains the token without an unbounded delay (%s)', async seconds => {
+        const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
+        setAccessToken(jwt('buyer'));
+        fetchMock.mockResolvedValue(jsonResponse({ detail: {
+            code: 'REFRESH_ROTATION_IN_PROGRESS', retry_after_seconds: seconds,
+        } }, 409));
+        expect(await refreshSession()).toEqual({ status: 'unavailable' });
+        expect(getAccessToken()).not.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps other conflicts terminal', async () => {
         const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
         setAccessToken(jwt('buyer'));

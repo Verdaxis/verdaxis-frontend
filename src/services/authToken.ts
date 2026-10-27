@@ -100,14 +100,29 @@ export function refreshSession(options: RefreshOptions = {}): Promise<RefreshOut
   const requestSubject = requestToken ? getTokenSubject(requestToken) : null;
   const request = (async (): Promise<RefreshOutcome> => {
     try {
-      const res = await fetch(`${API_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (requestGeneration !== authGeneration) return { status: 'superseded' };
+      let res: Response;
+      for (let attempt = 0; ; attempt += 1) {
+        if (requestGeneration !== authGeneration) return { status: 'superseded' };
+        res = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (requestGeneration !== authGeneration) return { status: 'superseded' };
+        if (res.status !== 409) break;
+        const data = await res.json().catch(() => null);
+        if (requestGeneration !== authGeneration) return { status: 'superseded' };
+        if (data?.detail?.code !== 'REFRESH_ROTATION_IN_PROGRESS') break;
+        if (attempt > 0) return { status: 'unavailable' };
+        const seconds = data.detail.retry_after_seconds;
+        // Bound the server-directed wait; malformed delays remain transient.
+        if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0 || seconds > 5) {
+          return { status: 'unavailable' };
+        }
+        await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+      }
 
       if (res.ok) {
         const token = getAccessTokenFromResponse(await res.json());

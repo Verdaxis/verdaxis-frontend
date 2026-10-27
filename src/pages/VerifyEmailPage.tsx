@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
@@ -16,6 +16,7 @@ type UseCase = typeof ROLE_CARDS[number]['id'];
 
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [state, setState] = useState<VerifyState>('loading');
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const { t, ready } = useNamespace('auth');
@@ -39,6 +40,17 @@ const VerifyEmailPage: React.FC = () => {
         });
         if (res.ok) {
           const data = await res.json();
+          if (data.requires_org === true) {
+            if (typeof data.registration_token !== 'string' || !data.registration_token) {
+              setState('error');
+              return;
+            }
+            navigate('/create-organization', {
+              replace: true,
+              state: { registration_token: data.registration_token, emailVerified: true },
+            });
+            return;
+          }
           setVerifiedEmail(data.email ?? null);
           setState('success');
         } else {
@@ -50,7 +62,7 @@ const VerifyEmailPage: React.FC = () => {
     };
 
     verify();
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const handleSurveySubmit = () => {
     if (!selectedUseCase || !verifiedEmail) return;

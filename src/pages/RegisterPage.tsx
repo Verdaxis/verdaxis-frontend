@@ -27,6 +27,7 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [emailFirst, setEmailFirst] = useState(false);
 
   // Resend state
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -116,7 +117,13 @@ const RegisterPage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'requires_org') {
+        if (res.status === 202 && data.status === 'check_email') {
+          analytics.track('signup_submitted', { role: formData.role as 'BUYER' | 'SUPPLIER', organization_path: 'pending' });
+          sessionStorage.removeItem('verdaxis_ref_code');
+          setEmailFirst(true);
+          setRegistered(true);
+          startCooldown();
+        } else if (data.status === 'requires_org') {
           analytics.track('signup_submitted', { role: formData.role as 'BUYER' | 'SUPPLIER', organization_path: 'create' });
           analytics.track('signup_organization_required', { role: formData.role as 'BUYER' | 'SUPPLIER' });
           // Email domain has no org — go to org creation flow
@@ -173,9 +180,11 @@ const RegisterPage: React.FC = () => {
               </div>
               <h2 className="text-2xl font-bold text-white">{t('register.success.title')}</h2>
               <p className="text-slate-400">
-                {t('register.success.sentTo')}{' '}
-                <strong className="text-white">{formData.email}</strong>.
-                {' '}{t('register.success.clickToActivate')}
+                {emailFirst ? t('register.success.checkEmail') : <>
+                  {t('register.success.sentTo')}{' '}
+                  <strong className="text-white">{formData.email}</strong>.
+                  {' '}{t('register.success.clickToActivate')}
+                </>}
               </p>
               <p className="text-slate-500 text-sm">
                 {t('register.success.notReceived')}

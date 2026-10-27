@@ -28,6 +28,25 @@ it('shows neutral email guidance for an accepted registration', async () => {
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+it.each(['created', 'requires_org'])('retains the transitional registration response %s', async status => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    status, registration_token: 'legacy-registration-fixture',
+  }), { status: 200 })));
+  const view = render(<MemoryRouter><Routes>
+    <Route path="/" element={<RegisterPage />} />
+    <Route path="/create-organization" element={<CreateOrganizationPage />} />
+  </Routes></MemoryRouter>);
+  await screen.findByLabelText('First Name');
+  for (const [id, value] of Object.entries({
+    'register-first-name': 'Test', 'register-last-name': 'Buyer',
+    'register-email': 'buyer@example.test', 'register-password': 'Password123',
+    'register-confirm-password': 'Password123',
+  })) fireEvent.change(view.container.querySelector(`#${id}`)!, { target: { value } });
+  fireEvent.submit(view.container.querySelector('form')!);
+  if (status === 'created') expect(await screen.findByRole('heading', { name: 'Check your inbox' })).toBeTruthy();
+  else expect(await screen.findByLabelText('Organization Name')).toBeTruthy();
+});
+
 it('completes organization registration after email verification', async () => {
   const fetchMock = vi.fn()
     .mockResolvedValueOnce(new Response(JSON.stringify({

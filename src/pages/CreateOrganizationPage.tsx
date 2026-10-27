@@ -252,6 +252,8 @@ const CreateOrganizationPage: React.FC = () => {
   const { t, ready } = useNamespace('auth');
 
   const registrationToken = location.state?.registration_token;
+  const emailVerified = location.state?.emailVerified === true;
+  const [completed, setCompleted] = useState(false);
   const registrationRole = location.state?.role as RegistrationRole | undefined;
   const availableOrgTypes = organizationTypesForRole(registrationRole);
 
@@ -353,8 +355,12 @@ const CreateOrganizationPage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        setRegisteredEmail(data.email || '');
-        startCooldown();
+        if (emailVerified) {
+          setCompleted(true);
+        } else {
+          setRegisteredEmail(data.email || '');
+          startCooldown();
+        }
       } else {
         const errData = await res.json().catch(() => null);
         setError(document.documentElement.lang.startsWith('zh')
@@ -382,7 +388,15 @@ const CreateOrganizationPage: React.FC = () => {
         </div>
 
         <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5 shadow-2xl backdrop-blur-xl sm:p-8">
-          {registeredEmail ? (
+          {completed ? (
+            <div className="text-center space-y-4 py-4">
+              <h2 className="text-2xl font-bold text-white">{t('verifyEmail.success.title')}</h2>
+              <p className="text-slate-400">{t('verifyEmail.success.message')}</p>
+              <Link to="/login" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-600">
+                {t('verifyEmail.success.signIn')}
+              </Link>
+            </div>
+          ) : registeredEmail ? (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto">
                 <Mail size={32} className="text-blue-400" />

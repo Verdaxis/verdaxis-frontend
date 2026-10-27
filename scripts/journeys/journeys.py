@@ -21,6 +21,7 @@ class Step:
 def steps():
     return [
         Step('login-success', journey_login_success),
+        Step('login-refresh-logout', journey_login_refresh_logout),
         Step('login-wrong-password', journey_login_wrong_password),
         Step('marketplace-browse-filter-paginate', journey_marketplace_browse),
         Step('marketplace-deep-link-slice', journey_marketplace_deep_link),
@@ -93,6 +94,34 @@ def journey_login_success(harness, state):
     current = page.locator('main[data-dashboard-page]').get_attribute('data-dashboard-page')
     ok = '/app' in page.url and not harness.errors
     return ok, f'landed on {current} at {page.url}; errors: {harness.errors[:2]}'
+
+
+def journey_login_refresh_logout(harness, state):
+    """Exercise cookie restoration and logout with a fresh browser session."""
+    actor = harness.child()
+    try:
+        page = actor.page
+        with page.expect_response(lambda r: r.url.endswith('/api/auth/login')
+                                  and r.request.method == 'POST') as login:
+            open_app(actor, BUYER, PASSWORD)
+        assert login.value.status == 200, 'login was not accepted'
+        # Reload drops the in-memory bearer, so the app must use the cookie.
+        with page.expect_response(lambda r: r.url.endswith('/api/auth/refresh')
+                                  and r.request.method == 'POST') as refresh:
+            page.reload(wait_until='domcontentloaded')
+        assert refresh.value.status == 200, 'cookie restoration was not accepted'
+        page.wait_for_selector('main[data-dashboard-page]', timeout=45000)
+        page.get_by_role('button', name='Profile', exact=True).click()
+        with page.expect_response(lambda r: r.url.endswith('/api/auth/logout')
+                                  and r.request.method == 'POST') as logout:
+            page.get_by_role('button', name='Sign Out', exact=True).click()
+        assert logout.value.ok, 'logout was not accepted'
+        page.goto(actor.base + '/app', wait_until='domcontentloaded')
+        page.wait_for_selector('#login-email', timeout=45000)
+        assert not page.locator('main[data-dashboard-page]').count()
+        return not actor.errors, 'login, reload refresh, logout and protected-route refusal'
+    finally:
+        actor.close()
 
 
 def journey_login_wrong_password(harness, state):
