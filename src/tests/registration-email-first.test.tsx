@@ -47,12 +47,17 @@ it.each(['created', 'requires_org'])('retains the transitional registration resp
   else expect(await screen.findByLabelText('Organization Name')).toBeTruthy();
 });
 
-it('completes organization registration after email verification', async () => {
+it('requests account verification after pending organization completion', async () => {
   const fetchMock = vi.fn()
     .mockResolvedValueOnce(new Response(JSON.stringify({
       email: 'buyer@example.test', requires_org: true, registration_token: 'registration-fixture',
     }), { status: 200 }))
-    .mockResolvedValueOnce(new Response(JSON.stringify({ email: 'buyer@example.test' }), { status: 200 }));
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      id: 'account-fixture', email: 'buyer@example.test', first_name: 'Test', last_name: 'Buyer',
+      role: 'BUYER', status: 'PENDING', organization_id: null, referral_code: null,
+      must_change_password: false, kyc_status: 'PENDING',
+      execution_eligibility: { eligible: false, reason: 'KYC_REQUIRED', grace_expires_at: null },
+    }), { status: 200 }));
   vi.stubGlobal('fetch', fetchMock);
   render(<MemoryRouter initialEntries={['/verify-email?token=email-fixture']}><Routes>
     <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -62,9 +67,11 @@ it('completes organization registration after email verification', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Country Select country…' }));
   fireEvent.click(screen.getByRole('button', { name: /SG.*Singapore/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Create Organization' }));
-  expect(await screen.findByRole('heading', { name: 'Email Verified!' })).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Sign In' }).getAttribute('href')).toBe('/login');
-  expect(screen.queryByRole('button', { name: 'Resend verification email' })).toBeNull();
+  expect(await screen.findByRole('heading', { name: 'Check your inbox' })).toBeTruthy();
+  expect(screen.getByText('buyer@example.test')).toBeTruthy();
+  expect(screen.getByText(/Click it to activate your account/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Resend verification email' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Email Verified!' })).toBeNull();
   expect(fetchMock).toHaveBeenCalledTimes(2);
   const [url, options] = fetchMock.mock.calls[1];
   expect(url).toContain('/auth/register-with-org');
