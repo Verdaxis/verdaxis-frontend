@@ -84,6 +84,64 @@ describe('shared auth refresh', () => {
         expect(getAccessToken()).toBe('still-valid-access-token');
     });
 
+    it.each([true, false])('retries a rotation conflict once and retains the session (success=%s)', async (succeeds) => {
+        const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
+        const original = jwt('buyer');
+        const rotated = jwt('buyer');
+        const conflict = () => jsonResponse({ detail: {
+            code: 'REFRESH_ROTATION_IN_PROGRESS', retry_after_seconds: 2,
+        } }, 409);
+        fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(
+            succeeds ? jsonResponse({ access_token: rotated }) : conflict(),
+        );
+        setAccessToken(original);
+        vi.useFakeTimers();
+        try {
+            const pending = refreshSession();
+            expect(refreshSession()).toBe(pending);
+            await vi.advanceTimersByTimeAsync(1999);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(getAccessToken()).toBe(original);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(await pending).toEqual(succeeds
+                ? { status: 'success', token: rotated }
+                : { status: 'unavailable' });
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            expect(getAccessToken()).toBe(succeeds ? rotated : original);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does not retry a rotation conflict after logout', async () => {
+        const { refreshSession, setAccessToken, clearAccessToken, getAccessToken } = await loadAuthTokenModule();
+        fetchMock.mockResolvedValue(jsonResponse({ detail: {
+            code: 'REFRESH_ROTATION_IN_PROGRESS', retry_after_seconds: 1,
+        } }, 409));
+        setAccessToken(jwt('buyer'));
+        vi.useFakeTimers();
+        try {
+            const pending = refreshSession();
+            await vi.advanceTimersByTimeAsync(0);
+            clearAccessToken();
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(await pending).toEqual({ status: 'superseded' });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(getAccessToken()).toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('keeps other conflicts terminal', async () => {
+        const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
+        setAccessToken(jwt('buyer'));
+        fetchMock.mockResolvedValue(jsonResponse({ detail: { code: 'OTHER_CONFLICT' } }, 409));
+        expect(await refreshSession()).toEqual({ status: 'denied' });
+        expect(getAccessToken()).toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('stores a successful refresh token in memory', async () => {
         fetchMock.mockResolvedValue(jsonResponse({ access_token: 'fresh-access-token' }));
         const { getAccessToken, refreshAccessToken } = await loadAuthTokenModule();
