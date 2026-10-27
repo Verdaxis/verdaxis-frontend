@@ -47,7 +47,7 @@ const VerifyEmailPage: React.FC = () => {
             }
             navigate('/create-organization', {
               replace: true,
-              state: { registration_token: data.registration_token, emailVerified: true },
+              state: { registration_token: data.registration_token },
             });
             return;
           }
