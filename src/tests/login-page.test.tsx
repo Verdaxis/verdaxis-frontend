@@ -21,6 +21,29 @@ describe('password login', () => {
     vi.clearAllMocks();
   });
 
+  it.each([
+    [{ code: 'AUTH_EMAIL_UNVERIFIED', message: 'Confirm your email address.' }, true],
+    ['Please verify your email.', true],
+    [{ code: 'AUTH_ACCOUNT_INACTIVE', message: 'Contact support to verify access.' }, false],
+  ])('uses the unverified code before legacy message matching (%j)', async (detail, unverified) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail }), { status: 403 })));
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      render(<MemoryRouter><LoginPage /></MemoryRouter>);
+      fireEvent.change(await screen.findByLabelText('Email Address'), { target: { value: 'buyer@example.com' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Password123' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+      const message = i18n.t('login.error.unverified', { ns: 'auth' });
+      if (unverified) expect(await screen.findByText(message)).toBeTruthy();
+      else await waitFor(() => expect(screen.getByText('Contact support to verify access.')).toBeTruthy());
+      if (!unverified) expect(screen.queryByText(message)).toBeNull();
+      expect(login).not.toHaveBeenCalled();
+    } finally {
+      quiet.mockRestore();
+    }
+  });
+
   it('passes the server-validated profile to AuthContext', async () => {
     const profile = {
       id: 'user-1',
