@@ -10,6 +10,7 @@ type VisibleState = Exclude<ConnectionState, 'none'>;
 const STATE_STYLE: Record<VisibleState, { text: string; Icon: React.ElementType; spin?: boolean }> = {
     live: { text: 'text-emerald-400', Icon: Wifi },
     stale: { text: 'text-amber-300', Icon: Clock },
+    connecting: { text: 'text-slate-400', Icon: RefreshCw, spin: true },
     reconnecting: { text: 'text-amber-300', Icon: RefreshCw, spin: true },
     offline: { text: 'text-red-400', Icon: WifiOff },
 };

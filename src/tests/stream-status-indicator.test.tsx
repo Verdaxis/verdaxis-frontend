@@ -6,6 +6,7 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 import { StreamStatusIndicator } from '../components/layout/StreamStatusIndicator';
 import {
+    INITIAL_CONNECT_GRACE_MS,
     OFFLINE_AFTER_MS,
     registerStream,
     resetStreamHealth,
@@ -50,13 +51,17 @@ describe('StreamStatusIndicator', () => {
         expect(screen.getByRole('status').textContent).toContain('Live');
     });
 
-    it('goes from reconnecting to offline when no stream opens', () => {
+    it('goes from connecting to offline when no stream opens', () => {
         registerStream();
         renderIndicator();
-        expect(state()).toBe('reconnecting');
-        expect(screen.getByRole('status').textContent).toContain('Reconnecting');
+        expect(state()).toBe('connecting');
+        expect(screen.getByRole('status').textContent).toContain('Connecting');
 
+        // Still connecting past the 30 s first keep-alive of a server without the heartbeat.
         advance(OFFLINE_AFTER_MS + 5_000);
+        expect(state()).toBe('connecting');
+
+        advance(INITIAL_CONNECT_GRACE_MS);
         expect(state()).toBe('offline');
         expect(screen.getByRole('status').textContent).toContain('Offline');
     });

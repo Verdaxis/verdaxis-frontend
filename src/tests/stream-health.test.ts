@@ -3,6 +3,7 @@ import {
     deriveConnectionState,
     deriveServerStatus,
     getStreamHealthSnapshot,
+    INITIAL_CONNECT_GRACE_MS,
     OFFLINE_AFTER_MS,
     parseHeartbeat,
     registerStream,
@@ -147,11 +148,33 @@ describe('deriveConnectionState', () => {
         expect(deriveConnectionState(getStreamHealthSnapshot(), T0 + 301_000)).toBe('live');
     });
 
-    it('is reconnecting, then offline, while no stream is open', () => {
+    it('is connecting, then offline, while no stream has opened yet', () => {
         registerStream(T0);
         const snap = getStreamHealthSnapshot();
-        expect(deriveConnectionState(snap, T0 + OFFLINE_AFTER_MS - 1)).toBe('reconnecting');
-        expect(deriveConnectionState(snap, T0 + OFFLINE_AFTER_MS)).toBe('offline');
+        expect(snap.everConnected).toBe(false);
+        // A server without the heartbeat opens only at its first 30 s keep-alive.
+        expect(deriveConnectionState(snap, T0 + 31_000)).toBe('connecting');
+        expect(deriveConnectionState(snap, T0 + INITIAL_CONNECT_GRACE_MS - 1)).toBe('connecting');
+        expect(deriveConnectionState(snap, T0 + INITIAL_CONNECT_GRACE_MS)).toBe('offline');
+    });
+
+    it('is reconnecting, then offline, after an open stream drops', () => {
+        const stream = registerStream(T0);
+        stream.setConnected(true, T0 + 100);
+        stream.setConnected(false, T0 + 1_000);
+        const snap = getStreamHealthSnapshot();
+        expect(snap.everConnected).toBe(true);
+        expect(deriveConnectionState(snap, T0 + 1_000 + OFFLINE_AFTER_MS - 1)).toBe('reconnecting');
+        expect(deriveConnectionState(snap, T0 + 1_000 + OFFLINE_AFTER_MS)).toBe('offline');
+    });
+
+    it('forgets an earlier connection once every stream is disabled', () => {
+        const stream = registerStream(T0);
+        stream.setConnected(true, T0 + 100);
+        stream.unregister(T0 + 200);
+        registerStream(T0 + 300);
+        expect(getStreamHealthSnapshot().everConnected).toBe(false);
+        expect(deriveConnectionState(getStreamHealthSnapshot(), T0 + 400)).toBe('connecting');
     });
 
     it('is offline at once when the browser reports no network and nothing is open', () => {

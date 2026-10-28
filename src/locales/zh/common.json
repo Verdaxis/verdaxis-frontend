@@ -251,6 +251,8 @@
   "streamStatus.live.detail": "已连接实时行情更新",
   "streamStatus.stale.label": "延迟",
   "streamStatus.stale.detail": "已连接，但超过一分钟未收到服务器信号，数据可能已过期。",
+  "streamStatus.connecting.label": "连接中",
+  "streamStatus.connecting.detail": "正在连接实时行情更新…",
   "streamStatus.reconnecting.label": "重新连接中",
   "streamStatus.reconnecting.detail": "实时更新已中断，正在重新连接…",
   "streamStatus.offline.label": "离线",
