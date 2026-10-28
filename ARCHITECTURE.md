@@ -55,7 +55,7 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 ## Security and state boundaries
 
-**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token. `services/authTabSync.ts` shares only a `logout` or `identity_changed` event type over a feature-detected `BroadcastChannel`; a receiving tab runs its local clear without calling `/auth/logout` or re-broadcasting, and an `identity_changed` peer event also blocks silent cookie restore.
+**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token. `services/authTabSync.ts` shares only a `logout` or `identity_changed` event type over a feature-detected `BroadcastChannel`; a receiving tab runs its local clear without calling `/auth/logout` or re-broadcasting, and an `identity_changed` peer event also blocks silent cookie restore. It also shares user activity, so the 30 minute idle logout in `AuthContext` fires only when no open tab has seen input for the whole timeout: each tab sends an `activity` message (an event type and an epoch-ms timestamp, throttled to one per 30 seconds), and a receiving tab moves its own wall-clock deadline without re-broadcasting. The timer re-checks that deadline when it fires, so a tab that slept does not log out while another tab was active. Without `BroadcastChannel` each tab keeps its own idle timer.
 
 **Market Support.** The admin remains the authenticated principal. The browser persists only an opaque context id. `MarketSupportContext` rehydrates server state and expires it; `api.ts` sends the context header only to the narrow customer route allowlist. Capability discovery recognizes `MARKET_SUPPORT_LISTINGS` and `MARKET_SUPPORT_AUTHORIZATIONS`, while the server eligibility result remains authoritative. Entry requires an approved `REAL` organization and an `ORDER_CREATE`/`ORDER_CANCEL` scope. Both assisted BID and ASK use `OrderPlaceModal` and `MarketSupportFinalConfirmation`. Unsupported mutations and trade execution stay blocked.
 
@@ -102,7 +102,7 @@ src/
   services/
     api.ts                          fetch client and response transforms
     authToken.ts                    in-memory access-token generation
-    authTabSync.ts                  cross-tab logout/identity-change events
+    authTabSync.ts                  cross-tab logout, identity-change, and activity events
     readCache.ts                    scoped TTL cache and request deduplication
     activityTracking.ts             bounded production activity queue
     publicMarketSync.ts             shared market invalidation subscriber

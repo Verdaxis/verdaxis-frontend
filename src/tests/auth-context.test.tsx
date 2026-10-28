@@ -1,10 +1,10 @@
 import React, { useLayoutEffect } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AUTH_IDENTITY_CHANGED_EVENT, clearAccessToken, getAccessToken, refreshAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 import { api } from '../services/api';
-import { AUTH_TAB_SYNC_CHANNEL } from '../services/authTabSync';
+import { ACTIVITY_BROADCAST_INTERVAL_MS, AUTH_TAB_SYNC_CHANNEL } from '../services/authTabSync';
 import { FakeBroadcastChannel } from './fake-broadcast-channel';
 
 function jwt(subject: string, expiresAt?: number): string {
@@ -385,6 +385,205 @@ describe('AuthProvider cross-tab sync', () => {
     await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('false'));
     expect(logoutRequests()).toHaveLength(1);
     expect(getAccessToken()).toBeNull();
+  });
+});
+
+describe('AuthProvider idle logout across tabs', () => {
+  const originalFetch = global.fetch;
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+  const MINUTE_MS = 60 * 1000;
+  let otherTab: FakeBroadcastChannel;
+  let messagesToOtherTab: Array<{ type: string; at?: number }>;
+
+  const logoutRequests = () => (global.fetch as ReturnType<typeof vi.fn>).mock.calls
+    .filter(([input]) => String(input).includes('/auth/logout'));
+  const isAuthenticated = () => screen.getByTestId('authenticated').textContent === 'true';
+  const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  const peerIsActive = (activeAt = Date.now()) => act(() => {
+    otherTab.postMessage({ type: 'activity', at: activeAt });
+  });
+  const activityMessages = () => messagesToOtherTab.filter(message => message.type === 'activity');
+
+  async function renderSignedInTab() {
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'profile login' }));
+    await advance(0);
+    expect(isAuthenticated()).toBe(true);
+  }
+
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/app');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    FakeBroadcastChannel.open.clear();
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
+    // Stands in for a second browser tab on the same channel.
+    otherTab = new FakeBroadcastChannel(AUTH_TAB_SYNC_CHANNEL);
+    messagesToOtherTab = [];
+    otherTab.onmessage = (message) => messagesToOtherTab.push(message.data);
+    global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 401 })) as typeof fetch;
+  });
+
+  afterEach(() => {
+    clearAccessToken();
+    otherTab.close();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    global.fetch = originalFetch;
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('logs out and tells the other tabs when no tab has been active for the timeout', async () => {
+    await renderSignedInTab();
+
+    await advance(IDLE_TIMEOUT_MS - 1000);
+    expect(isAuthenticated()).toBe(true);
+    await advance(5000);
+
+    expect(isAuthenticated()).toBe(false);
+    expect(logoutRequests()).toHaveLength(1);
+    expect(messagesToOtherTab).toEqual([{ type: 'logout' }]);
+  });
+
+  it('postpones logout when another tab reports activity', async () => {
+    await renderSignedInTab();
+    await advance(20 * MINUTE_MS);
+
+    await peerIsActive();
+    await advance(15 * MINUTE_MS);
+    // 35 minutes after sign-in, but only 15 after the peer's activity.
+    expect(isAuthenticated()).toBe(true);
+    expect(logoutRequests()).toHaveLength(0);
+
+    await advance(16 * MINUTE_MS);
+    expect(isAuthenticated()).toBe(false);
+    expect(logoutRequests()).toHaveLength(1);
+  });
+
+  it('postpones logout again for each later peer activity', async () => {
+    await renderSignedInTab();
+
+    for (let i = 0; i < 4; i += 1) {
+      await advance(25 * MINUTE_MS);
+      await peerIsActive();
+    }
+
+    expect(isAuthenticated()).toBe(true);
+    await advance(IDLE_TIMEOUT_MS + 5000);
+    expect(isAuthenticated()).toBe(false);
+  });
+
+  it('does not let an old peer timestamp shorten the deadline', async () => {
+    await renderSignedInTab();
+    await advance(10 * MINUTE_MS);
+
+    await peerIsActive(Date.now() - 60 * MINUTE_MS);
+    await advance(IDLE_TIMEOUT_MS - 11 * MINUTE_MS);
+
+    // Local sign-in activity at minute 0 still counts: 29 minutes have passed.
+    expect(isAuthenticated()).toBe(true);
+  });
+
+  it('does not let a future peer timestamp postpone logout forever', async () => {
+    await renderSignedInTab();
+
+    await peerIsActive(Date.now() + 24 * 60 * MINUTE_MS);
+    await advance(IDLE_TIMEOUT_MS + 5000);
+
+    expect(isAuthenticated()).toBe(false);
+  });
+
+  it('does not log out a tab that wakes after another tab was recently active', async () => {
+    await renderSignedInTab();
+    await advance(IDLE_TIMEOUT_MS);
+    // The deadline passed while this tab slept; the peer's message about its
+    // activity a minute ago is delivered only now.
+    await peerIsActive(Date.now() - MINUTE_MS);
+    await advance(5000);
+
+    expect(isAuthenticated()).toBe(true);
+    expect(logoutRequests()).toHaveLength(0);
+
+    await advance(IDLE_TIMEOUT_MS);
+    expect(isAuthenticated()).toBe(false);
+  });
+
+  it('postpones logout on local activity', async () => {
+    await renderSignedInTab();
+    await advance(20 * MINUTE_MS);
+
+    fireEvent.keyDown(window);
+    await advance(15 * MINUTE_MS);
+
+    expect(isAuthenticated()).toBe(true);
+    await advance(16 * MINUTE_MS);
+    expect(isAuthenticated()).toBe(false);
+  });
+
+  it('throttles activity broadcasts from this tab', async () => {
+    await renderSignedInTab();
+
+    for (let i = 0; i < 50; i += 1) {
+      fireEvent.scroll(window);
+      await advance(100);
+    }
+    expect(activityMessages()).toHaveLength(1);
+    expect(activityMessages()[0]).toEqual({ type: 'activity', at: expect.any(Number) });
+
+    await advance(ACTIVITY_BROADCAST_INTERVAL_MS);
+    fireEvent.mouseDown(window);
+    expect(activityMessages()).toHaveLength(2);
+  });
+
+  it('does not re-broadcast activity received from another tab', async () => {
+    await renderSignedInTab();
+
+    await peerIsActive();
+    await advance(ACTIVITY_BROADCAST_INTERVAL_MS * 2);
+
+    expect(messagesToOtherTab).toEqual([]);
+  });
+
+  it('does not count a token change as activity', async () => {
+    await renderSignedInTab();
+    await advance(20 * MINUTE_MS);
+
+    // Same effect on the token as a background refresh: a new token, no input.
+    fireEvent.click(screen.getByRole('button', { name: 'switch account' }));
+    await advance(11 * MINUTE_MS);
+
+    expect(logoutRequests()).toHaveLength(1);
+  });
+
+  it('falls back to a per-tab timer without BroadcastChannel', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined);
+    await renderSignedInTab();
+    await advance(20 * MINUTE_MS);
+
+    fireEvent.keyDown(window);
+    await advance(15 * MINUTE_MS);
+    expect(isAuthenticated()).toBe(true);
+
+    await advance(16 * MINUTE_MS);
+    expect(isAuthenticated()).toBe(false);
+    expect(logoutRequests()).toHaveLength(1);
+  });
+
+  it('stops the idle timer and listeners when signed out', async () => {
+    await renderSignedInTab();
+    fireEvent.click(screen.getByRole('button', { name: 'sign out' }));
+    await advance(0);
+    (global.fetch as ReturnType<typeof vi.fn>).mockClear();
+    messagesToOtherTab.length = 0;
+
+    fireEvent.keyDown(window);
+    await advance(IDLE_TIMEOUT_MS * 2);
+
+    expect(logoutRequests()).toHaveLength(0);
+    expect(activityMessages()).toHaveLength(0);
   });
 });
 
