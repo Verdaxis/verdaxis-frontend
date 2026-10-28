@@ -18,7 +18,6 @@ import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
-import { ActivityTrackingProvider } from './components/ActivityTrackingProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
 import { PublicMarketSync } from './components/PublicMarketSync';
@@ -640,14 +639,12 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
             <TutorialProvider>
             <BrowserRouter>
                 <AnalyticsProvider>
-                <ActivityTrackingProvider>
                 <RouteMetadata />
                 <PublicMarketSync />
                 <TradeNotifier />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes initialPublicPage={initialPublicPage} />
-                </ActivityTrackingProvider>
                 </AnalyticsProvider>
             </BrowserRouter>
         </TutorialProvider>

@@ -6,7 +6,6 @@ import { useLocation } from 'react-router-dom';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
-import { activity } from '../services/activityTracking';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 import { AbilitiesProvider } from '../context/AbilitiesContext';
 import { abilitiesPayload } from './abilities-fixtures';
@@ -389,16 +388,11 @@ describe('Marketplace green fuels surface', () => {
     expect(tradesInitiate).not.toHaveBeenCalled();
   });
 
-  it('reports a canonical market product filter change through the identified activity adapter', async () => {
-    const trackMarketFilter = vi.spyOn(activity, 'trackMarketFilter');
+  it('requests listings for the selected canonical market product', async () => {
     renderWithProviders(<Marketplace />);
 
     fireEvent.click(await screen.findByRole('button', { name: /e-Methanol/i }));
 
-    expect(trackMarketFilter).toHaveBeenCalledWith(expect.objectContaining({
-      page: 'marketplace',
-      marketProduct: 'E_METHANOL',
-    }));
     await waitFor(() => {
       expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
         market_product: 'E_METHANOL',

@@ -19,9 +19,6 @@ import { PORTS as APPROVED_MAP_PORTS } from '../data';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
-import { activity } from '../services/activityTracking';
-import { getMarketplaceProductValue } from '../utils/marketProducts';
-import { SPOT_WINDOW } from '../utils/availabilityWindow';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 
@@ -304,11 +301,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
     const focusAllPorts = useCallback(() => {
         if (!portBounds) return;
-        activity.trackMarketFilter({
-            page: 'map',
-            marketProduct: getMarketplaceProductValue(selectedProduct),
-            availabilityWindow: SPOT_WINDOW,
-        });
         popupRef.current?.remove();
         setSelectedPortId(null);
         mapRef.current?.fitBounds(portBounds, {
@@ -317,7 +309,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             duration: 700,
             maxZoom: 3.6,
         });
-    }, [mapPadding, portBounds, selectedProduct]);
+    }, [mapPadding, portBounds]);
 
     const focusMapPort = useCallback((port: Port, options: { flyTo?: boolean } = {}) => {
         setSelectedPortId(port.id);
@@ -334,18 +326,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [mapPadding]);
 
     const handlePanelPortSelect = useCallback((port: Port) => {
-        activity.trackMarketFilter({
-            page: 'map',
-            marketProduct: getMarketplaceProductValue(selectedProduct),
-            deliveryPointId: port.catalogDeliveryPointId ?? port.id,
-            availabilityWindow: SPOT_WINDOW,
-        });
         focusMapPort(port, { flyTo: true });
         if (popupRef.current) {
             popupRef.current.remove();
             popupRef.current = null;
         }
-    }, [focusMapPort, selectedProduct]);
+    }, [focusMapPort]);
 
     const focusEuropeanEcaZones = useCallback(() => {
         const map = mapRef.current;
@@ -415,18 +401,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [portMarketMap, ports, selectedPortId, selectedProduct]);
 
     const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.label);
-    const selectedMarketProduct = getMarketplaceProductValue(selectedProduct);
-    const selectedDeliveryPointId = selectedPort?.catalogDeliveryPointId ?? selectedPort?.id;
-
-    useEffect(() => {
-        if (!active || (!selectedMarketProduct && !selectedPort)) return;
-        activity.trackMarketView({
-            page: 'map',
-            marketProduct: selectedMarketProduct,
-            deliveryPointId: selectedDeliveryPointId,
-            availabilityWindow: SPOT_WINDOW,
-        });
-    }, [active, selectedDeliveryPointId, selectedMarketProduct, selectedPort]);
 
     // Max volume across all ports (for radius scaling)
     const maxVolume = useMemo(() => {
@@ -1169,14 +1143,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             <Fuel size={14} className="text-slate-400 ml-1" />
                             <button
                                 aria-pressed={!selectedProduct}
-                                onClick={() => {
-                                    activity.trackMarketFilter({
-                                        page: 'map',
-                                        deliveryPointId: selectedDeliveryPointId,
-                                        availabilityWindow: SPOT_WINDOW,
-                                    });
-                                    setSelectedProduct(undefined);
-                                }}
+                                onClick={() => setSelectedProduct(undefined)}
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
                                     !selectedProduct
                                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
@@ -1189,15 +1156,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                                 <button
                                     key={product}
                                     aria-pressed={selectedProduct === product}
-                                    onClick={() => {
-                                        activity.trackMarketFilter({
-                                            page: 'map',
-                                            marketProduct: getMarketplaceProductValue(product),
-                                            deliveryPointId: selectedDeliveryPointId,
-                                            availabilityWindow: SPOT_WINDOW,
-                                        });
-                                        setSelectedProduct(product);
-                                    }}
+                                    onClick={() => setSelectedProduct(product)}
                                     className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
                                         selectedProduct === product
                                             ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'

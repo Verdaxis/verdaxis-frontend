@@ -26,12 +26,6 @@ import type {
     MarketSupportSession,
     MarketSupportStartInput,
 } from '../types/marketSupport';
-import type {
-    ActivityDeliveryResult,
-    ActivityRecordInput,
-    UserActivityQuery,
-    UserActivityResponse,
-} from '../types/activity';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -259,8 +253,6 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
             externalSignal?.removeEventListener('abort', abortFromExternalSignal);
         });
 };
-
-const ACTIVITY_DELIVERY_TIMEOUT_MS = 5_000;
 
 export const isAbortError = (error: unknown): boolean =>
     error instanceof DOMException
@@ -654,33 +646,6 @@ export const api = {
         // What the signed-in user may do, and why not (UI hints only). Bypasses the
         // read cache: the answer changes with account, organization, and KYC state.
         mine: async (): Promise<unknown> => fetchApi('/auth/me/abilities', { headers: getHeaders() }),
-    },
-    activity: {
-        // Account-linked activity is best-effort telemetry. It must never
-        // refresh or invalidate the user's session, surface global notices,
-        // or interfere with the action that produced the event.
-        record: async (input: ActivityRecordInput): Promise<ActivityDeliveryResult> => {
-            const token = getAccessToken();
-            if (!token) return 'rejected';
-            try {
-                const response = await fetchWithTimeout(`${API_URL}/activity/events`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(input),
-                    keepalive: true,
-                }, ACTIVITY_DELIVERY_TIMEOUT_MS);
-                if (response.ok) return 'accepted';
-                if (response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500) {
-                    return 'retryable';
-                }
-                return 'rejected';
-            } catch {
-                return 'retryable';
-            }
-        },
     },
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
@@ -1239,22 +1204,6 @@ export const api = {
         },
         users: async (query?: string) => {
             return fetchApi(`/admin/analytics/users${query ? `?${query}` : ''}`, { headers: getHeaders() });
-        },
-        userActivity: async (
-            userId: string,
-            query: UserActivityQuery,
-            signal?: AbortSignal,
-        ): Promise<UserActivityResponse> => {
-            const searchParams = new URLSearchParams({
-                days: String(query.days),
-                kind: query.kind,
-                limit: String(query.limit),
-                offset: String(query.offset),
-            });
-            return fetchApi(`/admin/users/${encodeURIComponent(userId)}/activity?${searchParams}`, {
-                headers: getHeaders(),
-                signal,
-            });
         },
         invitationOrganizations: async (): Promise<{ items: AdminInvitationOrganization[] }> => {
             return fetchApi('/auth/admin/invitations/organizations', { headers: getHeaders() });

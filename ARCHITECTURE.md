@@ -21,7 +21,7 @@ index.html
   -> src/App.tsx
      -> Theme/Auth/MarketSupport/Toast/Notification/Tutorial providers
      -> BrowserRouter
-        -> AnalyticsProvider -> ActivityTrackingProvider
+        -> AnalyticsProvider
         -> RouteMetadata + PublicMarketSync + TradeNotifier + AppRoutes
            -> localized public routes
            -> auth and onboarding routes
@@ -81,8 +81,6 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 `hooks/useDashboardLayout.ts` reads the preference through the shared session read of `useServerPreference` (`loadAllPreferences`, `updateCachedPreference`) and saves with `PUT /users/me/preferences/dashboard`. It does not use `useServerPreference` itself: that hook keeps a device-local copy and saves silently after a delay, while a layout needs an explicit Save with a visible result and no local copy that could outlive the server's. The backend namespace exists only in Rust. If the read fails, or the PUT fails (a Python backend after a Caddy rollback answers 404), the page shows the default or the edited layout, keeps edits in memory for the visit, and shows a dismissible, non-blocking notice. The layout is not read or saved while Market Support is active. The stored layout is one per user, not per view mode: a layout saved in supplier mode keeps `supplier_demand`, which buyer mode does not draw. Production builds hide Customize (`dashboardCustomizeEnabled`) until the Rust `dashboard` preference namespace is live in production; staging, local and test builds offer it.
 
-**Production activity.** `ActivityTrackingProvider`, `services/activityTracking.ts`, and `types/activity.ts` send bounded authenticated page and canonical market-slice activity. The adapter clears account-bound state at auth changes and does not replace optional Umami analytics consent.
-
 **Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo or reference values into executable claims.
 
 **KYC execution gate.** `AuthContext` exposes `execution_eligibility` from `/api/auth/me`. `Layout` renders `KycDeadlineBanner` for `KYC_GRACE`, `KYC_REQUIRED`, and `KYC_REJECTED`; it links to `/kyc` and shows the grace deadline when present. A blocked execution returns HTTP 403 with code `KYC_REQUIRED`; `isKycRequiredError` in `api.ts` detects it and `KycRequiredNotice` shows the localized reason with the same link in the order modal and the take and confirm actions. Cleanup commands (cancel, decline, deliver, pay) stay enabled.
@@ -99,7 +97,7 @@ src/
   publicPageLoaders.ts               shared public route imports
   prerender/renderPublicRoute.tsx    build-only public content rendering
   types.ts                          shared UI and API domain types
-  types/{activity,marketSupport,lngOrder}.ts production activity, assisted-workspace, and bio-LNG terms contracts
+  types/{marketSupport,lngOrder}.ts assisted-workspace and bio-LNG terms contracts
   types/abilities.ts                ability ids, reason codes, action-to-ability maps
   components/
     Layout.tsx                      authenticated shell
@@ -115,7 +113,6 @@ src/
     CommandCenter.tsx               buyer/supplier home views (owns the home sections' data)
     dashboard/DashboardCanvas.tsx   12-column grid and the layout edit mode
     dashboard/widgets.tsx           lazy widgets wrapping Forward Curve, order book, trade tape, my trades
-    ActivityTrackingProvider.tsx    production identified activity boundary
     admin/                          admin and product analytics workspaces
     admin/market-support/           eligible-organization entry
     market-support/                 acting banner and final order confirmation
@@ -126,7 +123,6 @@ src/
     authToken.ts                    in-memory access-token generation
     authTabSync.ts                  cross-tab logout, identity-change, and activity events
     readCache.ts                    scoped TTL cache and request deduplication
-    activityTracking.ts             bounded production activity queue
     publicMarketSync.ts             shared market invalidation subscriber
     streamHealth.ts                 SSE heartbeat parsing, stream registry, aggregation
     tradeAlertPreferences.ts        per-user, per-device alert settings in localStorage
@@ -165,7 +161,6 @@ scripts/
 | Forward Curve | `ForwardCurveWorkspace.tsx`, `utils/forwardCurveAxis.ts` | `forward-curve-workspace.test.tsx`, `forward-curve-axis.test.ts` |
 | Intelligence Map | `src/components/BuyerMap.tsx` | `src/tests/buyer-map-i18n.test.tsx` |
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
-| Activity | `ActivityTrackingProvider.tsx`, `activityTracking.ts` | `activity-*.test.ts`, `user-activity-drawer.test.tsx` |
 | Stream health | `useSSE.ts`, `streamHealth.ts`, `useStreamHealth.ts`, `layout/StreamStatusIndicator.tsx`, `layout/ServerStatusBanner.tsx` | `use-sse.test.tsx`, `stream-health.test.ts`, `stream-status-indicator.test.tsx`, `server-status-banner.test.tsx` |
 | Trade alerts | `TradeNotifier.tsx`, `useTradeAlerts.ts`, `useTradeAlertSettings.ts`, `useTradeAlertPrompt.ts`, `notifications/TradeAlertPrompt.tsx`, `services/tradeAlert*.ts`, `Settings.tsx` | `use-trade-alerts.test.tsx`, `trade-alert-prompt.test.tsx`, `trade-alert-{settings,election,sound}.test.ts(x)`, `trade-notifier.test.tsx`, `trade-history-alerts.test.tsx` |
 | Server abilities | `AbilitiesContext.tsx`, `useAbilityDenial.ts`, `services/abilities.ts`, `types/abilities.ts`, `ui/AbilityDenialNote.tsx` | `abilities-parse.test.ts`, `abilities-context.test.tsx`, `abilities-ui.test.tsx`, `abilities-order-modal.test.tsx`, ability cases in `marketplace-green-fuels.test.tsx` |

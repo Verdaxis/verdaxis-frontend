@@ -9,7 +9,7 @@ React 19 and Vite frontend for the Verdaxis public site and authenticated green-
 - The sidebar exposes Command Center, Intelligence Map, Marketplace, Forward Curve, Watchlist, Analytics, and Trade History. Buyer and Supplier modes change the home view and BID/ASK primary action.
 - Marketplace owns catalog filters, canonical product/port/window slices, listings, orderbook depth, and the user's open orders. `OrderPlaceModal` submits both BID and ASK orders.
 - Forward Curve is a separate monitoring workspace. It reads the table and selected-slice endpoints and links a selected market back to Marketplace.
-- Production also reports bounded authenticated page and market-slice activity through `ActivityTrackingProvider`. This branch does not contain the staging FAME history/catalog extension.
+- This branch does not contain the staging FAME history/catalog extension.
 
 ### Market Support
 
@@ -78,7 +78,6 @@ Do not submit orders, trades, or customer forms during a read-only smoke unless 
 | Forward Curve | `src/components/ForwardCurveWorkspace.tsx`, `src/utils/forwardCurveAxis.ts` | `src/tests/forward-curve-workspace.test.tsx`, `src/tests/forward-curve-axis.test.ts` |
 | Market Support | `src/context/MarketSupportContext.tsx`, `src/types/marketSupport.ts`, `src/services/marketSupportContextStore.ts` | `src/tests/market-support-*.test.tsx`, `src/tests/api-market-support-context.test.ts` |
 | Auth, transport, cache | `src/context/AuthContext.tsx`, `src/services/authToken.ts`, `src/services/api.ts`, `src/services/readCache.ts` | `src/tests/auth-*.test.ts`, `src/tests/api-*.test.ts`, `src/tests/read-cache.test.ts` |
-| Production activity | `src/components/ActivityTrackingProvider.tsx`, `src/services/activityTracking.ts`, `src/types/activity.ts` | `src/tests/activity-*.test.ts`, `src/tests/user-activity-drawer.test.tsx` |
 | Release artifacts | `vite.config.ts`, `scripts/check-build-artifacts.mjs`, `scripts/release-vercel.sh` | artifact/release guard tests and both target builds above |
 
 `openapi.json` is a generated backend contract snapshot. `.codesight/` is a historical generated navigation aid. Verify both against current source before relying on them. Product language is in [the market glossary](docs/market-glossary.md); UI rules are in [the design system](docs/design-system.md).
