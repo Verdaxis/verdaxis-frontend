@@ -1,6 +1,6 @@
 import { LoadingScreen } from './LoadingScreen';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, FileText, Gavel, HandCoins, Search } from 'lucide-react';
+import { ArrowRight, FileText, Gavel, HandCoins, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import { getAuthGeneration } from '../services/authToken';
@@ -23,6 +23,19 @@ import { useAbilityDenial } from '../hooks/useAbilityDenial';
 import { AbilityDenialNote } from './ui/AbilityDenialNote';
 import { PLACE_ORDER_ABILITY } from '../types/abilities';
 import { useSSE } from '../hooks/useSSE';
+import { useDashboardLayout } from '../hooks/useDashboardLayout';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { DashboardCanvas } from './dashboard/DashboardCanvas';
+import {
+    ForwardCurveWidget,
+    MyTradesWidget,
+    OrderBookWidget,
+    TradeTapeWidget,
+} from './dashboard/widgets';
+import type { DashboardWidgetType } from '../utils/dashboardLayout';
+
+// Same breakpoint as the desktop gate: editing is offered from `md` up.
+const DESKTOP_QUERY = '(min-width: 768px)';
 
 interface CommandCenterProps {
     viewMode: ViewMode;
@@ -66,6 +79,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const [loadError, setLoadError] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [orderModalOpen, setOrderModalOpen] = useState(false);
+    const [editingLayout, setEditingLayout] = useState(false);
+    const dashboardLayout = useDashboardLayout(viewMode);
+    const isDesktop = useMediaQuery(DESKTOP_QUERY);
     const { radar, events, loading: radarLoading, error: radarError, refresh: refreshWatchlist } = useWatchlist();
     const { context, isActive: isMarketSupportActive } = useMarketSupport();
     const placeOrderDenial = useAbilityDenial(PLACE_ORDER_ABILITY[CTA_CONFIG[viewMode].primary.side]);
@@ -79,7 +95,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
         confirmEpochRef.current += 1;
     }
 
-    useDashboardContentReady('DASHBOARD', ready && !loading && !loadError
+    useDashboardContentReady('DASHBOARD', ready && !loading && !dashboardLayout.loading && !loadError
         && (isMarketSupportActive || (!radarLoading && !radarError)));
 
     const [confirmState, setConfirmState] = useState<{
@@ -151,7 +167,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     useSSE('trades', refreshTradeData, isAuthenticated && ready && !isMarketSupportActive, scopeKey);
 
     useEffect(() => {
-        if (!loading && openOrderId) {
+        if (!loading && !dashboardLayout.loading && openOrderId) {
             const el = document.getElementById(`order-${openOrderId}`);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -159,7 +175,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 setTimeout(() => el.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2'), 3000);
             }
         }
-    }, [loading, openOrderId]);
+    }, [loading, dashboardLayout.loading, openOrderId]);
 
     const handleConfirmTrade = useCallback((tradeId: string) => {
         confirmRequestRef.current = null;
@@ -287,7 +303,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
         }
     };
 
-    if (!ready || loading) {
+    if (!ready || loading || dashboardLayout.loading) {
         return <LoadingScreen />;
     }
 
@@ -297,105 +313,171 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
         || confirmState.type === 'SUCCESS'
         || confirmState.type === 'KYC_ERROR';
 
+    const isWidgetAvailable = (type: DashboardWidgetType): boolean => {
+        if (type === 'supplier_demand') return viewMode === 'SUPPLIER';
+        if (type === 'market_radar' || type === 'my_trades') return !isMarketSupportActive;
+        return true;
+    };
+
+    const renderWidget = (type: DashboardWidgetType): React.ReactNode => {
+        switch (type) {
+            case 'quick_actions':
+                return (
+                    <div>
+                        <div className="flex flex-col md:flex-row md:items-stretch gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2">
+                            <button
+                                data-tour="command-center-primary-action"
+                                onClick={() => setOrderModalOpen(true)}
+                                disabled={placeOrderDenial !== null}
+                                title={placeOrderDenial?.message}
+                                aria-describedby={placeOrderDenial ? 'command-center-place-order-denial' : undefined}
+                                className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
+                            >
+                                <cta.primary.icon className="h-5 w-5 shrink-0" />
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-semibold">{t(cta.primary.labelKey)}</span>
+                                    <span className="block text-xs text-emerald-50">{t(cta.primary.descKey)}</span>
+                                </span>
+                                <ArrowRight className="ml-auto h-4 w-4 shrink-0" />
+                            </button>
+                            <button
+                                onClick={() => onNavigate('MARKETPLACE')}
+                                className="flex flex-1 items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+                            >
+                                <cta.secondary.icon className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-400" />
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-semibold text-slate-800 dark:text-white">{t(cta.secondary.labelKey)}</span>
+                                    <span className="block text-xs text-slate-500 dark:text-slate-400">{t(cta.secondary.descKey)}</span>
+                                </span>
+                                <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
+                            </button>
+                            {!isMarketSupportActive && <button
+                                onClick={() => onNavigate('TRADES')}
+                                className="flex flex-1 items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                            >
+                                <FileText className="h-5 w-5 shrink-0 text-slate-500" />
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-semibold text-slate-800 dark:text-white">{t('common:commandCenter.actions.viewDeals')}</span>
+                                    <span className="block text-xs text-slate-500 dark:text-slate-400">{t('common:commandCenter.actions.viewDealsDescription')}</span>
+                                </span>
+                                <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
+                            </button>}
+                        </div>
+                        {placeOrderDenial && (
+                            <AbilityDenialNote denial={placeOrderDenial} id="command-center-place-order-denial" className="mt-2" />
+                        )}
+                    </div>
+                );
+            case 'trade_summary':
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3" aria-label={t('commandCenter.metrics.scope', { count: summary.total_count })}>
+                        {[
+                            ['commandCenter.metrics.awaitingYourConfirmation', summary.action_required_count, 'text-amber-600 dark:text-amber-400'],
+                            ['commandCenter.metrics.awaitingCounterparty', summary.awaiting_counterparty_count, 'text-sky-600 dark:text-sky-400'],
+                            ['commandCenter.metrics.confirmedTrades', summary.confirmed_count, 'text-emerald-600 dark:text-emerald-400'],
+                        ].map(([labelKey, value, color]) => (
+                            <div key={labelKey} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+                                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t(String(labelKey))}</div>
+                                <div className={`mt-1 text-2xl font-bold tabular-nums ${color}`}>{value}</div>
+                                <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t('commandCenter.metrics.scope', { count: summary.total_count })}</div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            case 'needs_attention':
+                return (
+                    <div>
+                        <div className="mb-3 flex items-end justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-800 dark:text-white">{t('supplierDashboard.table.actionRequired')}</h2>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('commandCenter.metrics.queueScope', { limit: ACTIONABLE_LIMIT })}</p>
+                            </div>
+                            <button onClick={() => onNavigate('TRADES')} className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                                {t('commandCenter.metrics.viewAll')}
+                            </button>
+                        </div>
+                        <NeedsAttentionFeed
+                            trades={trades}
+                            viewMode={viewMode}
+                            onNavigate={onNavigate}
+                            onConfirmTrade={isMarketSupportActive ? undefined : handleConfirmTrade}
+                            onPostOrder={() => setOrderModalOpen(true)}
+                            loading={loading}
+                            error={loadError ? t('commandCenter.metrics.loadError') : undefined}
+                            onRetry={() => void loadDashboardData(true)}
+                            total={summary.action_required_count}
+                        />
+                    </div>
+                );
+            case 'market_radar':
+                return (
+                    <MarketRadarPanel
+                        radar={radar}
+                        events={events}
+                        loading={radarLoading}
+                        error={radarError}
+                        onOpenRadar={() => onNavigate('WATCHLISTS')}
+                    />
+                );
+            case 'supplier_demand':
+                return <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />;
+            case 'forward_curve':
+                return <ForwardCurveWidget onNavigate={onNavigate} onOpenSlice={onOpenSlice} />;
+            case 'order_book':
+                return <OrderBookWidget onNavigate={onNavigate} />;
+            case 'trade_tape':
+                return <TradeTapeWidget onNavigate={onNavigate} />;
+            case 'my_trades':
+                return <MyTradesWidget />;
+        }
+    };
+
+    const layoutNoticeKey = dashboardLayout.notice === 'read-failed'
+        ? 'commandCenter.customize.notice.readFailed'
+        : 'commandCenter.customize.notice.saveFailed';
+
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">{t('commandCenter.title')}</h1>
-                <p className="text-slate-500 dark:text-slate-400 mb-4">{t('commandCenter.subtitle')}</p>
-                <div className="flex flex-col md:flex-row md:items-stretch gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2">
-                    <button
-                        data-tour="command-center-primary-action"
-                        onClick={() => setOrderModalOpen(true)}
-                        disabled={placeOrderDenial !== null}
-                        title={placeOrderDenial?.message}
-                        aria-describedby={placeOrderDenial ? 'command-center-place-order-denial' : undefined}
-                        className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
-                    >
-                        <cta.primary.icon className="h-5 w-5 shrink-0" />
-                        <span className="min-w-0">
-                            <span className="block text-sm font-semibold">{t(cta.primary.labelKey)}</span>
-                            <span className="block text-xs text-emerald-50">{t(cta.primary.descKey)}</span>
-                        </span>
-                        <ArrowRight className="ml-auto h-4 w-4 shrink-0" />
-                    </button>
-                    <button
-                        onClick={() => onNavigate('MARKETPLACE')}
-                        className="flex flex-1 items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
-                    >
-                        <cta.secondary.icon className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-400" />
-                        <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-800 dark:text-white">{t(cta.secondary.labelKey)}</span>
-                            <span className="block text-xs text-slate-500 dark:text-slate-400">{t(cta.secondary.descKey)}</span>
-                        </span>
-                        <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
-                    </button>
-                    {!isMarketSupportActive && <button
-                        onClick={() => onNavigate('TRADES')}
-                        className="flex flex-1 items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
-                    >
-                        <FileText className="h-5 w-5 shrink-0 text-slate-500" />
-                        <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-800 dark:text-white">{t('common:commandCenter.actions.viewDeals')}</span>
-                            <span className="block text-xs text-slate-500 dark:text-slate-400">{t('common:commandCenter.actions.viewDealsDescription')}</span>
-                        </span>
-                        <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
-                    </button>}
+        <div className="p-6 max-w-7xl mx-auto">
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">{t('commandCenter.title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mb-4">{t('commandCenter.subtitle')}</p>
                 </div>
-                {placeOrderDenial && (
-                    <AbilityDenialNote denial={placeOrderDenial} id="command-center-place-order-denial" className="mt-2" />
+                {dashboardLayout.canCustomize && isDesktop && !editingLayout && (
+                    <button
+                        type="button"
+                        onClick={() => setEditingLayout(true)}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                        <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                        {t('commandCenter.customize.button')}
+                    </button>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3" aria-label={t('commandCenter.metrics.scope', { count: summary.total_count })}>
-                {[
-                    ['commandCenter.metrics.awaitingYourConfirmation', summary.action_required_count, 'text-amber-600 dark:text-amber-400'],
-                    ['commandCenter.metrics.awaitingCounterparty', summary.awaiting_counterparty_count, 'text-sky-600 dark:text-sky-400'],
-                    ['commandCenter.metrics.confirmedTrades', summary.confirmed_count, 'text-emerald-600 dark:text-emerald-400'],
-                ].map(([labelKey, value, color]) => (
-                    <div key={labelKey} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t(String(labelKey))}</div>
-                        <div className={`mt-1 text-2xl font-bold tabular-nums ${color}`}>{value}</div>
-                        <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t('commandCenter.metrics.scope', { count: summary.total_count })}</div>
-                    </div>
-                ))}
-            </div>
-
-            <div>
-                <div className="mb-3 flex items-end justify-between gap-4">
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">{t('supplierDashboard.table.actionRequired')}</h2>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('commandCenter.metrics.queueScope', { limit: ACTIONABLE_LIMIT })}</p>
-                    </div>
-                    <button onClick={() => onNavigate('TRADES')} className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                        {t('commandCenter.metrics.viewAll')}
+            {dashboardLayout.notice && (
+                <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    <span>{t(layoutNoticeKey)}</span>
+                    <button
+                        type="button"
+                        onClick={dashboardLayout.dismissNotice}
+                        aria-label={t('commandCenter.customize.notice.dismiss')}
+                        className="shrink-0 rounded p-0.5 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:hover:bg-amber-900/40"
+                    >
+                        <X className="h-4 w-4" aria-hidden />
                     </button>
                 </div>
-                <NeedsAttentionFeed
-                    trades={trades}
-                    viewMode={viewMode}
-                    onNavigate={onNavigate}
-                    onConfirmTrade={isMarketSupportActive ? undefined : handleConfirmTrade}
-                    onPostOrder={() => setOrderModalOpen(true)}
-                    loading={loading}
-                    error={loadError ? t('commandCenter.metrics.loadError') : undefined}
-                    onRetry={() => void loadDashboardData(true)}
-                    total={summary.action_required_count}
-                />
-            </div>
-
-            {!isMarketSupportActive && (
-                <MarketRadarPanel
-                    radar={radar}
-                    events={events}
-                    loading={radarLoading}
-                    error={radarError}
-                    onOpenRadar={() => onNavigate('WATCHLISTS')}
-                />
             )}
 
-            {viewMode === 'SUPPLIER' && (
-                <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />
-            )}
+            <DashboardCanvas
+                layout={dashboardLayout.layout}
+                defaultLayout={dashboardLayout.defaultLayout}
+                editing={editingLayout && isDesktop}
+                onEditingChange={setEditingLayout}
+                isAvailable={isWidgetAvailable}
+                renderWidget={renderWidget}
+                onSave={dashboardLayout.save}
+            />
 
             <OrderPlaceModal
                 isOpen={orderModalOpen}

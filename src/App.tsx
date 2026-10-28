@@ -39,31 +39,9 @@ import LegacyRedirect from './components/public/LegacyRedirect';
 import { useTranslation } from 'react-i18next';
 import { EDUCATION_SLUGS } from './routeMetadata';
 import { publicPageLoaders, type PreparedPublicPage } from './publicPageLoaders';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
-
-const CHUNK_RELOAD_FLAG = 'verdaxis_chunk_reloaded';
-
-// After a deploy, bookmarked deep links can reference stale chunk URLs;
-// reload once to pick up the new manifest instead of stranding the user
-// on the ErrorBoundary. The sessionStorage flag guards against loops.
-function retryImport<T>(load: () => Promise<T>): Promise<T> {
-  return load().then((module) => {
-    sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
-    return module;
-  }).catch((error: unknown) => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem(CHUNK_RELOAD_FLAG) !== 'true') {
-      sessionStorage.setItem(CHUNK_RELOAD_FLAG, 'true');
-      window.location.reload();
-      return new Promise<T>(() => {});
-    }
-    throw error;
-  });
-}
-
-function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.ComponentType<P> }>) {
-  return lazy(() => retryImport(load));
-}
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
