@@ -173,6 +173,27 @@ describe('useSSE', () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
+  it('delivers a triggered price alert without invalidating market reads', async () => {
+    const load = vi.fn().mockResolvedValue('cached');
+    await cachedRead('orderbook:test', 'public', 1_000, load);
+    await cachedRead('trades:test', 'public', 1_000, load);
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit('price_alert_triggered', {
+        data: '{"alert_id":"alert-1","price":"725.5"}',
+        lastEventId: '51',
+      });
+    });
+
+    expect(onEvent).toHaveBeenCalledWith('price_alert_triggered', { alert_id: 'alert-1', price: '725.5' }, '51');
+    await cachedRead('orderbook:test', 'public', 1_000, load);
+    await cachedRead('trades:test', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
   it('does not open a source when a pending token request finishes after disable', async () => {
     let resolveToken: (value: Response) => void = () => undefined;
     fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => {

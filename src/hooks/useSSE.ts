@@ -15,7 +15,7 @@ type SSEHandler = (event: string, data: any, eventId?: string) => void;
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
     prices: ['market_invalidated'],
     orderbook: ['market_invalidated'],
-    trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
+    trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched', 'price_alert_triggered'],
 };
 
 const CONTROL_EVENTS = ['auth_expired', 'auth_revoked', 'reconnect', 'reset'];

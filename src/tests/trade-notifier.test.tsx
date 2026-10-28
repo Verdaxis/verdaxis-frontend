@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TradeNotifier } from '../components/TradeNotifier';
+import { subscribeToPriceAlertTriggers } from '../services/priceAlertEvents';
 import i18n, { loadNamespace } from '../i18n';
 
 const useSSEMock = vi.fn();
@@ -153,6 +154,52 @@ describe('TradeNotifier', () => {
     // Created and declined trades keep their previous behaviour: no toast.
     expect(addToastMock).not.toHaveBeenCalled();
     expect(addNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it('shows a toast and a panel entry for a triggered price alert, in both languages', () => {
+    namespaceControl.ready = true;
+    render(<TradeNotifier />);
+    const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+    const data = {
+      alert_id: 'alert-1', direction: 'above', product_name: 'Bio-Methanol',
+      price: '725.5', threshold_usd: '700.00',
+    };
+
+    act(() => handler('price_alert_triggered', data, '51'));
+
+    expect(alertForTradeEventMock).toHaveBeenCalledWith('price_alert_triggered', data, '51');
+    expect(addToastMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: '价格提醒已触发',
+      message: 'Bio-Methanol 以 $725.50/MT 成交，高于您设置的 $700.00 提醒价',
+    }));
+    expect(addNotificationMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: '价格提醒已触发',
+      data,
+      is_read: false,
+    }));
+
+    return i18n.changeLanguage('en').then(() => {
+      addToastMock.mockClear();
+      act(() => handler('price_alert_triggered', { ...data, direction: 'below' }, '52'));
+      expect(addToastMock).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Price Alert Triggered',
+        message: 'Bio-Methanol traded at $725.50/MT, below your $700.00 alert',
+      }));
+    });
+  });
+
+  it('announces a triggered price alert to open views', () => {
+    namespaceControl.ready = true;
+    render(<TradeNotifier />);
+    const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+    const listener = vi.fn();
+    const unsubscribe = subscribeToPriceAlertTriggers(listener);
+
+    act(() => handler('price_alert_triggered', { alert_id: 'alert-1', direction: 'above' }, '51'));
+    unsubscribe();
+    act(() => handler('price_alert_triggered', { alert_id: 'alert-2', direction: 'above' }, '52'));
+
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it('tells the alerts about the user and the assisted context', () => {

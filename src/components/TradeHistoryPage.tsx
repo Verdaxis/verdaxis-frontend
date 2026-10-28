@@ -13,7 +13,9 @@ import {
     CheckCircle2,
     X,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { subscribeToPriceAlertTriggers } from '../services/priceAlertEvents';
 import { Trade, Product, DeliveryPoint, PriceAlert } from '../types';
 import { useToast } from './Toast';
 import { MyTrades } from './MyTrades';
@@ -274,6 +276,9 @@ const AlertsTab: React.FC = () => {
         }
     }, []);
 
+    // A price alert that fires while this tab is open leaves the list stale.
+    useEffect(() => subscribeToPriceAlertTriggers(() => { void fetchAlerts(); }), [fetchAlerts]);
+
     useEffect(() => {
         (async () => {
             try {
@@ -524,7 +529,15 @@ const AlertsTab: React.FC = () => {
 // ─── Main TradeHistoryPage ───────────────────────────────────────
 export const TradeHistoryPage: React.FC = () => {
     const { t, ready } = useNamespace('trading');
-    const [activeTab, setActiveTab] = useState<TabId>('blotter');
+    // A price alert notification opens the page with `?tab=alerts`.
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState<TabId>(() => (
+        searchParams.get('tab') === 'alerts' ? 'alerts' : 'blotter'
+    ));
+    const requestedTab = searchParams.get('tab');
+    useEffect(() => {
+        if (requestedTab === 'alerts') setActiveTab('alerts');
+    }, [requestedTab]);
 
     if (!ready) return null;
 

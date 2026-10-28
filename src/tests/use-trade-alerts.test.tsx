@@ -45,7 +45,7 @@ const enableAlerts = (sound: boolean, notifications: boolean) => (
   writeTradeAlertPreferences(USER_ID, { ...DEFAULT_TRADE_ALERT_PREFERENCES, sound, notifications })
 );
 
-type HookProps = { isMarketSupportActive?: boolean; onOpenMyTrades?: () => void };
+type HookProps = { isMarketSupportActive?: boolean; onOpenMyTrades?: () => void; onOpenPriceAlerts?: () => void };
 
 const renderAlerts = (props: HookProps = {}) => renderHook(
   (current: HookProps) => useTradeAlerts({
@@ -53,6 +53,7 @@ const renderAlerts = (props: HookProps = {}) => renderHook(
     isMarketSupportActive: current.isMarketSupportActive ?? false,
     t: i18n.getFixedT('en', 'trading'),
     onOpenMyTrades: current.onOpenMyTrades ?? vi.fn(),
+    onOpenPriceAlerts: current.onOpenPriceAlerts ?? vi.fn(),
   }),
   { initialProps: props },
 );
@@ -100,6 +101,7 @@ describe('trade alerts', () => {
       ['trade_confirmed', 'done'],
       ['trade_auto_matched', 'done'],
       ['trade_declined', 'declined'],
+      ['price_alert_triggered', 'action'],
     ])('%s plays the %s tone', async (event, tone) => {
       enableAlerts(true, false);
       const { result } = renderAlerts();
@@ -124,9 +126,19 @@ describe('trade alerts', () => {
       },
     );
 
-    it('knows the four alert events and nothing else', () => {
-      expect(['trade_created', 'trade_confirmed', 'trade_declined', 'trade_auto_matched', 'reset']
-        .map(tradeAlertKindForEvent)).toEqual(['created', 'confirmed', 'declined', 'autoMatched', null]);
+    it('knows the five alert events and nothing else', () => {
+      expect(['trade_created', 'trade_confirmed', 'trade_declined', 'trade_auto_matched', 'price_alert_triggered', 'reset']
+        .map(tradeAlertKindForEvent)).toEqual(['created', 'confirmed', 'declined', 'autoMatched', 'priceAlert', null]);
+    });
+
+    it('does not ask the server about a price alert, which is for the whole organization', async () => {
+      enableAlerts(true, false);
+      const { result } = renderAlerts();
+
+      await sendTradeEvent(result.current, 'price_alert_triggered', { alert_id: 'alert-1' }, '14');
+
+      expect(mocks.myTradesPaged).not.toHaveBeenCalled();
+      expect(mocks.playTone).toHaveBeenCalledWith('action');
     });
   });
 
@@ -280,6 +292,7 @@ describe('trade alerts', () => {
         isMarketSupportActive: false,
         t: i18n.getFixedT('zh', 'trading'),
         onOpenMyTrades: vi.fn(),
+        onOpenPriceAlerts: vi.fn(),
       }));
 
       await sendTradeEvent(result.current, 'trade_declined', { id: 'trade-1' }, '33');
@@ -299,6 +312,28 @@ describe('trade alerts', () => {
 
       expect(focus).toHaveBeenCalledTimes(1);
       expect(openMyTrades).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the price alerts tab when a price alert notification is clicked', async () => {
+      enableAlerts(false, true);
+      const openMyTrades = vi.fn();
+      const openPriceAlerts = vi.fn();
+      vi.spyOn(window, 'focus').mockImplementation(() => undefined);
+      const { result } = renderAlerts({ onOpenMyTrades: openMyTrades, onOpenPriceAlerts: openPriceAlerts });
+
+      await sendTradeEvent(
+        result.current,
+        'price_alert_triggered',
+        { alert_id: 'alert-1', price: '725.50', threshold_usd: '700.00' },
+        '35',
+      );
+      const shown = mocks.showNotification.mock.calls[0][0];
+      expect(shown.title).toBe('Price alert triggered');
+      expect(`${shown.title} ${shown.body}`).not.toMatch(/725|700|\$/);
+      shown.onClick();
+
+      expect(openPriceAlerts).toHaveBeenCalledTimes(1);
+      expect(openMyTrades).not.toHaveBeenCalled();
     });
 
     it('still shows the notification when audio is unavailable', async () => {

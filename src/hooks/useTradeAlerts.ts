@@ -12,7 +12,7 @@ import {
 } from '../services/tradeAlertSound';
 import { useTradeAlertSettings } from './useTradeAlertSettings';
 
-export type TradeAlertKind = 'created' | 'confirmed' | 'declined' | 'autoMatched';
+export type TradeAlertKind = 'created' | 'confirmed' | 'declined' | 'autoMatched' | 'priceAlert';
 
 // Only these stream events raise an alert. `reconnect`, `reset`, heartbeats and
 // the other trade lifecycle events (delivered, paid) are deliberately absent.
@@ -21,6 +21,7 @@ const ALERT_KIND_BY_EVENT: Record<string, TradeAlertKind> = {
   trade_confirmed: 'confirmed',
   trade_declined: 'declined',
   trade_auto_matched: 'autoMatched',
+  price_alert_triggered: 'priceAlert',
 };
 
 const TONE_BY_KIND: Record<TradeAlertKind, TradeAlertTone> = {
@@ -28,6 +29,7 @@ const TONE_BY_KIND: Record<TradeAlertKind, TradeAlertTone> = {
   confirmed: 'done',
   autoMatched: 'done',
   declined: 'declined',
+  priceAlert: 'action',
 };
 
 /** How many of the newest trades awaiting the user's action to search for the new trade. */
@@ -77,6 +79,8 @@ interface UseTradeAlertsOptions {
   /** `trading` namespace translator. */
   t: TFunction;
   onOpenMyTrades: () => void;
+  /** Opens Trade History on its price alerts tab. */
+  onOpenPriceAlerts: () => void;
 }
 
 /**
@@ -84,14 +88,14 @@ interface UseTradeAlertsOptions {
  * not open a stream: `TradeNotifier` passes each event of its one stream to the
  * returned handler.
  */
-export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrades }: UseTradeAlertsOptions) => {
+export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrades, onOpenPriceAlerts }: UseTradeAlertsOptions) => {
   const settings = useTradeAlertSettings(userId);
   const electionRef = useRef<TradeAlertElection | null>(null);
 
   // The handler is long-lived (the stream keeps the first one it saw), so it
   // reads current values through this ref.
-  const latest = useRef({ userId, isMarketSupportActive, t, onOpenMyTrades });
-  latest.current = { userId, isMarketSupportActive, t, onOpenMyTrades };
+  const latest = useRef({ userId, isMarketSupportActive, t, onOpenMyTrades, onOpenPriceAlerts });
+  latest.current = { userId, isMarketSupportActive, t, onOpenMyTrades, onOpenPriceAlerts };
 
   useEffect(() => {
     const election = openTradeAlertElection();
@@ -127,7 +131,12 @@ export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrade
       if (kind === 'created' && !(await needsMyConfirmation(tradeIdOf(data)))) return;
 
       // Both the election and the lookup took time; look again.
-      const { isMarketSupportActive: stillInSupport, t: translate, onOpenMyTrades: openMyTrades } = latest.current;
+      const {
+        isMarketSupportActive: stillInSupport,
+        t: translate,
+        onOpenMyTrades: openMyTrades,
+        onOpenPriceAlerts: openPriceAlerts,
+      } = latest.current;
       if (stillInSupport) return;
 
       if (wantsSound) playTradeAlertTone(TONE_BY_KIND[kind]);
@@ -141,7 +150,8 @@ export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrade
           tag: key,
           onClick: () => {
             window.focus();
-            openMyTrades();
+            if (kind === 'priceAlert') openPriceAlerts();
+            else openMyTrades();
           },
         });
       }
