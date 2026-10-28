@@ -194,6 +194,43 @@ describe('useSSE', () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['order_created', { id: 'order-1', side: 'BID', price: '700', quantity: '100' }],
+    ['order_updated', { id: 'order-1', side: 'BID' }],
+    ['order_cancelled', { id: 'order-1', side: 'ASK' }],
+    ['orders_matched', { order_id: 'order-1', matches: 2 }],
+    ['order_expired', { id: 'order-1', status: 'EXPIRED' }],
+  ])('delivers %s on the private trades stream and refreshes only the My Orders read', async (event, payload) => {
+    const load = vi.fn().mockResolvedValue('cached');
+    await cachedRead('orderbook:my', 'public', 1_000, load);
+    await cachedRead('orderbook:/orderbook/bids?skip=0', 'public', 1_000, load);
+    await cachedRead('trades:my', 'public', 1_000, load);
+    await cachedRead('watchlists:list', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(4);
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit(event, { data: JSON.stringify(payload), lastEventId: '61' });
+    });
+
+    expect(onEvent).toHaveBeenCalledWith(event, payload, '61');
+    // Public book, trade and watchlist reads stay cached; My Orders is read again.
+    await cachedRead('orderbook:/orderbook/bids?skip=0', 'public', 1_000, load);
+    await cachedRead('trades:my', 'public', 1_000, load);
+    await cachedRead('watchlists:list', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(4);
+    await cachedRead('orderbook:my', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps the order events off the public streams', async () => {
+    render(<Harness channel="orderbook" />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    expect([...FakeEventSource.instances[0].listeners.keys()]).not.toContain('order_created');
+  });
+
   it('does not open a source when a pending token request finishes after disable', async () => {
     let resolveToken: (value: Response) => void = () => undefined;
     fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => {

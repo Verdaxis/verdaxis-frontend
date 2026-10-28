@@ -12,7 +12,6 @@ import {
   UserPlus,
   Copy,
   Check,
-  History,
 } from 'lucide-react';
 import {
   AdminFeedbackEntry as FeedbackEntry,
@@ -34,7 +33,6 @@ import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization }
 import { defaultMarketSupportView } from '../../types/marketSupport';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { getAvailableCountries } from '../../utils/countries';
-import { UserActivityDrawer, type ActivityUser } from './UserActivityDrawer';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,7 +332,6 @@ const UsersTab: React.FC = () => {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [invitation, setInvitation] = useState<AdminInvitationResponse | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [activityUser, setActivityUser] = useState<ActivityUser | null>(null);
   const navigate = useNavigate();
   const { start, resume } = useMarketSupport();
   const enterOrganizationDenial = useAbilityGate()('market_support_assisted_orders');
@@ -742,15 +739,6 @@ const UsersTab: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActivityUser({ id: u.id, name, email: u.email })}
-                          aria-label={t('activity.viewFor', { name: name === '—' ? u.email : name, defaultValue: `View activity for ${name === '—' ? u.email : name}` })}
-                          className="flex min-h-11 items-center gap-1 rounded px-2.5 py-1 text-xs font-semibold text-verdaxis transition-colors hover:bg-verdaxis/10 focus:outline-none focus:ring-2 focus:ring-verdaxis"
-                        >
-                          <History size={12} aria-hidden="true" />
-                          {t('activity.view', { defaultValue: 'View activity' })}
-                        </button>
                         {u.status === 'PENDING' && (
                           <>
                             <button
@@ -800,9 +788,6 @@ const UsersTab: React.FC = () => {
       )}
       {userError && <p role="alert" className="text-sm text-red-400">{userError}</p>}
       {entryError && <p role="alert" className="text-sm text-red-400">{entryError}</p>}
-      {activityUser && (
-        <UserActivityDrawer key={activityUser.id} user={activityUser} onClose={() => setActivityUser(null)} />
-      )}
       {entryOrganization && (
         <MarketSupportEntryDialog
           open

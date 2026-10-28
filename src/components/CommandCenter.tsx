@@ -33,6 +33,8 @@ import {
     TradeTapeWidget,
 } from './dashboard/widgets';
 import type { DashboardWidgetType } from '../utils/dashboardLayout';
+import { isPrivateOrderEvent } from '../services/orderStreamEvents';
+import { forgetOwnTradeAction, recordOwnTradeAction } from '../services/ownTradeActions';
 
 // Same breakpoint as the desktop gate: editing is offered from `md` up.
 const DESKTOP_QUERY = '(min-width: 768px)';
@@ -160,7 +162,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
         };
     }, [loadDashboardData, scopeKey]);
 
-    const refreshTradeData = useCallback(() => {
+    const refreshTradeData = useCallback((event: string) => {
+        // Order events change order lists only, not trades or the watchlist radar.
+        if (isPrivateOrderEvent(event)) return;
         void loadDashboardData(true);
         void refreshWatchlist();
     }, [loadDashboardData, refreshWatchlist]);
@@ -222,6 +226,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 && request.authGeneration === getAuthGeneration()
                 && request.supportContextId === getMarketSupportContextId()
             );
+            // The trade event this confirm causes must not play the alert tone for
+            // the user who clicked. Record it before the request: the stream
+            // event can arrive before the response.
+            recordOwnTradeAction(request.tradeId, 'trade_confirmed');
             try {
                 const updatedTrade = await api.trades.confirm(request.tradeId, request.idempotencyKey) as Trade;
                 if (!executionIsCurrent()) {
@@ -253,6 +261,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     variant: 'success',
                 });
             } catch (error) {
+                // A confirm that certainly failed causes no event; an unknown outcome keeps the record.
+                if (!(error instanceof ApiOutcomeUnknownError)) forgetOwnTradeAction(request.tradeId, 'trade_confirmed');
                 if (!executionIsCurrent()) {
                     if (executionEpoch === confirmEpochRef.current) {
                         confirmRequestRef.current = null;

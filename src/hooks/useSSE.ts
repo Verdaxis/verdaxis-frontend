@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../services/config';
 import { getAccessToken, refreshAccessToken } from '../services/authToken';
 import { invalidateReadCache, invalidateReadsForEvent } from '../services/readCache';
+import { PRIVATE_ORDER_EVENTS } from '../services/orderStreamEvents';
 import { parseHeartbeat, registerStream, type Heartbeat } from '../services/streamHealth';
 
 type SSEChannel = 'prices' | 'orderbook' | 'trades';
@@ -15,7 +16,11 @@ type SSEHandler = (event: string, data: any, eventId?: string) => void;
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
     prices: ['market_invalidated'],
     orderbook: ['market_invalidated'],
-    trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched', 'price_alert_triggered'],
+    trades: [
+        'trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched',
+        'price_alert_triggered',
+        ...PRIVATE_ORDER_EVENTS,
+    ],
 };
 
 const CONTROL_EVENTS = ['auth_expired', 'auth_revoked', 'reconnect', 'reset'];

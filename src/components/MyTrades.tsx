@@ -39,6 +39,8 @@ import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import { isLngAskTerms } from '../utils/bioLngSpecification';
 import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
+import { isPrivateOrderEvent } from '../services/orderStreamEvents';
+import { forgetOwnTradeAction, recordOwnTradeAction, type OwnTradeActionEvent } from '../services/ownTradeActions';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 type StatusGroup = Lowercase<FilterTab>;
@@ -151,7 +153,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         }
     }, [currentSkip, totalCount]);
 
-    const handleTradeEvent = useCallback(() => {
+    const handleTradeEvent = useCallback((event: string) => {
+        // Order events change order lists only, not trades.
+        if (isPrivateOrderEvent(event)) return;
         fetchTrades(true, true);
     }, [fetchTrades]);
 
@@ -214,6 +218,11 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         activeCommandRef.current = commandToken;
         setActionLoadingId(tradeId);
         setKycBlocked(false);
+        // The trade event this command causes must not play the alert tone for
+        // the user who clicked. Record it before the request: the stream event
+        // can arrive before the response.
+        const ownEvent: OwnTradeActionEvent = operation === 'confirm' ? 'trade_confirmed' : 'trade_declined';
+        recordOwnTradeAction(request.tradeId, ownEvent);
         try {
             const updatedTrade = operation === 'confirm'
                 ? await api.trades.confirm(request.tradeId, request.idempotencyKey) as Trade
@@ -231,6 +240,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 : { type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
             fetchTrades(true, true);
         } catch (err: any) {
+            // A command that certainly failed causes no event; keep the alert
+            // for any later event on this trade. An unknown outcome keeps the record.
+            if (!(err instanceof ApiOutcomeUnknownError)) forgetOwnTradeAction(request.tradeId, ownEvent);
             if (!executionIsCurrent()) {
                 if (executionEpoch === commandEpochRef.current) setRetryRequest(null);
                 return;

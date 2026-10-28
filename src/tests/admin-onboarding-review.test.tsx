@@ -128,7 +128,8 @@ describe('admin onboarding review', () => {
     );
 
     await screen.findByText('Hapag-Lloyd AG');
-    expect(screen.getByRole('button', { name: 'View activity for Hesham Nasr' })).toBeTruthy();
+    // The per-user activity timeline has no backend route, so the row offers no such button.
+    expect(screen.queryByRole('button', { name: /view activity/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Review' }));
 
     await screen.findByText('Awaiting verification');

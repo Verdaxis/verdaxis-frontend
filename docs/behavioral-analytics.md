@@ -36,46 +36,19 @@ collector available; it does not override the user's preference gate.
 Deployment configuration presence and a tracker being installed on a currently
 deployed page are separate checks from consent behavior.
 
-## Identified Product Activity
+## Identified Product Activity (removed)
 
-Authenticated product activity is separate from Umami. `ActivityTrackingProvider`
-observes fixed `/app` page slugs, and Marketplace, Forward Curve, and the buyer map
-report meaningful canonical market views and filter changes through
-`src/services/activityTracking.ts`. The adapter accepts only the fixed page registry,
-the four canonical market products, catalog delivery-point UUIDs, and canonical
-availability windows (`SPOT`, month, quarter, or calendar). It never accepts URLs,
-query values, search terms, request bodies, free text, user IDs, or transaction values.
-
-The adapter batches at most 50 events to authenticated `POST /api/activity/events`.
-Each event has a browser UUID, but the server derives the user and receipt time.
-This activity is covered by the separately managed privacy policy; it has no separate
-in-app consent prompt and does not depend on the anonymous analytics preference.
-The queue exists only in memory. Events attempted before authentication are dropped
-and are never replayed. Logout and account change clear queued work.
-Repeated equivalent events are deduplicated. Delivery is fire-and-forget through a quiet
-API path with at most three bounded attempts. Failures do not refresh auth, log out the user,
-show notifications, or interrupt an interaction.
-
-Account-linked browsers attach one bounded delivery-loss report to the next normal activity batch
-after queue overflow, permanent rejection, or exhausted delivery retries. The report contains
-only a new UUID and dropped/rejected counts. It is frozen across retries and discarded with
-queued work when the principal or auth generation changes. Logout and provider unmount clears
-are not reported. The adapter never sends a report by itself, and a failed report does not
-requeue that report. As a result, the admin delivery-loss summary is a partial signal: closed
-or offline browsers and reports that never reach the server remain unknown. It is not a
-delivery percentage or an audit ledger.
-
-Platform administrators can view the resulting user activity timeline. Account-linked
-browsing is available for 90 days, then removed by the next scheduled cleanup. Business actions are recorded by the backend at
-their source and are not duplicated by this browser adapter. No heartbeat or time-spent
-estimate is collected.
+The browser no longer records account-linked page and market-slice activity. The
+`ActivityTrackingProvider`, the `services/activityTracking.ts` queue and the admin
+"View activity" drawer were removed because the backend routes they used
+(`POST /api/activity/events` and `GET /api/admin/users/{id}/activity`) no longer
+exist, so every call answered 404. Only the anonymous Umami analytics described above
+remain on the client.
 
 ## Cookie Preferences
 
 The existing preference banner distinguishes essential browser storage used for sign-in,
-theme, and language from optional anonymous Umami analytics. It does not control
-authenticated product activity.
-Umami can still process short-lived session technical data, so the interface does not
+theme, and language from optional anonymous Umami analytics. Umami can still process short-lived session technical data, so the interface does not
 describe it as necessary storage or as collecting no data.
 
 The per-device preference uses one small localStorage record at
@@ -129,10 +102,8 @@ registration line.
 
 Tests cover disabled configuration, path normalization, property allowlisting,
 failure isolation, API mapping, period switching, and degraded Admin rendering.
-Tests also cover anonymous analytics consent gating and withdrawal; authenticated activity
-without an optional analytics choice; logout and account-change queue clearing;
-canonical field enforcement; 50-event batching; preservation of existing cookie choices;
-storage failure; same-tab and cross-tab updates; and reopening the preference controls.
+Tests also cover anonymous analytics consent gating and withdrawal; preservation of
+existing cookie choices; storage failure; same-tab and cross-tab updates; and reopening the preference controls.
 
 ## Reliability Telemetry (Product Analytics plan §2.5)
 

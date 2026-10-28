@@ -43,6 +43,7 @@ import {
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
+import { subscribeToOwnOrderChanges } from '../services/orderStreamEvents';
 import {
     formatAvailabilityWindow,
     getAvailabilityWindowOptions,
@@ -70,7 +71,6 @@ import i18n from '../i18n';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ConfirmModal } from './ui/ConfirmModal';
-import { activity } from '../services/activityTracking';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -671,7 +671,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
 
     const clearMarketFilters = useCallback(() => {
-        activity.trackMarketFilter({ page: 'marketplace' });
         setMarketProduct(ALL_MARKET_PRODUCTS);
         setPortInput('');
         setStoredDeliveryPointId('');
@@ -680,19 +679,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, []);
 
     const handlePortChange = useCallback((value: string) => {
-        const deliveryPointId = deliveryPoints.find(
-            point => point.name.trim().toLowerCase() === value.trim().toLowerCase(),
-        )?.id;
-        activity.trackMarketFilter({
-            page: 'marketplace',
-            marketProduct: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
-            deliveryPointId,
-            availabilityWindow: availability || undefined,
-        });
         setPortInput(value);
         setStoredDeliveryPointId('');
         setCurrentSkip(0);
-    }, [availability, deliveryPoints, marketProduct]);
+    }, []);
 
     const handlePageChange = (newSkip: number) => {
         setHasLoadedListings(false);
@@ -726,12 +716,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     ];
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
-        activity.trackMarketFilter({
-            page: 'marketplace',
-            marketProduct: productCode === ALL_MARKET_PRODUCTS ? undefined : productCode,
-            deliveryPointId: resolvedDeliveryPointId,
-            availabilityWindow: availability || undefined,
-        });
         setMarketProduct(productCode);
         setCurrentSkip(0);
     };
@@ -750,12 +734,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     useEffect(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
-        activity.trackMarketView({
-            page: 'marketplace',
-            marketProduct,
-            deliveryPointId: resolvedDeliveryPointId,
-            availabilityWindow: availability,
-        });
         analytics.track('market_slice_selected', {
             product: marketProduct,
             delivery_point: resolvedDeliveryPointId,
@@ -805,10 +783,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     };
 
     /* ---- My Orders fetch ---- */
-    const fetchMyOrders = useCallback(async (force = false) => {
+    // `background` reloads keep the visible list in place (no spinner) so a
+    // live change does not make the table flicker.
+    const fetchMyOrders = useCallback(async (force = false, background = false) => {
         if (!ready) return;
         const requestId = ++latestMyOrdersRequest.current;
-        setMyOrdersLoading(true);
+        if (!background) setMyOrdersLoading(true);
         setMyOrdersError(null);
         try {
             const data = force
@@ -818,7 +798,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             setMyOrders(Array.isArray(data) ? data : data.items ?? []);
         } catch (error) {
             if (requestId !== latestMyOrdersRequest.current) return;
-            if (!force) setMyOrders([]);
+            if (!force && !background) setMyOrders([]);
             setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.myOrders.error') : error instanceof Error ? error.message : t('marketplace.myOrders.error'));
         } finally {
             if (requestId === latestMyOrdersRequest.current) setMyOrdersLoading(false);
@@ -831,6 +811,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             latestMyOrdersRequest.current += 1;
         };
     }, [marketTab, fetchMyOrders]);
+
+    // A teammate or a match changed one of the organization's orders (private
+    // trade stream). Only the My Listings tab shows this data.
+    useEffect(() => {
+        if (!ready || marketTab !== 'my_orders') return undefined;
+        return subscribeToOwnOrderChanges(() => { void fetchMyOrders(true, true); });
+    }, [fetchMyOrders, marketTab, ready]);
 
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
         order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
@@ -1429,12 +1416,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                 ariaLabel={t('marketplace.filter.window')}
                                                 value={availability}
                                                 onChange={(value) => {
-                                                    activity.trackMarketFilter({
-                                                        page: 'marketplace',
-                                                        marketProduct: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
-                                                        deliveryPointId: resolvedDeliveryPointId,
-                                                        availabilityWindow: value || undefined,
-                                                    });
                                                     setAvailability(value as AvailabilityWindow | '');
                                                 }}
                                                 options={[

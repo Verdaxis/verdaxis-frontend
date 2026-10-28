@@ -1,5 +1,6 @@
 import { getAuthGeneration } from './authToken';
 import { getMarketSupportContextId } from './marketSupportContextStore';
+import { isPrivateOrderEvent } from './orderStreamEvents';
 
 export const READ_CACHE_TTL_MS = {
     reference: 5 * 60_000,
@@ -80,12 +81,23 @@ export const PUBLIC_MARKET_CACHE_PREFIXES = [
     'watchlists:',
 ] as const;
 
+// Resource key of `api.orderbook.myOrders` (My Listings).
+export const OWN_ORDERS_CACHE_PREFIX = 'orderbook:my';
+
 export const invalidateReadsForEvent = (
     channel: 'prices' | 'orderbook' | 'trades',
     event?: string,
 ): void => {
     // A triggered price alert changes the user's alert list only, not a market read.
     if (event === 'price_alert_triggered') return;
+
+    // A change to the organization's own orders affects only the My Orders
+    // read. Public book reads follow the public `market_invalidated` signal,
+    // and any trade it caused arrives as its own trade event.
+    if (isPrivateOrderEvent(event)) {
+        invalidateReadCache(OWN_ORDERS_CACHE_PREFIX);
+        return;
+    }
 
     const invalidatesAllPublicMarketReads = (
         event === 'market_invalidated'

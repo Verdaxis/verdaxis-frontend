@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { TFunction } from 'i18next';
 
 import { api } from '../services/api';
+import { isOwnTradeAction, watchPeerTradeActions } from '../services/ownTradeActions';
 import { openTradeAlertElection, type TradeAlertElection } from '../services/tradeAlertElection';
 import { getTradeAlertPermission, showTradeAlertNotification } from '../services/tradeAlertNotifications';
 import { isTradeNotificationOn, readTradeAlertPreferences } from '../services/tradeAlertPreferences';
@@ -106,6 +107,10 @@ export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrade
     };
   }, []);
 
+  // Hear about trade actions that the user started in another tab, so this
+  // tab also stays silent for the event they cause.
+  useEffect(() => watchPeerTradeActions(), []);
+
   useEffect(() => {
     if (settings.soundEnabled) unlockTradeAlertAudioOnFirstGesture();
   }, [settings.soundEnabled]);
@@ -117,6 +122,10 @@ export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrade
 
     const { userId: currentUserId, isMarketSupportActive: inSupport } = latest.current;
     if (inSupport) return;
+    // The user's own confirm or decline: no sound and no browser notification.
+    // The toast and notification-panel entry (TradeNotifier) still appear, as
+    // the permanent record of what happened.
+    if (isOwnTradeAction(tradeIdOf(data), event)) return;
     // Read stored choices and the browser permission now, not from render
     // state: the permission can be granted by the sign-in prompt a moment ago.
     const preferences = readTradeAlertPreferences(currentUserId);

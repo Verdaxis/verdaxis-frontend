@@ -1,9 +1,11 @@
 import React from 'react';
 import { act, render as renderBare } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TradeNotifier } from '../components/TradeNotifier';
+import { OWN_ORDERS_REFRESH_DEBOUNCE_MS, PRIVATE_ORDER_EVENTS, subscribeToOwnOrderChanges } from '../services/orderStreamEvents';
+import { recordOwnTradeAction } from '../services/ownTradeActions';
 import { subscribeToPriceAlertTriggers } from '../services/priceAlertEvents';
 import i18n, { loadNamespace } from '../i18n';
 
@@ -200,6 +202,94 @@ describe('TradeNotifier', () => {
     act(() => handler('price_alert_triggered', { alert_id: 'alert-2', direction: 'above' }, '52'));
 
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('still shows the toast and panel entry for an event the user caused, because only sound and browser notification are silenced', () => {
+    namespaceControl.ready = true;
+    render(<TradeNotifier />);
+    const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+    recordOwnTradeAction('trade-1', 'trade_confirmed');
+
+    act(() => handler('trade_confirmed', { id: 'trade-1', quantity: 500, price: 740 }, '60'));
+
+    // The alert hook (mocked here) is where the own-action check lives.
+    expect(alertForTradeEventMock).toHaveBeenCalledWith('trade_confirmed', expect.objectContaining({ id: 'trade-1' }), '60');
+    expect(addToastMock).toHaveBeenCalledTimes(1);
+    expect(addNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  describe('private order events', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each(PRIVATE_ORDER_EVENTS)('%s refreshes order views without a toast, panel entry or alert', (event) => {
+      vi.useFakeTimers();
+      namespaceControl.ready = true;
+      render(<TradeNotifier />);
+      const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+      const listener = vi.fn();
+      const unsubscribe = subscribeToOwnOrderChanges(listener);
+
+      act(() => handler(event, { id: 'order-1', order_id: 'order-1' }, '70'));
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+      unsubscribe();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(alertForTradeEventMock).not.toHaveBeenCalled();
+      expect(addToastMock).not.toHaveBeenCalled();
+      expect(addNotificationMock).not.toHaveBeenCalled();
+    });
+
+    it('batches a burst of order events into one refresh', () => {
+      vi.useFakeTimers();
+      namespaceControl.ready = true;
+      render(<TradeNotifier />);
+      const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+      const listener = vi.fn();
+      const unsubscribe = subscribeToOwnOrderChanges(listener);
+
+      act(() => {
+        handler('order_created', { id: 'order-1' }, '71');
+        handler('orders_matched', { order_id: 'order-1', matches: 1 }, '72');
+        handler('order_updated', { id: 'order-1' }, '73');
+      });
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+      unsubscribe();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('reloads order views after a stream gap, still without a toast', () => {
+      vi.useFakeTimers();
+      namespaceControl.ready = true;
+      render(<TradeNotifier />);
+      const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+      const listener = vi.fn();
+      const unsubscribe = subscribeToOwnOrderChanges(listener);
+
+      act(() => handler('reconnect', { reason: 'transport_reconnected' }));
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+      unsubscribe();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(addToastMock).not.toHaveBeenCalled();
+    });
+
+    it('does not refresh order views for a trade event', () => {
+      vi.useFakeTimers();
+      namespaceControl.ready = true;
+      render(<TradeNotifier />);
+      const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+      const listener = vi.fn();
+      const unsubscribe = subscribeToOwnOrderChanges(listener);
+
+      act(() => handler('trade_confirmed', { id: 'trade-1', quantity: 500, price: 740 }, '74'));
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+      unsubscribe();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
   });
 
   it('tells the alerts about the user and the assisted context', () => {
