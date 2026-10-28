@@ -69,6 +69,8 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 **Private stream recovery.** Only a private trade-stream `reset` with reason `subscriber_overflow` retains the last acknowledged replay cursor. `useSSE` still invalidates affected REST reads and delivers the reset callback before reconnect; other resets, `auth_revoked`, and user, organization, or Market Support scope changes clear the cursor.
 
+**Stream health and server status.** `useSSE` handles the id-less `heartbeat` event (`{status, message, server_time}`) outside the data and control paths: it never reaches the consumer handler, the replay cursor, or read-cache invalidation, and a malformed payload is ignored. Each enabled stream registers in the module store `services/streamHealth.ts`; `hooks/useStreamHealth.ts` reads it with `useSyncExternalStore` plus a 5 s tick. Connection is aggregated as any enabled stream open: `live`, `stale` (a heartbeat was seen before but none for 75 s = 2 x 30 s cadence + 15 s margin; never judged if no heartbeat ever arrived), `reconnecting`, or `offline` (no open stream for 30 s, or the browser is offline). Server status is the worst latest heartbeat (`operational` < `degraded` < `maintenance`); only open streams count while any is open, and remembered heartbeats expire after 5 min. No recent heartbeat means unknown. `layout/StreamStatusIndicator` (header) and `layout/ServerStatusBanner` (below the header, plain-text message, dismissible per status+message for the page session) read the aggregate.
+
 **Production activity.** `ActivityTrackingProvider`, `services/activityTracking.ts`, and `types/activity.ts` send bounded authenticated page and canonical market-slice activity. The adapter clears account-bound state at auth changes and does not replace optional Umami analytics consent.
 
 **Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo or reference values into executable claims.
@@ -87,6 +89,7 @@ src/
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
+    layout/{StreamStatusIndicator,ServerStatusBanner}.tsx  SSE connection indicator and server-status banner
     Marketplace.tsx                market/listings/orderbook workspace
     OrderBook.tsx                   depth and level interaction
     OrderPlaceModal.tsx             shared BID/ASK entry
@@ -106,6 +109,7 @@ src/
     readCache.ts                    scoped TTL cache and request deduplication
     activityTracking.ts             bounded production activity queue
     publicMarketSync.ts             shared market invalidation subscriber
+    streamHealth.ts                 SSE heartbeat parsing, stream registry, aggregation
     analytics.ts                    optional consent-gated Umami adapter
   hooks/                            workspace readiness, SSE, preferences, watchlists
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
@@ -134,6 +138,7 @@ scripts/
 | Intelligence Map | `src/components/BuyerMap.tsx` | `src/tests/buyer-map-i18n.test.tsx` |
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
 | Activity | `ActivityTrackingProvider.tsx`, `activityTracking.ts` | `activity-*.test.ts`, `user-activity-drawer.test.tsx` |
+| Stream health | `useSSE.ts`, `streamHealth.ts`, `useStreamHealth.ts`, `layout/StreamStatusIndicator.tsx`, `layout/ServerStatusBanner.tsx` | `use-sse.test.tsx`, `stream-health.test.ts`, `stream-status-indicator.test.tsx`, `server-status-banner.test.tsx` |
 | Release | workflow and release/artifact scripts | artifact/release guard tests and target builds |
 
 ## Run commands

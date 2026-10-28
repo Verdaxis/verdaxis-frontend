@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTutorial } from '../../context/TutorialContext';
 import { NotificationBell } from '../notifications/NotificationBell';
 import LanguageSelector from '../LanguageSelector';
+import { StreamStatusIndicator } from './StreamStatusIndicator';
 
 interface HeaderProps {
     viewMode: ViewMode;
@@ -43,6 +44,9 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
             </div>
 
             <div className="flex items-center space-x-3 md:space-x-6 ml-4">
+                {/* Live-connection state of the SSE streams */}
+                <StreamStatusIndicator />
+
                 {/* Language Selector */}
                 <LanguageSelector />
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSSE } from '../hooks/useSSE';
 import { API_URL } from '../services/config';
 import { cachedRead, invalidateReadCache } from '../services/readCache';
+import { deriveConnectionState, deriveServerStatus, getStreamHealthSnapshot, resetStreamHealth } from '../services/streamHealth';
 
 const authTokenMocks = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
@@ -53,8 +54,10 @@ const Harness: React.FC<{
   enabled?: boolean;
   scopeKey?: string;
   onEvent?: (event: string, data: unknown) => void;
-}> = ({ channel, enabled = true, scopeKey = '', onEvent = vi.fn() }) => {
-  useSSE(channel, onEvent, enabled, scopeKey);
+  onResult?: (result: ReturnType<typeof useSSE>) => void;
+}> = ({ channel, enabled = true, scopeKey = '', onEvent = vi.fn(), onResult }) => {
+  const result = useSSE(channel, onEvent, enabled, scopeKey);
+  onResult?.(result);
   return null;
 };
 
@@ -63,6 +66,7 @@ describe('useSSE', () => {
 
   beforeEach(() => {
     invalidateReadCache();
+    resetStreamHealth();
     fetchMock.mockReset();
     authTokenMocks.getAccessToken.mockReset();
     authTokenMocks.refreshAccessToken.mockReset();
@@ -80,6 +84,7 @@ describe('useSSE', () => {
   });
 
   afterEach(() => {
+    resetStreamHealth();
     invalidateReadCache();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -343,5 +348,98 @@ describe('useSSE', () => {
       cachedRead('orderbook:snapshot:test', 'public', 60_000, load),
     ).resolves.toBe('after-reconnect');
     expect(load).toHaveBeenCalledTimes(2);
+  });
+  describe('heartbeat', () => {
+    const heartbeatData = (status: string, message: string | null = null) => JSON.stringify({
+      status,
+      message,
+      server_time: '2026-10-28T10:00:00Z',
+    });
+
+    it('exposes the latest heartbeat without calling the consumer handler', async () => {
+      const onEvent = vi.fn();
+      let latest: ReturnType<typeof useSSE> | undefined;
+      render(<Harness channel="orderbook" onEvent={onEvent} onResult={(result) => { latest = result; }} />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      expect(latest?.heartbeat).toBeNull();
+
+      act(() => {
+        FakeEventSource.instances[0].emit('open');
+        FakeEventSource.instances[0].emit('heartbeat', { data: heartbeatData('degraded', 'Slow matching') });
+      });
+
+      expect(latest?.heartbeat).toMatchObject({
+        status: 'degraded',
+        message: 'Slow matching',
+        serverTime: '2026-10-28T10:00:00Z',
+      });
+      expect(latest?.heartbeat?.receivedAt).toEqual(expect.any(Number));
+      expect(onEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not move the replay cursor', async () => {
+      render(<Harness channel="trades" />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      const first = FakeEventSource.instances[0];
+
+      act(() => {
+        first.emit('trade_confirmed', { data: '{}', lastEventId: '42' });
+        // A browser reports the stream's previous id on an id-less event.
+        first.emit('heartbeat', { data: heartbeatData('operational'), lastEventId: '99' });
+        first.emit('error');
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+
+      expect(FakeEventSource.instances[1].url).toContain('last_event_id=42');
+    });
+
+    it('does not invalidate cached reads', async () => {
+      const load = vi.fn().mockResolvedValue('cached');
+      await cachedRead('orderbook:snapshot:heartbeat', 'public', 60_000, load);
+      render(<Harness channel="orderbook" />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+      act(() => FakeEventSource.instances[0].emit('heartbeat', { data: heartbeatData('maintenance', 'Soon') }));
+
+      await cachedRead('orderbook:snapshot:heartbeat', 'public', 60_000, load);
+      expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a malformed heartbeat', async () => {
+      const onEvent = vi.fn();
+      let latest: ReturnType<typeof useSSE> | undefined;
+      render(<Harness channel="orderbook" onEvent={onEvent} onResult={(result) => { latest = result; }} />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      const source = FakeEventSource.instances[0];
+
+      act(() => {
+        source.emit('open');
+        source.emit('heartbeat', { data: 'not json' });
+        source.emit('heartbeat', { data: '{"status":"outage","server_time":"2026-10-28T10:00:00Z"}' });
+        source.emit('heartbeat', { data: '{"status":"degraded"}' });
+      });
+
+      expect(latest?.heartbeat).toBeNull();
+      expect(latest?.isConnected).toBe(true);
+      expect(onEvent).not.toHaveBeenCalled();
+      expect(deriveServerStatus(getStreamHealthSnapshot(), Date.now())).toBeNull();
+    });
+
+    it('reports connection and heartbeat into the app-wide stream health', async () => {
+      const { rerender } = render(<Harness channel="orderbook" />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      expect(deriveConnectionState(getStreamHealthSnapshot(), Date.now())).toBe('reconnecting');
+
+      act(() => {
+        FakeEventSource.instances[0].emit('open');
+        FakeEventSource.instances[0].emit('heartbeat', { data: heartbeatData('degraded', 'Slow') });
+      });
+      expect(deriveConnectionState(getStreamHealthSnapshot(), Date.now())).toBe('live');
+      expect(deriveServerStatus(getStreamHealthSnapshot(), Date.now())).toEqual({ status: 'degraded', message: 'Slow' });
+
+      rerender(<Harness channel="orderbook" enabled={false} />);
+      expect(getStreamHealthSnapshot().streams).toHaveLength(0);
+    });
   });
 });
