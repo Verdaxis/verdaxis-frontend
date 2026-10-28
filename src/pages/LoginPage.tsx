@@ -83,7 +83,10 @@ const LoginPage: React.FC = () => {
           console.error('[auth] login access denied', errData);
           const rawDetail = typeof errData?.detail === 'string' ? errData.detail : errData?.detail?.message;
           const detail = typeof rawDetail === 'string' ? rawDetail : '';
-          if (detail.toLowerCase().includes('verify') || detail.toLowerCase().includes('verification')) {
+          const code = errData?.detail?.code;
+          const isUnverified = code === 'AUTH_EMAIL_UNVERIFIED'
+            || (!code && (detail.toLowerCase().includes('verify') || detail.toLowerCase().includes('verification')));
+          if (isUnverified) {
             setLoginError({
               kind: 'unverified',
               message: t('login.error.unverified'),

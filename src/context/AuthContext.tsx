@@ -12,6 +12,7 @@ import {
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
 import { analytics, reliability } from '../services/analytics';
 import { setReadCachePrincipal } from '../services/readCache';
+import { submitSavedOnboardingSurvey } from '../services/onboardingSurvey';
 
 /** The auth profile is the backend response, with no client-only fields. */
 export type User = WireUser;
@@ -174,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (requestGeneration !== getAuthGeneration()) return;
             setIsBackendUnavailable(false);
             applyUserProfile(profile);
+            void submitSavedOnboardingSurvey(profile.email);
             if (profile.role) analytics.track('login_succeeded', { role: profile.role });
             setIsLoading(false);
             return;
@@ -190,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const userData: User = await res.json();
                 if (requestGeneration !== getAuthGeneration()) return;
                 applyUserProfile(userData);
+                void submitSavedOnboardingSurvey(userData.email);
                 if (userData.role) analytics.track('login_succeeded', { role: userData.role });
             } else if (isBackendUnavailableStatus(res.status)) {
                 markBackendUnavailable();

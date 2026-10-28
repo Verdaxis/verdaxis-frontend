@@ -10,6 +10,8 @@ export const PINS = {
 const transports = new Map([
   ['fetch', 0], ['fetchApi', 0], ['fetchWithTimeout', 0], ['readApi', 1],
   ['mutateApi', 1], ['sendBeacon', 0], ['EventSource', 0],
+  // Pages through an admin list; its callers name the route.
+  ['fetchAdminItems', 0],
 ]);
 
 function property(node, name) {

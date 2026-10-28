@@ -644,3 +644,9 @@
 - **Trigger:** A fresh frontend lane had no `work/journeys-backend`, and the journey gate needs a clean checkout of the pinned backend release with its venv.
 - **Rule:** Do not rebuild it. A `work/journeys-backend` clone survives the lane wrapper's `git clean -fd` (git clean does not delete a nested repository), but it belongs to the lane that created it. Find it under `/home/verdaxis-test/runs/<lane>/work/journeys-backend` and pass it explicitly: `VERDAXIS_BACKEND_TREE=<path> npm run smoke:journeys`, or `--backend <path>` to `scripts/journeys/run_journeys.py`. Note that `~/.verdaxis-journeys/dist` is shared by every lane, so a build in one lane replaces another lane's cached bundle.
 - **Why:** Reusing the pinned tree avoids a long backend build and keeps every lane on the same backend SHA, so a screenshot difference cannot come from a different backend.
+
+### Follow The Account Verification State After Organization Creation
+- **Date:** 2026-10-27
+- **Trigger:** The pending-registration completion screen showed final email verification guidance before the new account verification email was consumed.
+- **Rule:** Trace the server's committed account state and outgoing email before selecting post-registration UI. A pending-registration credential authorizes organization completion, not final account verification. Keep the check-inbox and resend actions when account creation sends a new verification email.
+- **Why:** Successful completion of one email step does not establish the verification state of an account created in a later step.

@@ -134,7 +134,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         if (value.startsWith('Consider increasing')) return t('recommendations.fuelMix');
         if (value.startsWith('High ETS exposure')) return t('recommendations.etsExposure');
         if (value.startsWith('CII rating declining')) return t('recommendations.cii');
-        const penalty = value.match(/EUR ([\d,.]+)/)?.[1];
+        const penalty = value.match(/EUR (\d+(?:[,.]\d+)*)/)?.[1];
         if (penalty) return t('recommendations.penalty', { amount: penalty });
         return i18n.resolvedLanguage?.startsWith('zh') ? t('recommendations.generic') : value;
     };
