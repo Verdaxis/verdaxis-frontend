@@ -665,6 +665,7 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
                 <ActivityTrackingProvider>
                 <RouteMetadata />
                 <PublicMarketSync />
+                <TradeNotifier />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes initialPublicPage={initialPublicPage} />
@@ -672,7 +673,6 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
                 </AnalyticsProvider>
             </BrowserRouter>
         </TutorialProvider>
-        <TradeNotifier />
         </NotificationProvider>
         </ToastProvider>
         </MarketSupportProvider>

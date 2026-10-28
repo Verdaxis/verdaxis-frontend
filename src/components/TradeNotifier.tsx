@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useAuth } from '../context/AuthContext';
@@ -6,10 +7,15 @@ import { useMarketSupport } from '../context/MarketSupportContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Notification } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
+import { useTradeAlerts } from '../hooks/useTradeAlerts';
+import { PAGE_SLUGS } from '../types';
 
 /**
  * Invisible component that listens to SSE trade events
  * and shows toast notifications + adds to notification panel.
+ * It also feeds the same events to the optional sound and browser
+ * notification alerts (`useTradeAlerts`), so the app keeps one trade stream.
+ * It renders inside the router so a notification click can open My Trades.
  */
 export const TradeNotifier: React.FC = () => {
     const { addToast } = useToast();
@@ -17,8 +23,19 @@ export const TradeNotifier: React.FC = () => {
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const { addNotification } = useNotifications();
     const { t, ready } = useNamespace('trading');
+    const navigate = useNavigate();
 
-    const handleTradeEvent = useCallback((event: string, data: any) => {
+    const openMyTrades = useCallback(() => navigate(`/app/${PAGE_SLUGS.TRADES}`), [navigate]);
+    const alertForTradeEvent = useTradeAlerts({
+        userId: user?.id ?? '',
+        isMarketSupportActive,
+        t,
+        onOpenMyTrades: openMyTrades,
+    });
+
+    const handleTradeEvent = useCallback((event: string, data: any, eventId?: string) => {
+        alertForTradeEvent(event, data, eventId);
+
         let title = '';
         let message = '';
         let toastType: 'trade' | 'success' | 'info' = 'info';
@@ -72,7 +89,7 @@ export const TradeNotifier: React.FC = () => {
             created_at: new Date().toISOString(),
         };
         addNotification(notification);
-    }, [addToast, addNotification, t]);
+    }, [addToast, addNotification, alertForTradeEvent, t]);
 
     const streamScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${marketSupportContext?.id ?? ''}`;
     useSSE('trades', handleTradeEvent, isAuthenticated && ready && !isMarketSupportActive, streamScope);

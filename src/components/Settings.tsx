@@ -8,6 +8,7 @@ import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useServerPreference } from '../hooks/useServerPreference';
+import { useTradeAlertSettings } from '../hooks/useTradeAlertSettings';
 import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 
@@ -129,6 +130,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         sanitizeNotificationPreferences,
         DEFAULT_NOTIFICATION_PREFS,
     );
+    const tradeAlerts = useTradeAlertSettings(user?.id ?? '');
     const [billingState, setBillingState] = useState<BillingState>('idle');
     const [feeSchedule, setFeeSchedule] = useState<FeeSchedule | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -327,6 +329,20 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                         <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.inapp')}</div></div><Toggle label={t('notifications.tradeUpdates')} enabled={notifPrefs.inapp_trade_updates} onToggle={() => toggleNotifPref('inapp_trade_updates')} /></div>
                                         <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.inapp')}</div></div><Toggle label={t('notifications.marketAlerts')} enabled={notifPrefs.inapp_market_alerts} onToggle={() => toggleNotifPref('inapp_market_alerts')} /></div>
                                         <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.orderMatches')}</div><div className="text-xs text-slate-500">{t('notifications.orderMatchesDesc')}</div></div><Toggle label={t('notifications.orderMatches')} enabled={notifPrefs.inapp_order_matches} onToggle={() => toggleNotifPref('inapp_order_matches')} /></div>
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-1">{t('notifications.alerts.heading')}</h3>
+                                    <p className="text-xs text-slate-500 mb-3">{t('notifications.alerts.desc')}</p>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.alerts.sound')}</div><div className="text-xs text-slate-500">{t('notifications.alerts.soundDesc')}</div></div><Toggle label={t('notifications.alerts.sound')} enabled={tradeAlerts.soundEnabled} onToggle={() => tradeAlerts.setSoundEnabled(!tradeAlerts.soundEnabled)} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.alerts.browser')}</div><div className="text-xs text-slate-500">{t('notifications.alerts.browserDesc')}</div></div><Toggle label={t('notifications.alerts.browser')} enabled={tradeAlerts.notificationsEnabled} onToggle={() => void tradeAlerts.setNotificationsEnabled(!tradeAlerts.notificationsEnabled)} /></div>
+                                        {tradeAlerts.notificationPermission === 'denied' && (
+                                            <p role="status" className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400"><AlertCircle size={14} className="mt-0.5 shrink-0" />{t('notifications.alerts.denied')}</p>
+                                        )}
+                                        {tradeAlerts.notificationPermission === 'unsupported' && (
+                                            <p role="status" className="flex items-start gap-2 text-xs text-slate-500"><AlertCircle size={14} className="mt-0.5 shrink-0" />{t('notifications.alerts.unsupported')}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

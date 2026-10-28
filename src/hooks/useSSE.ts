@@ -5,7 +5,9 @@ import { invalidateReadCache, invalidateReadsForEvent } from '../services/readCa
 import { parseHeartbeat, registerStream, type Heartbeat } from '../services/streamHealth';
 
 type SSEChannel = 'prices' | 'orderbook' | 'trades';
-type SSEHandler = (event: string, data: any) => void;
+// `eventId` is the durable SSE `id:` of a private trade event. Public streams,
+// control events and the synthetic `reconnect` event carry none.
+type SSEHandler = (event: string, data: any, eventId?: string) => void;
 
 // The public `prices` and `orderbook` streams carry only the coalesced,
 // id-less `market_invalidated` refetch signal. Individual order events go to
@@ -217,7 +219,11 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 if (event.lastEventId) lastEventIdRef.current = event.lastEventId;
                 const data = decodeEventData(event.data);
                 invalidateReadsForEvent(channel, type);
-                handlerRef.current(type, data);
+                if (event.lastEventId) {
+                    handlerRef.current(type, data, event.lastEventId);
+                } else {
+                    handlerRef.current(type, data);
+                }
             };
 
             source.addEventListener(HEARTBEAT_EVENT, ((event: MessageEvent<string>) => {
