@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 
@@ -8,9 +8,12 @@ import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { activity } from '../services/activityTracking';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
+import { AbilitiesProvider } from '../context/AbilitiesContext';
+import { abilitiesPayload } from './abilities-fixtures';
 import { buildLngAskTerms, toPublicLngAskTerms, type LngAskTermsForm } from '../utils/bioLngSpecification';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, catalogProducts, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+const { abilitiesMine, userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, catalogProducts, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+  abilitiesMine: vi.fn(),
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
@@ -84,6 +87,7 @@ vi.mock('../services/api', () => ({
   ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
   isKycRequiredError: (error: unknown) => error instanceof TestApiError && error.code === 'KYC_REQUIRED',
   api: {
+    abilities: { mine: abilitiesMine },
     catalog: {
       deliveryPoints,
       products: catalogProducts,
@@ -1250,6 +1254,84 @@ describe('Marketplace green fuels surface', () => {
     expect(document.querySelector('[data-order-id="forced-refresh"]')).toBeTruthy();
     expect(document.querySelector('[data-order-id="stale-initial"]')).toBeNull();
   }, 30_000);
+
+  describe('server abilities', () => {
+    // Later top-level describes reuse the shared mocks without resetting them.
+    afterEach(() => {
+      userRole.current = 'BUYER';
+      marketSupportActive.current = false;
+      abilitiesMine.mockReset();
+    });
+    const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    const renderWithAbilities = () => renderWithProviders(<AbilitiesProvider><Marketplace /></AbilitiesProvider>);
+
+    it('disables Place Bid and Lift Ask with the server reason when both are denied', async () => {
+      abilitiesMine.mockResolvedValue(abilitiesPayload({
+        place_bid_order: { code: 'ACCOUNT_NOT_APPROVED' },
+        hit_ask_order: { code: 'ORGANIZATION_PROVENANCE_UNVERIFIED' },
+      }));
+
+      renderWithAbilities();
+
+      const row = await screen.findByRole('row', { name: /Bio Methanol/ });
+      await waitFor(() => expect(screen.getAllByTestId('ability-denial-note').length).toBe(2));
+      const placeBid = screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement;
+      expect(placeBid.disabled).toBe(true);
+      expect(placeBid.getAttribute('title')).toBe('Your account has not been approved yet.');
+      const hit = within(row).getByRole('button', { name: 'Lift Ask' }) as HTMLButtonElement;
+      expect(hit.disabled).toBe(true);
+      expect(hit.getAttribute('title')).toBe('Your organization is not yet verified for live market trading.');
+      fireEvent.click(hit);
+      expect(screen.queryByTestId('trade-modal')).toBeNull();
+      // The denied hit message differs from the place-order message, so both are visible.
+      const notes = screen.getAllByTestId('ability-denial-note').map((note) => note.textContent);
+      expect(notes).toEqual(expect.arrayContaining([
+        expect.stringContaining('Your account has not been approved yet.'),
+        expect.stringContaining('not yet verified for live market trading'),
+      ]));
+    });
+
+    it('renders the normal enabled buttons when the server allows both actions', async () => {
+      abilitiesMine.mockResolvedValue(abilitiesPayload());
+
+      renderWithAbilities();
+
+      const row = await screen.findByRole('row', { name: /Bio Methanol/ });
+      await settle();
+      expect((screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement).disabled).toBe(false);
+      expect((within(row).getByRole('button', { name: 'Lift Ask' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByTestId('ability-denial-note')).toBeNull();
+    });
+
+    it('keeps a supplier on the ask and BID-hit abilities', async () => {
+      userRole.current = 'SUPPLIER';
+      abilitiesMine.mockResolvedValue(abilitiesPayload({
+        place_ask_order: { code: 'SUPPLIER_ROLE_REQUIRED' },
+        hit_bid_order: { code: 'KYC_REJECTED' },
+        place_bid_order: { code: 'BUYER_ROLE_REQUIRED' },
+      }));
+
+      renderWithAbilities();
+
+      await screen.findByRole('row', { name: /Bio Methanol/ });
+      await waitFor(() => expect(screen.getAllByTestId('ability-denial-note').length).toBe(2));
+      const notes = screen.getAllByTestId('ability-denial-note').map((note) => note.getAttribute('data-reason-code'));
+      expect(notes.sort()).toEqual(['KYC_REJECTED', 'SUPPLIER_ROLE_REQUIRED']);
+    });
+
+    it('does not apply the administrator\'s own denial while acting inside a support context', async () => {
+      userRole.current = 'ADMIN';
+      marketSupportActive.current = true;
+      abilitiesMine.mockResolvedValue(abilitiesPayload({ place_bid_order: { code: 'ADMIN_CANNOT_EXECUTE' } }));
+
+      renderWithAbilities();
+
+      await screen.findByText('Marketplace');
+      await settle();
+      expect((screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByTestId('ability-denial-note')).toBeNull();
+    });
+  });
 
 });
 

@@ -650,6 +650,11 @@ export interface AdminInvitationResponse {
 }
 
 export const api = {
+    abilities: {
+        // What the signed-in user may do, and why not (UI hints only). Bypasses the
+        // read cache: the answer changes with account, organization, and KYC state.
+        mine: async (): Promise<unknown> => fetchApi('/auth/me/abilities', { headers: getHeaders() }),
+    },
     activity: {
         // Account-linked activity is best-effort telemetry. It must never
         // refresh or invalidate the user's session, surface global notices,

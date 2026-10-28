@@ -24,6 +24,9 @@ import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
+import { useAbilityGate } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
+import { HIT_ORDER_ABILITY, PLACE_ORDER_ABILITY } from '../types/abilities';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
@@ -275,6 +278,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
     const latestMyOrdersRequest = useRef(0);
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
+    // Server rules for the action buttons. `null` means no denial is known, so a
+    // button keeps its existing behavior (including while the abilities load or fail).
+    const getAbilityDenial = useAbilityGate();
+    const primaryActionDenial = getAbilityDenial(PLACE_ORDER_ABILITY[configBase.primaryAction.side]);
+    const cancelOrderDenial = getAbilityDenial('cancel_order');
+    // The listings table shows the orders of the opposite side; the user hits those.
+    const hitListingDenial = getAbilityDenial(HIT_ORDER_ABILITY[configBase.primaryAction.side === 'BID' ? 'ASK' : 'BID']);
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
@@ -1222,6 +1232,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 const isDemo = order.is_demo_listing || isDemoMarketActivity(order);
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
+                // The demo "view" button opens a read-only preview, so it is not an action.
+                // A BID that needs supplier declarations is answered with a new ASK instead of a hit.
+                const actionDenial = isDemo
+                    ? null
+                    : getAbilityDenial(requiresSupplierDeclarations(order) ? PLACE_ORDER_ABILITY.ASK : HIT_ORDER_ABILITY[order.side]);
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
@@ -1230,7 +1245,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     type="button"
                                     data-tour="marketplace-listing-action"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
-                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
+                                    disabled={actionDenial !== null}
+                                    title={actionDenial?.message}
+                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#334155] disabled:hover:shadow-sm"
                                 >
                                     {t(isDemo ? 'marketplace.demo.view' : requiresSupplierDeclarations(order) ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
                                 </button>
@@ -1299,13 +1316,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
+                            {primaryActionDenial && (
+                                <AbilityDenialNote denial={primaryActionDenial} id="marketplace-primary-action-denial" className="mt-1" />
+                            )}
                         </div>
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
+                                disabled={primaryActionDenial !== null}
+                                title={primaryActionDenial?.message}
+                                aria-describedby={primaryActionDenial ? 'marketplace-primary-action-denial' : undefined}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-500 disabled:hover:shadow-sm"
                             >
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
@@ -1532,6 +1555,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 ? t('marketplace.viewHint.orderbook')
                                 : t('marketplace.viewHint.myOrders')}
                     </p>
+                    {marketTab === 'market' && hitListingDenial && hitListingDenial.message !== primaryActionDenial?.message && (
+                        <AbilityDenialNote denial={hitListingDenial} className="mb-3" />
+                    )}
 
                 </div>
             </div>
@@ -1668,7 +1694,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <button
                                     type="button"
                                     onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
-                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
+                                    disabled={primaryActionDenial !== null}
+                                    title={primaryActionDenial?.message}
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
                                 >
                                     {role === 'SUPPLIER' ? t('marketplace.btn.placeAsk') : t('marketplace.btn.placeBid')}
                                 </button>
@@ -1754,8 +1782,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleCancelOrder(order)}
-                                                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                                title={t('marketplace.cancel.order')}
+                                                                disabled={cancelOrderDenial !== null}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                                                                title={cancelOrderDenial?.message ?? t('marketplace.cancel.order')}
                                                             >
                                                                 <Trash2 size={12} />
                                                                 {t('marketplace.btn.cancel')}

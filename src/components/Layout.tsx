@@ -8,6 +8,7 @@ import { Header } from './layout/Header';
 import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
 import { KycDeadlineBanner } from './layout/KycDeadlineBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { ServerStatusBanner } from './layout/ServerStatusBanner';
 import { FeedbackButton } from './FeedbackButton';
 import { useTranslation } from 'react-i18next';
 // Copilot removed per Gavin feedback
@@ -70,6 +71,8 @@ export const Layout: React.FC<LayoutProps> = ({
                     onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                     isMarketSupportActive={Boolean(context)}
                 />
+
+                <ServerStatusBanner />
 
                 {context && <ActingOrganizationBanner context={context} onExit={() => {
                     setExitError(null);

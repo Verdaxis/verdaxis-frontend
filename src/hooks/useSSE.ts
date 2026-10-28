@@ -2,17 +2,24 @@ import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../services/config';
 import { getAccessToken, refreshAccessToken } from '../services/authToken';
 import { invalidateReadCache, invalidateReadsForEvent } from '../services/readCache';
+import { parseHeartbeat, registerStream, type Heartbeat } from '../services/streamHealth';
 
 type SSEChannel = 'prices' | 'orderbook' | 'trades';
 type SSEHandler = (event: string, data: any) => void;
 
+// The public `prices` and `orderbook` streams carry only the coalesced,
+// id-less `market_invalidated` refetch signal. Individual order events go to
+// the private `trades:{org}` stream only (backend docs/market-event-dispatch.md).
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
-    prices: ['price_update'],
-    orderbook: ['order_created', 'order_cancelled', 'orders_matched', 'market_invalidated'],
+    prices: ['market_invalidated'],
+    orderbook: ['market_invalidated'],
     trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
 };
 
 const CONTROL_EVENTS = ['auth_expired', 'auth_revoked', 'reconnect', 'reset'];
+// Server status heartbeat. It is neither a data event nor a control event: it
+// never reaches the consumer handler, the replay cursor, or the read cache.
+const HEARTBEAT_EVENT = 'heartbeat';
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
@@ -69,10 +76,13 @@ async function requestStreamToken(parentSignal: AbortSignal): Promise<string | n
 /**
  * Hook for subscribing to Server-Sent Events streams.
  * Auto-reconnects on disconnection with exponential backoff + jitter.
- * Returns connection status for UI indicators.
+ * Returns connection status and the latest server heartbeat (null until one
+ * arrives). Every enabled stream also reports into `services/streamHealth` so
+ * the app can show one aggregate indicator and status banner.
  */
 export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true, scopeKey = '') {
     const [isConnected, setIsConnected] = useState(false);
+    const [heartbeat, setHeartbeat] = useState<Heartbeat | null>(null);
     const sourceRef = useRef<EventSource | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handlerRef = useRef(onEvent);
@@ -86,6 +96,11 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
         let disposed = false;
         let sourceAttempts = 0;
         const tokenRequestController = new AbortController();
+        const health = enabled ? registerStream() : null;
+        const updateConnected = (connected: boolean) => {
+            setIsConnected(connected);
+            health?.setConnected(connected);
+        };
 
         const isActive = () => (
             enabled
@@ -115,7 +130,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             if (sourceRef.current !== source) return false;
             sourceRef.current = null;
             source.close();
-            setIsConnected(false);
+            updateConnected(false);
             return true;
         };
 
@@ -189,7 +204,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
 
             source.onopen = () => {
                 if (sourceRef.current !== source || !isActive()) return;
-                setIsConnected(true);
+                updateConnected(true);
                 backoffRef.current = INITIAL_RECONNECT_DELAY;
                 if (isReconnect) {
                     invalidateReadsForEvent(channel, 'reconnect');
@@ -205,6 +220,13 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 handlerRef.current(type, data);
             };
 
+            source.addEventListener(HEARTBEAT_EVENT, ((event: MessageEvent<string>) => {
+                if (sourceRef.current !== source || !isActive()) return;
+                const parsed = parseHeartbeat(decodeEventData(event.data), Date.now());
+                if (!parsed) return; // Malformed: ignore; the connection itself is unaffected.
+                health?.recordHeartbeat(parsed);
+                setHeartbeat(parsed);
+            }) as EventListener);
             for (const type of EVENT_TYPES[channel]) {
                 source.addEventListener(type, handleMessage.bind(null, type) as EventListener);
             }
@@ -220,6 +242,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
 
         clearReconnectTimeout();
         setIsConnected(false);
+        setHeartbeat(null);
         if (enabled) void connect();
 
         return () => {
@@ -232,8 +255,10 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             source?.close();
             lastEventIdRef.current = null;
             setIsConnected(false);
+            setHeartbeat(null);
+            health?.unregister();
         };
     }, [channel, enabled, scopeKey]);
 
-    return { isConnected };
+    return { isConnected, heartbeat };
 }

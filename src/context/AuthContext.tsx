@@ -3,6 +3,7 @@ import { API_URL } from '../services/config';
 import type { ExecutionEligibility } from '../types';
 import {
     AUTH_IDENTITY_CHANGED_EVENT,
+    applyPeerIdentityChange,
     clearAccessToken,
     getAccessToken,
     getAuthGeneration,
@@ -10,6 +11,7 @@ import {
     setAccessToken,
 } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
+import { openAuthTabSync, type AuthTabSync, type AuthTabSyncEvent } from '../services/authTabSync';
 import { analytics, reliability } from '../services/analytics';
 import { setReadCachePrincipal } from '../services/readCache';
 
@@ -74,6 +76,9 @@ function parseUserProfile(value: unknown): User | null {
 }
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+// A tab that was asleep wakes with an expired deadline while other tabs' activity
+// messages may still be queued. Waiting this long before signing out lets them arrive.
+const IDLE_CONFIRM_DELAY_MS = 2000;
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 min before expiry
 const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
@@ -99,6 +104,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tabSyncRef = useRef<AuthTabSync | null>(null);
+    // Epoch ms of the latest user activity in any open tab. Wall-clock time is
+    // used because it is the only clock tabs share, and because a timer in a
+    // sleeping tab can fire late or not at all: the deadline is re-checked
+    // against this value instead of trusting the timer.
+    const lastActivityAtRef = useRef(Date.now());
 
     const clearTokens = useCallback(() => {
         clearAccessToken();
@@ -129,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             credentials: 'include',
         }).catch(() => undefined);
         clearTokens();
+        tabSyncRef.current?.broadcast('logout');
     }, [clearTokens]);
 
     // --- Token refresh ---
@@ -165,24 +177,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [applyAccessToken, logout]);
 
     // --- Idle timeout ---
-    const resetIdleTimer = useCallback(() => {
-        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-        if (!token) return;
-
-        idleTimerRef.current = setTimeout(() => {
-            logout();
-        }, IDLE_TIMEOUT_MS);
-    }, [token, logout]);
-
+    // The user is idle only when no open tab has seen activity for the whole
+    // timeout. This tab reports its own activity to the others (throttled by
+    // the sync service) and records theirs in `lastActivityAtRef`. The timer is
+    // keyed on being signed in, not on the token: a token refresh is not
+    // activity and must not move the deadline.
+    const isSignedIn = token !== null;
     useEffect(() => {
+        if (!isSignedIn) return;
+
+        lastActivityAtRef.current = Date.now();
+        let isConfirmingIdle = false;
+
+        const checkIdle = () => {
+            const msUntilDeadline = lastActivityAtRef.current + IDLE_TIMEOUT_MS - Date.now();
+            if (msUntilDeadline > 0) {
+                isConfirmingIdle = false;
+                idleTimerRef.current = setTimeout(checkIdle, msUntilDeadline);
+            } else if (!isConfirmingIdle) {
+                isConfirmingIdle = true;
+                idleTimerRef.current = setTimeout(checkIdle, IDLE_CONFIRM_DELAY_MS);
+            } else {
+                logout();
+            }
+        };
+
+        const handleLocalActivity = () => {
+            lastActivityAtRef.current = Date.now();
+            tabSyncRef.current?.reportActivity();
+        };
+
         const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-        events.forEach(e => window.addEventListener(e, resetIdleTimer, { passive: true }));
-        resetIdleTimer();
+        events.forEach(e => window.addEventListener(e, handleLocalActivity, { passive: true }));
+        idleTimerRef.current = setTimeout(checkIdle, IDLE_TIMEOUT_MS);
         return () => {
-            events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+            events.forEach(e => window.removeEventListener(e, handleLocalActivity));
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
         };
-    }, [resetIdleTimer]);
+    }, [isSignedIn, logout]);
 
     // --- Login ---
     const login = useCallback(async (accessToken: string, initialProfile?: unknown) => {
@@ -334,10 +366,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [applyAccessToken, applyUserProfile, scheduleRefresh, clearTokens]);
 
+    // Local identity change: drop this tab's session and tell the other tabs.
     useEffect(() => {
-        const handleIdentityChanged = () => clearTokens();
+        const handleIdentityChanged = () => {
+            clearTokens();
+            tabSyncRef.current?.broadcast('identity_changed');
+        };
         window.addEventListener(AUTH_IDENTITY_CHANGED_EVENT, handleIdentityChanged);
         return () => window.removeEventListener(AUTH_IDENTITY_CHANGED_EVENT, handleIdentityChanged);
+    }, [clearTokens]);
+
+    // Auth events from other tabs. The server session was already ended (or
+    // the account changed) by the tab that sent the event, so this tab only
+    // drops its own state: no /auth/logout call and no re-broadcast.
+    useEffect(() => {
+        const handlePeerEvent = (event: AuthTabSyncEvent) => {
+            if (event === 'identity_changed') applyPeerIdentityChange();
+            clearTokens();
+        };
+        // Peer activity only moves this tab's idle deadline; it is never
+        // re-broadcast. A timestamp from the future is clamped to now so a bad
+        // value cannot postpone the logout indefinitely.
+        const handlePeerActivity = (activeAt: number) => {
+            const seenAt = Math.min(activeAt, Date.now());
+            lastActivityAtRef.current = Math.max(lastActivityAtRef.current, seenAt);
+        };
+        const tabSync = openAuthTabSync(handlePeerEvent, handlePeerActivity);
+        tabSyncRef.current = tabSync;
+        return () => {
+            tabSync.close();
+            tabSyncRef.current = null;
+        };
     }, [clearTokens]);
 
     useEffect(() => {

@@ -3,12 +3,15 @@ import { LoadingScreen } from './components/LoadingScreen';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AbilitiesProvider } from './context/AbilitiesContext';
 import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import { MarketSupportProvider, useMarketSupport } from './context/MarketSupportContext';
 import { defaultMarketSupportView } from './types/marketSupport';
+import { useAnyAbilityAllowed } from './hooks/useAbilityDenial';
+import { ADMIN_ABILITY_IDS } from './types/abilities';
 import { GuidedTutorial } from './components/GuidedTutorial';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MobileDesktopGate } from './components/MobileDesktopGate';
@@ -491,7 +494,9 @@ const SupportRestrictedRoute: React.FC<{ children: React.ReactElement }> = ({ ch
 const AdminRoute: React.FC = () => {
   const { user } = useAuth();
   const { isActive } = useMarketSupport();
-  if (user?.role !== 'ADMIN') return <Navigate to="/app/home" replace />;
+  // Server abilities decide when they are known; the role check is the fallback.
+  const canUseAdmin = useAnyAbilityAllowed(ADMIN_ABILITY_IDS) ?? user?.role === 'ADMIN';
+  if (!canUseAdmin) return <Navigate to="/app/home" replace />;
   if (isActive) return <Navigate to="/app/home" replace />;
   return <AdminDashboard />;
 };
@@ -650,6 +655,7 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
     <ErrorBoundary>
     <ThemeProvider>
       <AuthProvider>
+        <AbilitiesProvider>
         <MarketSupportProvider>
         <ToastProvider>
         <NotificationProvider>
@@ -670,6 +676,7 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
         </NotificationProvider>
         </ToastProvider>
         </MarketSupportProvider>
+        </AbilitiesProvider>
       </AuthProvider>
     </ThemeProvider>
     </ErrorBoundary>

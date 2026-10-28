@@ -55,7 +55,7 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 ## Security and state boundaries
 
-**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token.
+**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token. `services/authTabSync.ts` shares only a `logout` or `identity_changed` event type over a feature-detected `BroadcastChannel`; a receiving tab runs its local clear without calling `/auth/logout` or re-broadcasting, and an `identity_changed` peer event also blocks silent cookie restore. It also shares user activity, so the 30 minute idle logout in `AuthContext` fires only when no open tab has seen input for the whole timeout: each tab sends an `activity` message (an event type and an epoch-ms timestamp, throttled to one per 30 seconds), and a receiving tab moves its own wall-clock deadline without re-broadcasting. The timer re-checks that deadline when it fires, so a tab that slept does not log out while another tab was active. Without `BroadcastChannel` each tab keeps its own idle timer.
 
 **Market Support.** The admin remains the authenticated principal. The browser persists only an opaque context id. `MarketSupportContext` rehydrates server state and expires it; `api.ts` sends the context header only to the narrow customer route allowlist. Capability discovery recognizes `MARKET_SUPPORT_LISTINGS` and `MARKET_SUPPORT_AUTHORIZATIONS`, while the server eligibility result remains authoritative. Entry requires an approved `REAL` organization and an `ORDER_CREATE`/`ORDER_CANCEL` scope. Both assisted BID and ASK use `OrderPlaceModal` and `MarketSupportFinalConfirmation`. Unsupported mutations and trade execution stay blocked.
 
@@ -68,6 +68,10 @@ Education articles carry maintained-by and actual source-check fields, with prim
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
 
 **Private stream recovery.** Only a private trade-stream `reset` with reason `subscriber_overflow` retains the last acknowledged replay cursor. `useSSE` still invalidates affected REST reads and delivers the reset callback before reconnect; other resets, `auth_revoked`, and user, organization, or Market Support scope changes clear the cursor.
+
+**Stream health and server status.** `useSSE` handles the id-less `heartbeat` event (`{status, message, server_time}`) outside the data and control paths: it never reaches the consumer handler, the replay cursor, or read-cache invalidation, and a malformed payload is ignored. Each enabled stream registers in the module store `services/streamHealth.ts`; `hooks/useStreamHealth.ts` reads it with `useSyncExternalStore` plus a 5 s tick. Connection is aggregated as any enabled stream open: `live`, `stale` (a heartbeat was seen before but none for 75 s = 2 x 30 s cadence + 15 s margin; never judged if no heartbeat ever arrived), `reconnecting`, or `offline` (no open stream for 30 s, or the browser is offline). Server status is the worst latest heartbeat (`operational` < `degraded` < `maintenance`); only open streams count while any is open, and remembered heartbeats expire after 5 min. No recent heartbeat means unknown. `layout/StreamStatusIndicator` (header) and `layout/ServerStatusBanner` (below the header, plain-text message, dismissible per status+message for the page session) read the aggregate.
+
+**Server abilities.** `GET /auth/me/abilities` (backend `docs/user-abilities.md`) says which of 23 fixed actions the signed-in account may use and why not. `context/AbilitiesContext` (mounted inside `AuthProvider`) fetches it once per identity and holds a lookup map; `useAbility(id)` returns `{allowed, reasonCode, reason}` or `undefined` while unknown. `undefined` means "do not decide from abilities": a 403 (including a pending password change), network or 5xx failure, a missing route (older backend; not retried), or an unknown `schema_version` all leave the map empty, so every control keeps its previous behavior and no user is blocked by a failed load. The key `abilitiesSubjectKey(user)` covers id, role, organization, approval, email, KYC and password-change fields, so a changed profile refetches and one user's hints never show for another. `AUTH_IDENTITY_CHANGED_EVENT` and `verdaxis:auth-logout` clear the map, drop any in-flight answer, and force a fetch for the next sign-in. Organization, KYC and approval changes made elsewhere have no push event, so window focus or tab visibility refetches at most once per 60 s. Controls read denials through `hooks/useAbilityDenial` (`useAbilityGate`, `useAbilityDenial`, `useAnyAbilityAllowed`): a denied control is `disabled`, carries the reason in `title`, and shows `ui/AbilityDenialNote` where there is room. Reason text is `abilities.reason.<CODE>` in the `common` namespace (en and zh); an unknown code falls back to the server `reason`, then to a generic sentence. Market actions are not evaluated while an assisted Market Support context is active, because the server then judges the supported organization rather than the administrator. Abilities are hints: endpoints stay authoritative, and per-subject rules (order owner, trade party, order state) are not in the payload. No UI exists yet for `deliver_trade`, `pay_trade`, inventory, RFQ, or `amend_order`; the admin ids `view_audit_log`, `view_user_activity`, `manage_subscriptions`, `review_kyc`, `manage_commissions` and `market_support_access` only feed the Admin entry check.
 
 **Production activity.** `ActivityTrackingProvider`, `services/activityTracking.ts`, and `types/activity.ts` send bounded authenticated page and canonical market-slice activity. The adapter clears account-bound state at auth changes and does not replace optional Umami analytics consent.
 
@@ -88,9 +92,11 @@ src/
   prerender/renderPublicRoute.tsx    build-only public content rendering
   types.ts                          shared UI and API domain types
   types/{activity,marketSupport,lngOrder}.ts production activity, assisted-workspace, and bio-LNG terms contracts
+  types/abilities.ts                ability ids, reason codes, action-to-ability maps
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
+    layout/{StreamStatusIndicator,ServerStatusBanner}.tsx  SSE connection indicator and server-status banner
     layout/KycDeadlineBanner.tsx    KYC grace/required/rejected deadline notice
     kyc/KycRequiredNotice.tsx       localized KYC_REQUIRED notice with /kyc link
     Marketplace.tsx                market/listings/orderbook workspace
@@ -104,15 +110,18 @@ src/
     admin/market-support/           eligible-organization entry
     market-support/                 acting banner and final order confirmation
     public/                         localized public shell and components
-  context/                          auth, market support, theme, notifications, tutorial
+  context/                          auth, abilities, market support, theme, notifications, tutorial
   services/
     api.ts                          fetch client and response transforms
     authToken.ts                    in-memory access-token generation
+    authTabSync.ts                  cross-tab logout, identity-change, and activity events
     readCache.ts                    scoped TTL cache and request deduplication
     activityTracking.ts             bounded production activity queue
     publicMarketSync.ts             shared market invalidation subscriber
+    streamHealth.ts                 SSE heartbeat parsing, stream registry, aggregation
+    abilities.ts                    abilities response parsing and route-missing check
     analytics.ts                    optional consent-gated Umami adapter
-  hooks/                            workspace readiness, SSE, preferences, watchlists
+  hooks/                            workspace readiness, SSE, preferences, watchlists, ability denials
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/                            market identity, slice URLs, axis and display helpers
   locales/{en,zh}/                  lazy translation namespaces
@@ -140,6 +149,8 @@ scripts/
 | Intelligence Map | `src/components/BuyerMap.tsx` | `src/tests/buyer-map-i18n.test.tsx` |
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
 | Activity | `ActivityTrackingProvider.tsx`, `activityTracking.ts` | `activity-*.test.ts`, `user-activity-drawer.test.tsx` |
+| Stream health | `useSSE.ts`, `streamHealth.ts`, `useStreamHealth.ts`, `layout/StreamStatusIndicator.tsx`, `layout/ServerStatusBanner.tsx` | `use-sse.test.tsx`, `stream-health.test.ts`, `stream-status-indicator.test.tsx`, `server-status-banner.test.tsx` |
+| Server abilities | `AbilitiesContext.tsx`, `useAbilityDenial.ts`, `services/abilities.ts`, `types/abilities.ts`, `ui/AbilityDenialNote.tsx` | `abilities-parse.test.ts`, `abilities-context.test.tsx`, `abilities-ui.test.tsx`, `abilities-order-modal.test.tsx`, ability cases in `marketplace-green-fuels.test.tsx` |
 | Release | workflow and release/artifact scripts | artifact/release guard tests and target builds |
 
 ## Run commands
