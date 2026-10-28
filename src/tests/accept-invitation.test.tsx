@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const login = vi.fn();
 
@@ -62,6 +62,60 @@ describe('pre-approved invitation acceptance', () => {
       token: 'claim-secret',
       new_password: 'Accepted-password-9',
       accept_terms: true,
+    });
+  });
+
+  describe('notification permission', () => {
+    const installNotification = (permission: NotificationPermission, requestPermission: () => unknown) => {
+      const FakeNotification = Object.assign(vi.fn(), { permission, requestPermission });
+      Object.defineProperty(window, 'Notification', { configurable: true, value: FakeNotification });
+    };
+
+    const acceptInvitation = async () => {
+      render(
+        <MemoryRouter initialEntries={['/accept-invite']}>
+          <AcceptInvitationPage />
+        </MemoryRouter>,
+      );
+      await screen.findByText('Goldwind Green Methanol');
+      fireEvent.change(screen.getByLabelText('Create password'), { target: { value: 'Accepted-password-9' } });
+      fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'Accepted-password-9' } });
+      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
+    };
+
+    afterEach(() => {
+      Reflect.deleteProperty(window, 'Notification');
+    });
+
+    it('asks inside the accept click, before the acceptance request', async () => {
+      const requestPermission = vi.fn(async () => 'granted');
+      installNotification('default', requestPermission);
+
+      await acceptInvitation();
+
+      expect(requestPermission).toHaveBeenCalledTimes(1);
+      expect(requestPermission.mock.invocationCallOrder[0])
+        .toBeLessThan(vi.mocked(fetch).mock.invocationCallOrder[1]);
+      await waitFor(() => expect(login).toHaveBeenCalledWith('access-token'));
+    });
+
+    it('does not ask again once permission is decided', async () => {
+      const requestPermission = vi.fn(async () => 'granted');
+      installNotification('denied', requestPermission);
+
+      await acceptInvitation();
+
+      await waitFor(() => expect(login).toHaveBeenCalled());
+      expect(requestPermission).not.toHaveBeenCalled();
+    });
+
+    it('still signs in when the prompt throws', async () => {
+      installNotification('default', () => { throw new Error('blocked'); });
+
+      await acceptInvitation();
+
+      await waitFor(() => expect(login).toHaveBeenCalledWith('access-token'));
     });
   });
 

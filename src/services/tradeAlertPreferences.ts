@@ -3,17 +3,32 @@
 // accepts only fixed preference namespaces (`NAMESPACE_SCHEMAS`, extra keys
 // forbidden), and both settings describe this device. Browser notification
 // permission is per browser, and a user may want sound on a desk computer but
-// not on a laptop. Both default to off.
+// not on a laptop.
+//
+// Sound is off until the user turns it on. Browser notifications are on by
+// default once the browser permission is granted (the sign-in prompt asks for
+// it), unless the user has chosen off, which is stored and respected.
 
 export interface TradeAlertPreferences {
   sound: boolean;
-  notifications: boolean;
+  /** `null` means the user has not chosen; see `isTradeNotificationOn`. */
+  notifications: boolean | null;
 }
 
 export const DEFAULT_TRADE_ALERT_PREFERENCES: TradeAlertPreferences = {
   sound: false,
-  notifications: false,
+  notifications: null,
 };
+
+/**
+ * Whether browser notifications are on. The browser permission always decides
+ * first. Without an explicit choice the default is on, so a user who granted
+ * permission at sign-in gets them; an explicit off is kept.
+ */
+export const isTradeNotificationOn = (
+  preferences: TradeAlertPreferences,
+  permissionGranted: boolean,
+): boolean => permissionGranted && preferences.notifications !== false;
 
 const STORAGE_KEY_PREFIX = 'verdaxis_trade_alerts:';
 
@@ -40,7 +55,10 @@ const parsePreferences = (raw: string | null): TradeAlertPreferences => {
       return DEFAULT_TRADE_ALERT_PREFERENCES;
     }
     const record = parsed as Record<string, unknown>;
-    return { sound: record.sound === true, notifications: record.notifications === true };
+    return {
+      sound: record.sound === true,
+      notifications: typeof record.notifications === 'boolean' ? record.notifications : null,
+    };
   } catch {
     return DEFAULT_TRADE_ALERT_PREFERENCES;
   }

@@ -1,6 +1,8 @@
 // Browser notifications for trade alerts. This is the ONLY module that asks for
-// notification permission, and only `requestTradeAlertPermission` does so: call
-// it from the click handler of the Settings toggle, never on page load.
+// notification permission, and only two functions do so, both from a user
+// gesture: `requestTradeAlertPermission` (the Settings toggle) and
+// `requestTradeAlertPermissionAtSignIn` (the sign-in submit). Never on page
+// load and never when a session is restored from a cookie.
 
 export type TradeAlertPermission = NotificationPermission | 'unsupported';
 
@@ -21,6 +23,27 @@ export const requestTradeAlertPermission = async (): Promise<TradeAlertPermissio
     return await window.Notification.requestPermission();
   } catch {
     return getTradeAlertPermission();
+  }
+};
+
+/**
+ * Offers the browser permission prompt when a user signs in.
+ *
+ * Call it SYNCHRONOUSLY at the start of the sign-in handler, before any
+ * `await`: Safari and Firefox ignore a prompt outside a user gesture, and
+ * Chrome's transient activation expires. It never waits for the answer, so it
+ * cannot delay sign-in, and it swallows every error. It asks only while the
+ * choice is still open (`default`): a granted choice needs no prompt, and a
+ * denied one cannot be asked again (Settings explains how to allow it).
+ */
+export const requestTradeAlertPermissionAtSignIn = (): void => {
+  if (getTradeAlertPermission() !== 'default') return;
+
+  try {
+    // Old Safari returns nothing and takes a callback; a modern browser returns a promise.
+    void Promise.resolve(window.Notification.requestPermission()).catch(() => undefined);
+  } catch {
+    // Sign-in must never depend on the prompt.
   }
 };
 

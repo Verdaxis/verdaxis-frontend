@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   myTradesPaged: vi.fn(),
   playTone: vi.fn(() => true),
   unlockOnGesture: vi.fn(),
+  permission: 'granted' as 'default' | 'granted' | 'denied' | 'unsupported',
   showNotification: vi.fn((_input: { title: string; body: string; tag: string; onClick: () => void }) => true),
 }));
 
@@ -20,7 +21,7 @@ vi.mock('../services/tradeAlertSound', () => ({
   unlockTradeAlertAudio: vi.fn(() => true),
 }));
 vi.mock('../services/tradeAlertNotifications', () => ({
-  getTradeAlertPermission: () => 'granted',
+  getTradeAlertPermission: () => mocks.permission,
   requestTradeAlertPermission: vi.fn(async () => 'granted'),
   showTradeAlertNotification: mocks.showNotification,
 }));
@@ -75,6 +76,7 @@ describe('trade alerts', () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    mocks.permission = 'granted';
     window.localStorage.clear();
     FakeBroadcastChannel.instances.clear();
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
@@ -164,13 +166,45 @@ describe('trade alerts', () => {
   });
 
   describe('settings', () => {
-    it('does nothing while both settings are off (the default)', async () => {
+    it('makes no sound by default, but shows a notification once permission is granted', async () => {
       const { result } = renderAlerts();
 
       await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '20');
 
       expect(mocks.playTone).not.toHaveBeenCalled();
+      expect(mocks.showNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['default', 'denied', 'unsupported'] as const)(
+      'does nothing by default while permission is %s',
+      async (permission) => {
+        mocks.permission = permission;
+        const { result } = renderAlerts();
+
+        await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '20');
+
+        expect(mocks.playTone).not.toHaveBeenCalled();
+        expect(mocks.showNotification).not.toHaveBeenCalled();
+      },
+    );
+
+    it('respects an explicit off even though permission is granted', async () => {
+      enableAlerts(false, false);
+      const { result } = renderAlerts();
+
+      await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '20');
+
       expect(mocks.showNotification).not.toHaveBeenCalled();
+    });
+
+    it('uses a permission granted after the hook rendered', async () => {
+      mocks.permission = 'default';
+      const { result } = renderAlerts();
+
+      mocks.permission = 'granted'; // the sign-in prompt was just accepted
+      await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '20');
+
+      expect(mocks.showNotification).toHaveBeenCalledTimes(1);
     });
 
     it('plays sound without a notification when only sound is on', async () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import {
+  isTradeNotificationOn,
   readTradeAlertPreferences,
   subscribeTradeAlertPreferences,
   writeTradeAlertPreferences,
@@ -14,7 +15,7 @@ import { playTradeAlertTone, unlockTradeAlertAudio } from '../services/tradeAler
 
 export interface TradeAlertSettings {
   soundEnabled: boolean;
-  /** True only when the user turned notifications on AND the browser still allows them. */
+  /** On when the browser allows notifications and the user has not chosen off. */
   notificationsEnabled: boolean;
   /** The browser's own answer; `denied` and `unsupported` explain a toggle that stays off. */
   notificationPermission: TradeAlertPermission;
@@ -25,7 +26,8 @@ export interface TradeAlertSettings {
 
 /**
  * Reads and changes the two trade-alert settings for one user on this device.
- * Both are off until the user turns them on.
+ * Sound is off until the user turns it on; notifications are on once the
+ * browser permission is granted, unless the user chose off.
  */
 export const useTradeAlertSettings = (userId: string): TradeAlertSettings => {
   const preferences = useSyncExternalStore(
@@ -75,7 +77,7 @@ export const useTradeAlertSettings = (userId: string): TradeAlertSettings => {
 
   return {
     soundEnabled: preferences.sound,
-    notificationsEnabled: preferences.notifications && notificationPermission === 'granted',
+    notificationsEnabled: isTradeNotificationOn(preferences, notificationPermission === 'granted'),
     notificationPermission,
     setSoundEnabled,
     setNotificationsEnabled,

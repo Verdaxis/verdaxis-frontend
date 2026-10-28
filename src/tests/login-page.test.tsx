@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const login = vi.fn();
 
@@ -16,9 +16,79 @@ vi.mock('../components/public/DataOcean', () => ({
 import i18n from '../i18n';
 import LoginPage from '../pages/LoginPage';
 
+const installNotification = (permission: NotificationPermission, requestPermission: () => unknown) => {
+  const FakeNotification = Object.assign(vi.fn(), { permission, requestPermission });
+  Object.defineProperty(window, 'Notification', { configurable: true, value: FakeNotification });
+};
+
 describe('password login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'Notification');
+  });
+
+  const submitLogin = async () => {
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(await screen.findByLabelText('Email Address'), { target: { value: 'buyer@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+  };
+
+  const stubLoginResponse = () => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    access_token: 'access-token',
+    token_type: 'bearer',
+    profile: null,
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+  it('asks for notification permission inside the sign-in click, before the login request', async () => {
+    const requestPermission = vi.fn(async () => 'granted');
+    installNotification('default', requestPermission);
+    stubLoginResponse();
+
+    await submitLogin();
+
+    // Checked straight after the click, with no await: still inside the gesture.
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(requestPermission.mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(fetch).mock.invocationCallOrder[0]);
+    await waitFor(() => expect(login).toHaveBeenCalledWith('access-token', null));
+  });
+
+  it.each(['granted', 'denied'] as const)('does not prompt when permission is already %s', async (permission) => {
+    const requestPermission = vi.fn(async () => 'granted');
+    installNotification(permission, requestPermission);
+    stubLoginResponse();
+
+    await submitLogin();
+
+    await waitFor(() => expect(login).toHaveBeenCalled());
+    expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  it('does not prompt when the browser has no Notification API, and signs in', async () => {
+    stubLoginResponse();
+    await submitLogin();
+    await waitFor(() => expect(login).toHaveBeenCalled());
+  });
+
+  it.each([
+    ['throws', () => { throw new Error('blocked'); }],
+    ['rejects', () => Promise.reject(new Error('dismissed'))],
+    ['never answers', () => new Promise(() => undefined)],
+  ])('signs in when the permission prompt %s', async (_case, requestPermission) => {
+    installNotification('default', requestPermission);
+    stubLoginResponse();
+
+    await submitLogin();
+
+    await waitFor(() => expect(login).toHaveBeenCalledWith('access-token', null));
   });
 
   it('passes the server-validated profile to AuthContext', async () => {

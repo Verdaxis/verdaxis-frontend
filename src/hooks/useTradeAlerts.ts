@@ -3,7 +3,8 @@ import type { TFunction } from 'i18next';
 
 import { api } from '../services/api';
 import { openTradeAlertElection, type TradeAlertElection } from '../services/tradeAlertElection';
-import { showTradeAlertNotification } from '../services/tradeAlertNotifications';
+import { getTradeAlertPermission, showTradeAlertNotification } from '../services/tradeAlertNotifications';
+import { isTradeNotificationOn, readTradeAlertPreferences } from '../services/tradeAlertPreferences';
 import {
   playTradeAlertTone,
   unlockTradeAlertAudioOnFirstGesture,
@@ -89,8 +90,8 @@ export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrade
 
   // The handler is long-lived (the stream keeps the first one it saw), so it
   // reads current values through this ref.
-  const latest = useRef({ settings, isMarketSupportActive, t, onOpenMyTrades });
-  latest.current = { settings, isMarketSupportActive, t, onOpenMyTrades };
+  const latest = useRef({ userId, isMarketSupportActive, t, onOpenMyTrades });
+  latest.current = { userId, isMarketSupportActive, t, onOpenMyTrades };
 
   useEffect(() => {
     const election = openTradeAlertElection();
@@ -110,10 +111,13 @@ export const useTradeAlerts = ({ userId, isMarketSupportActive, t, onOpenMyTrade
     const election = electionRef.current;
     if (!kind || !election) return;
 
-    const { settings: current, isMarketSupportActive: inSupport } = latest.current;
+    const { userId: currentUserId, isMarketSupportActive: inSupport } = latest.current;
     if (inSupport) return;
-    const wantsSound = current.soundEnabled;
-    const wantsNotification = current.notificationsEnabled;
+    // Read stored choices and the browser permission now, not from render
+    // state: the permission can be granted by the sign-in prompt a moment ago.
+    const preferences = readTradeAlertPreferences(currentUserId);
+    const wantsSound = preferences.sound;
+    const wantsNotification = isTradeNotificationOn(preferences, getTradeAlertPermission() === 'granted');
     if (!wantsSound && !wantsNotification) return;
 
     const key = eventKeyOf(event, data, eventId);

@@ -55,7 +55,7 @@ describe('trade alert settings', () => {
   });
 
   describe('hook', () => {
-    it('has both settings off by default and never asks for permission on its own', () => {
+    it('has both settings off until permission is decided and never asks for permission on its own', () => {
       const requestPermission = installNotification('default');
       const { result } = renderHook(() => useTradeAlertSettings('user-1'));
 
@@ -107,6 +107,45 @@ describe('trade alert settings', () => {
 
       expect(requestPermission).not.toHaveBeenCalled();
       expect(result.current.notificationsEnabled).toBe(false);
+    });
+
+    it('is on by default once the browser permission is granted, without storing a choice', () => {
+      installNotification('granted');
+      const { result } = renderHook(() => useTradeAlertSettings('user-1'));
+
+      expect(result.current.notificationsEnabled).toBe(true);
+      expect(result.current.soundEnabled).toBe(false);
+      expect(window.localStorage.getItem(tradeAlertStorageKey('user-1'))).toBeNull();
+    });
+
+    it('respects an explicit off, stores it, and keeps it after a reload', async () => {
+      installNotification('granted');
+      const first = renderHook(() => useTradeAlertSettings('user-1'));
+      await act(async () => { await first.result.current.setNotificationsEnabled(false); });
+
+      expect(first.result.current.notificationsEnabled).toBe(false);
+      expect(readTradeAlertPreferences('user-1').notifications).toBe(false);
+      first.unmount();
+
+      const reloaded = renderHook(() => useTradeAlertSettings('user-1'));
+      expect(reloaded.result.current.notificationsEnabled).toBe(false);
+    });
+
+    it('stays off while the permission is still undecided or denied, whatever was stored', () => {
+      installNotification('default');
+      expect(renderHook(() => useTradeAlertSettings('user-1')).result.current.notificationsEnabled).toBe(false);
+      cleanup();
+      installNotification('denied');
+      expect(renderHook(() => useTradeAlertSettings('user-1')).result.current.notificationsEnabled).toBe(false);
+    });
+
+    it('keeps the notification choice when only sound changes', () => {
+      installNotification('granted');
+      const { result } = renderHook(() => useTradeAlertSettings('user-1'));
+      act(() => result.current.setSoundEnabled(true));
+
+      expect(readTradeAlertPreferences('user-1').notifications).toBeNull();
+      expect(result.current.notificationsEnabled).toBe(true);
     });
 
     it('turns itself off in the UI when the browser permission is later revoked', () => {
@@ -176,6 +215,14 @@ describe('trade alert settings', () => {
       renderWithProviders(<Settings viewMode="BUYER" />);
       fireEvent.click(await screen.findByRole('button', { name: 'Notifications' }));
     };
+
+    it('shows browser notifications on by default after permission was granted, and sound off', async () => {
+      installNotification('granted');
+      await openNotifications();
+
+      expect(screen.getByRole('button', { name: SOUND_LABEL }).getAttribute('aria-pressed')).toBe('false');
+      expect(screen.getByRole('button', { name: BROWSER_LABEL }).getAttribute('aria-pressed')).toBe('true');
+    });
 
     it('shows both toggles off by default', async () => {
       installNotification('default');
