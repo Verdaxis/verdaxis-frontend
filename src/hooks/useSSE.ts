@@ -7,9 +7,12 @@ import { parseHeartbeat, registerStream, type Heartbeat } from '../services/stre
 type SSEChannel = 'prices' | 'orderbook' | 'trades';
 type SSEHandler = (event: string, data: any) => void;
 
+// The public `prices` and `orderbook` streams carry only the coalesced,
+// id-less `market_invalidated` refetch signal. Individual order events go to
+// the private `trades:{org}` stream only (backend docs/market-event-dispatch.md).
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
-    prices: ['price_update'],
-    orderbook: ['order_created', 'order_cancelled', 'orders_matched', 'market_invalidated'],
+    prices: ['market_invalidated'],
+    orderbook: ['market_invalidated'],
     trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
 };
 
