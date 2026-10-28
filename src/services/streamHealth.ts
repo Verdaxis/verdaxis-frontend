@@ -33,6 +33,8 @@ export interface StreamHealthSnapshot {
     allDownSince: number | null;
     /** Client time when the app last went from "no stream open" to "a stream is open". */
     connectedSince: number | null;
+    /** Whether any stream has been open since streams were last enabled. */
+    everConnected: boolean;
 }
 
 /**
@@ -49,6 +51,15 @@ export const STALE_AFTER_MS = 2 * HEARTBEAT_INTERVAL_MS + 15_000;
  * stops being an honest description, so the indicator says "offline".
  */
 export const OFFLINE_AFTER_MS = 30_000;
+
+/**
+ * How long the first connection of a page may take before the indicator says
+ * "offline". A stream only counts as open once the server sends its first
+ * bytes, and a server without the status heartbeat sends nothing until its
+ * first 30 s keep-alive. 45 s covers that with margin, so a normal page load
+ * shows "connecting", never "reconnecting" or "offline".
+ */
+export const INITIAL_CONNECT_GRACE_MS = 45_000;
 
 /**
  * How long a heartbeat may keep describing the server when no stream is open.
@@ -104,7 +115,10 @@ const entries = new Map<symbol, StreamEntry>();
 const listeners = new Set<() => void>();
 let allDownSince: number | null = null;
 let connectedSince: number | null = null;
-let snapshot: StreamHealthSnapshot = { streams: [], allDownSince: null, connectedSince: null };
+let everConnected = false;
+let snapshot: StreamHealthSnapshot = {
+    streams: [], allDownSince: null, connectedSince: null, everConnected: false,
+};
 
 const anyConnected = () => {
     for (const entry of entries.values()) {
@@ -121,8 +135,10 @@ function commit(wasAnyConnected: boolean, wasEmpty: boolean, now: number) {
     if (isEmpty) {
         allDownSince = null;
         connectedSince = null;
+        everConnected = false;
     } else if (isAnyConnected) {
         allDownSince = null;
+        everConnected = true;
         if (!wasAnyConnected) connectedSince = now;
     } else if (wasAnyConnected || wasEmpty) {
         // Everything just went down, or the first stream registered unconnected.
@@ -134,6 +150,7 @@ function commit(wasAnyConnected: boolean, wasEmpty: boolean, now: number) {
         streams: Array.from(entries.values(), ({ connected, heartbeat }) => ({ connected, heartbeat })),
         allDownSince,
         connectedSince,
+        everConnected,
     };
     listeners.forEach((listener) => listener());
 }
@@ -181,7 +198,8 @@ export function resetStreamHealth() {
     entries.clear();
     allDownSince = null;
     connectedSince = null;
-    snapshot = { streams: [], allDownSince: null, connectedSince: null };
+    everConnected = false;
+    snapshot = { streams: [], allDownSince: null, connectedSince: null, everConnected: false };
     listeners.forEach((listener) => listener());
 }
 
@@ -190,11 +208,12 @@ export function resetStreamHealth() {
 /**
  * live          a stream is open and heartbeats (if the server sends them) are fresh
  * stale         a stream is open, heartbeats were seen before, but none for STALE_AFTER_MS
- * reconnecting  no stream is open yet, for less than OFFLINE_AFTER_MS
- * offline       no stream open for OFFLINE_AFTER_MS, or the browser reports no network
+ * connecting    no stream has been open yet on this page, for less than INITIAL_CONNECT_GRACE_MS
+ * reconnecting  a stream was open and dropped, for less than OFFLINE_AFTER_MS
+ * offline       down past those limits, or the browser reports no network
  * none          no stream is enabled, so there is nothing to judge
  */
-export type ConnectionState = 'live' | 'stale' | 'reconnecting' | 'offline' | 'none';
+export type ConnectionState = 'live' | 'stale' | 'connecting' | 'reconnecting' | 'offline' | 'none';
 
 export function deriveConnectionState(
     snap: StreamHealthSnapshot,
@@ -219,6 +238,9 @@ export function deriveConnectionState(
 
     if (!browserOnline) return 'offline';
     const downFor = now - (snap.allDownSince ?? now);
+    if (!snap.everConnected) {
+        return downFor >= INITIAL_CONNECT_GRACE_MS ? 'offline' : 'connecting';
+    }
     return downFor >= OFFLINE_AFTER_MS ? 'offline' : 'reconnecting';
 }
 

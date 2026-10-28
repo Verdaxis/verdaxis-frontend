@@ -464,7 +464,8 @@ describe('useSSE', () => {
     it('reports connection and heartbeat into the app-wide stream health', async () => {
       const { rerender } = render(<Harness channel="orderbook" />);
       await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
-      expect(deriveConnectionState(getStreamHealthSnapshot(), Date.now())).toBe('reconnecting');
+      // No stream has been open yet on this page, so it is still connecting.
+      expect(deriveConnectionState(getStreamHealthSnapshot(), Date.now())).toBe('connecting');
 
       act(() => {
         FakeEventSource.instances[0].emit('open');

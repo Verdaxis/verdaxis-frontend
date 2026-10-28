@@ -15,6 +15,16 @@ import {
 import { loadAllPreferences, updateCachedPreference } from './useServerPreference';
 
 /**
+ * Customizing needs the Rust `dashboard` preference namespace to save a layout.
+ * Production builds keep it off until that backend change is live in
+ * production; there, a save would answer 404. Staging, local and test builds
+ * have it on. To turn it on in production, return `true` here.
+ */
+export const dashboardCustomizeEnabled = (buildMode: string): boolean => buildMode !== 'production';
+
+const DASHBOARD_CUSTOMIZE_ENABLED = dashboardCustomizeEnabled(import.meta.env.MODE);
+
+/**
  * Why the layout in use is not (or may not be) the server copy:
  * - `read-failed`: the saved layout could not be read, so the default is shown;
  * - `save-failed`: the last save failed (for example a backend without the
@@ -33,7 +43,10 @@ export interface DashboardLayoutState {
   defaultLayout: DashboardLayout;
   notice: DashboardLayoutNotice;
   dismissNotice: () => void;
-  /** Customizing is off while an administrator acts for another organization. */
+  /**
+   * Customizing is off in production builds until the backend supports it, and
+   * while an administrator acts for another organization.
+   */
   canCustomize: boolean;
   save: (layout: DashboardLayout) => Promise<DashboardSaveResult>;
 }
@@ -114,7 +127,7 @@ export const useDashboardLayout = (viewMode: ViewMode): DashboardLayoutState => 
     defaultLayout: fallback,
     notice,
     dismissNotice,
-    canCustomize: !isMarketSupportActive,
+    canCustomize: DASHBOARD_CUSTOMIZE_ENABLED && !isMarketSupportActive,
     save,
   };
 };

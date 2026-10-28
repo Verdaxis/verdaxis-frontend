@@ -251,6 +251,8 @@
   "streamStatus.live.detail": "Connected to live market updates",
   "streamStatus.stale.label": "Delayed",
   "streamStatus.stale.detail": "Connected, but no server signal for over a minute. Data may be out of date.",
+  "streamStatus.connecting.label": "Connecting",
+  "streamStatus.connecting.detail": "Connecting to live market updates…",
   "streamStatus.reconnecting.label": "Reconnecting",
   "streamStatus.reconnecting.detail": "Live updates are interrupted. Reconnecting…",
   "streamStatus.offline.label": "Offline",
