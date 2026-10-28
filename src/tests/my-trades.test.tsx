@@ -6,6 +6,7 @@ import { renderWithProviders } from './test-utils';
 import { MyTrades } from '../components/MyTrades';
 import i18n from '../i18n';
 import { setAccessToken } from '../services/authToken';
+import { clearOwnTradeActions, isOwnTradeAction } from '../services/ownTradeActions';
 import { buildLngAskTerms, buildLngBidTerms, type LngAskTermsForm, type LngBidTermsForm } from '../utils/bioLngSpecification';
 
 const LNG_ASK_TERMS = buildLngAskTerms({
@@ -73,7 +74,7 @@ const namespaceControl = vi.hoisted(() => ({
   },
 }));
 const sseControl = vi.hoisted(() => ({
-  handler: null as (() => void) | null,
+  handler: null as ((event?: string) => void) | null,
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -84,7 +85,7 @@ vi.mock('../context/AuthContext', () => ({
 }));
 
 vi.mock('../hooks/useSSE', () => ({
-  useSSE: (_topic: string, handler: () => void) => {
+  useSSE: (_topic: string, handler: (event?: string) => void) => {
     sseControl.handler = handler;
   },
 }));
@@ -207,6 +208,70 @@ describe('MyTrades lifecycle', () => {
     await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(2));
     expect(confirmMock.mock.calls[1]).toEqual(confirmMock.mock.calls[0]);
     expect(confirmMock.mock.calls[0][1]).toEqual(expect.any(String));
+  });
+
+  it('reloads trades for trade events but not for private order events', async () => {
+    renderWithProviders(<MyTrades />);
+    await screen.findByText('Buy Corp');
+    myTradesPagedMock.mockClear();
+
+    act(() => {
+      for (const event of ['order_created', 'order_updated', 'order_cancelled', 'orders_matched', 'order_expired']) {
+        sseControl.handler?.(event);
+      }
+    });
+    await act(async () => { await Promise.resolve(); });
+    expect(myTradesPagedMock).not.toHaveBeenCalled();
+
+    act(() => sseControl.handler?.('trade_confirmed'));
+    await waitFor(() => expect(myTradesPagedMock).toHaveBeenCalledTimes(1));
+  });
+
+  describe('own confirm and decline', () => {
+    beforeEach(() => clearOwnTradeActions());
+
+    it.each([
+      ['confirm', confirmMock, 'trade_confirmed'],
+      ['decline', declineMock, 'trade_declined'],
+    ] as const)('records the %s event before the request is answered', async (operation, command, expectedEvent) => {
+      myTradesPagedMock.mockResolvedValue(makeTradePage('own-trade', 'Own buyer', 'PENDING_CONFIRMATION'));
+      let answer!: (value: undefined) => void;
+      command.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+      renderWithProviders(<MyTrades />);
+
+      fireEvent.click(await screen.findByRole('button', { name: `myTrades.btn.${operation}` }));
+
+      await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+      // The stream event may arrive before the response: the record must exist already.
+      expect(isOwnTradeAction('own-trade', expectedEvent)).toBe(true);
+      expect(isOwnTradeAction('own-trade', expectedEvent === 'trade_confirmed' ? 'trade_declined' : 'trade_confirmed')).toBe(false);
+      await act(async () => { answer(undefined); });
+      expect(isOwnTradeAction('own-trade', expectedEvent)).toBe(true);
+    });
+
+    it('withdraws the record when the command fails, so another actor\'s event still alerts', async () => {
+      myTradesPagedMock.mockResolvedValue(makeTradePage('own-trade', 'Own buyer', 'PENDING_CONFIRMATION'));
+      confirmMock.mockRejectedValueOnce(new Error('Trade is no longer pending'));
+      renderWithProviders(<MyTrades />);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'myTrades.btn.confirm' }));
+
+      await waitFor(() => expect(addToastMock).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'myTrades.toast.confirmFailed.title',
+      })));
+      expect(isOwnTradeAction('own-trade', 'trade_confirmed')).toBe(false);
+    });
+
+    it('keeps the record while the outcome is unknown', async () => {
+      myTradesPagedMock.mockResolvedValue(makeTradePage('own-trade', 'Own buyer', 'PENDING_CONFIRMATION'));
+      confirmMock.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown'));
+      renderWithProviders(<MyTrades />);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'myTrades.btn.confirm' }));
+      await screen.findByRole('button', { name: 'myTrades.btn.retrySafely' });
+
+      expect(isOwnTradeAction('own-trade', 'trade_confirmed')).toBe(true);
+    });
   });
 
   it('keeps confirmation retry visible after SSE refresh shows the committed trade', async () => {

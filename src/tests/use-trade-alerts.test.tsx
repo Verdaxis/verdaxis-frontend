@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useTradeAlerts, tradeAlertKindForEvent } from '../hooks/useTradeAlerts';
 import i18n, { loadNamespace } from '../i18n';
+import {
+  OWN_TRADE_ACTION_CHANNEL,
+  OWN_TRADE_ACTION_TTL_MS,
+  clearOwnTradeActions,
+  recordOwnTradeAction,
+} from '../services/ownTradeActions';
 import { CLAIM_WINDOW_MS } from '../services/tradeAlertElection';
 import { DEFAULT_TRADE_ALERT_PREFERENCES, writeTradeAlertPreferences } from '../services/tradeAlertPreferences';
 
@@ -80,6 +86,7 @@ describe('trade alerts', () => {
     mocks.permission = 'granted';
     window.localStorage.clear();
     FakeBroadcastChannel.instances.clear();
+    clearOwnTradeActions();
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
     visibility = 'hidden';
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
@@ -174,6 +181,89 @@ describe('trade alerts', () => {
 
       expect(mocks.playTone).not.toHaveBeenCalled();
       expect(mocks.showNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the user\'s own confirm or decline', () => {
+    it.each([
+      ['trade_confirmed'],
+      ['trade_declined'],
+    ] as const)('plays no sound and shows no notification for the %s the user caused', async (event) => {
+      enableAlerts(true, true);
+      const { result } = renderAlerts();
+      recordOwnTradeAction('trade-1', event);
+
+      await sendTradeEvent(result.current, event, { id: 'trade-1' }, '80');
+
+      expect(mocks.playTone).not.toHaveBeenCalled();
+      expect(mocks.showNotification).not.toHaveBeenCalled();
+    });
+
+    it('still alerts for another trade, and for the other event of the same trade', async () => {
+      enableAlerts(true, false);
+      const { result } = renderAlerts();
+      recordOwnTradeAction('trade-1', 'trade_confirmed');
+
+      await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-2' }, '81');
+      await sendTradeEvent(result.current, 'trade_declined', { id: 'trade-1' }, '82');
+
+      expect(mocks.playTone).toHaveBeenCalledTimes(2);
+    });
+
+    it('stays silent for an event that carries the trade id as trade_id', async () => {
+      enableAlerts(true, false);
+      const { result } = renderAlerts();
+      recordOwnTradeAction('trade-1', 'trade_declined');
+
+      await sendTradeEvent(result.current, 'trade_declined', { trade_id: 'trade-1' }, '83');
+
+      expect(mocks.playTone).not.toHaveBeenCalled();
+    });
+
+    it('alerts again once the record has expired', async () => {
+      enableAlerts(true, false);
+      const { result } = renderAlerts();
+      recordOwnTradeAction('trade-1', 'trade_confirmed');
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(OWN_TRADE_ACTION_TTL_MS); });
+      await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '84');
+
+      expect(mocks.playTone).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays silent in a tab that only heard about the action from another tab', async () => {
+      enableAlerts(true, true);
+      const { result } = renderAlerts();
+
+      new FakeBroadcastChannel(OWN_TRADE_ACTION_CHANNEL).postMessage({
+        type: 'own_trade_action', kind: 'record', tradeId: 'trade-1', event: 'trade_confirmed',
+      });
+      await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '85');
+
+      expect(mocks.playTone).not.toHaveBeenCalled();
+      expect(mocks.showNotification).not.toHaveBeenCalled();
+    });
+
+    it('alerts when the other tab withdrew its record', async () => {
+      enableAlerts(true, false);
+      const { result } = renderAlerts();
+      const peer = new FakeBroadcastChannel(OWN_TRADE_ACTION_CHANNEL);
+
+      peer.postMessage({ type: 'own_trade_action', kind: 'record', tradeId: 'trade-1', event: 'trade_confirmed' });
+      peer.postMessage({ type: 'own_trade_action', kind: 'forget', tradeId: 'trade-1', event: 'trade_confirmed' });
+      await sendTradeEvent(result.current, 'trade_confirmed', { id: 'trade-1' }, '86');
+
+      expect(mocks.playTone).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops listening to other tabs when the alerts unmount', () => {
+      const { unmount } = renderAlerts();
+      const watching = () => [...FakeBroadcastChannel.instances].filter((channel) => channel.name === OWN_TRADE_ACTION_CHANNEL);
+      expect(watching()).toHaveLength(1);
+
+      unmount();
+
+      expect(watching()).toHaveLength(0);
     });
   });
 

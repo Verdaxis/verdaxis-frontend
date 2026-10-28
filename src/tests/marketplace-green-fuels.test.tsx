@@ -7,6 +7,7 @@ import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
+import { OWN_ORDERS_REFRESH_DEBOUNCE_MS, announceOwnOrdersChanged } from '../services/orderStreamEvents';
 import { AbilitiesProvider } from '../context/AbilitiesContext';
 import { abilitiesPayload } from './abilities-fixtures';
 import { buildLngAskTerms, toPublicLngAskTerms, type LngAskTermsForm } from '../utils/bioLngSpecification';
@@ -770,6 +771,70 @@ describe('Marketplace green fuels surface', () => {
     act(() => modalProps.onClose());
 
     await waitFor(() => expect(myOrders).toHaveBeenCalledWith({ force: true }));
+  });
+
+  describe('live private order changes', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reloads My Listings in place after an order event, without a loading flash', async () => {
+      myOrders.mockResolvedValue([
+        { ...listingsResponse.items[0], id: 'mine-1', side: 'BID', product_name: 'Bio Methanol', status: 'OPEN' },
+      ]);
+      renderWithProviders(<Marketplace />);
+      fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+      expect(await screen.findByText('Bio Methanol')).toBeTruthy();
+      myOrders.mockClear();
+      myOrders.mockResolvedValue([
+        { ...listingsResponse.items[0], id: 'mine-2', side: 'BID', product_name: 'Teammate Order', status: 'OPEN' },
+      ]);
+
+      vi.useFakeTimers();
+      act(() => announceOwnOrdersChanged());
+      expect(myOrders).not.toHaveBeenCalled(); // debounced
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+
+      expect(myOrders).toHaveBeenCalledTimes(1);
+      expect(myOrders).toHaveBeenCalledWith({ force: true });
+      // The old list stays on screen while the new one loads.
+      expect(screen.queryByText('Loading your listings...')).toBeNull();
+      expect(screen.getByText('Bio Methanol')).toBeTruthy();
+      vi.useRealTimers();
+      expect(await screen.findByText('Teammate Order')).toBeTruthy();
+      expect(screen.queryByText('Bio Methanol')).toBeNull();
+    });
+
+    it('keeps the visible list when a background reload fails', async () => {
+      myOrders.mockResolvedValue([
+        { ...listingsResponse.items[0], id: 'mine-1', side: 'BID', product_name: 'Bio Methanol', status: 'OPEN' },
+      ]);
+      renderWithProviders(<Marketplace />);
+      fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+      expect(await screen.findByText('Bio Methanol')).toBeTruthy();
+      myOrders.mockRejectedValueOnce(new Error('offline'));
+
+      act(() => announceOwnOrdersChanged());
+
+      expect(await screen.findByRole('alert', {}, { timeout: 2000 })).toBeTruthy();
+      expect(screen.getByText('Bio Methanol')).toBeTruthy();
+    });
+
+    it('does not read My Listings for an order event while another tab of the page is shown', async () => {
+      renderWithProviders(<Marketplace />);
+      await screen.findByRole('button', { name: /my listings/i });
+      await waitFor(() => expect(listAsksPaged).toHaveBeenCalled());
+      myOrders.mockClear();
+      listAsksPaged.mockClear();
+      vi.useFakeTimers();
+
+      act(() => announceOwnOrdersChanged());
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+
+      expect(myOrders).not.toHaveBeenCalled();
+      // The public listings follow the public refresh signal, not this private one.
+      expect(listAsksPaged).not.toHaveBeenCalled();
+    });
   });
 
   it('shows a filtered empty state in My Listings when account orders exist outside the active slice', async () => {

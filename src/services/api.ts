@@ -19,7 +19,7 @@ import {
     getMarketSupportContextId,
     MARKET_SUPPORT_CONTEXT_HEADER,
 } from './marketSupportContextStore';
-import { cachedRead, invalidateReadCache, READ_CACHE_TTL_MS } from './readCache';
+import { cachedRead, invalidateReadCache, OWN_ORDERS_CACHE_PREFIX, READ_CACHE_TTL_MS } from './readCache';
 import type {
     MarketSupportCapability,
     MarketSupportEntry,
@@ -976,7 +976,7 @@ export const api = {
             return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
         myOrders: async (cacheOptions?: ReadCacheOptions) => {
-            const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
+            const response: any = await readApi(OWN_ORDERS_CACHE_PREFIX, '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
             return response.items ?? response;
         },
         create: async (data: {

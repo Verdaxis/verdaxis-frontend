@@ -10,6 +10,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { useTradeAlerts } from '../hooks/useTradeAlerts';
 import { PAGE_SLUGS } from '../types';
 import { announcePriceAlertTriggered } from '../services/priceAlertEvents';
+import { announceOwnOrdersChanged, eventChangesOwnOrders } from '../services/orderStreamEvents';
 
 /** Two decimals for a price text from the server; any other value is shown as sent. */
 const formatAmount = (value: unknown): string => {
@@ -43,6 +44,12 @@ export const TradeNotifier: React.FC = () => {
     });
 
     const handleTradeEvent = useCallback((event: string, data: any, eventId?: string) => {
+        // Order events (and a stream gap) only refresh order lists: no toast,
+        // notification entry, sound or browser notification.
+        if (eventChangesOwnOrders(event)) {
+            announceOwnOrdersChanged();
+            return;
+        }
         alertForTradeEvent(event, data, eventId);
 
         let title = '';

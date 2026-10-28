@@ -43,6 +43,7 @@ import {
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
+import { subscribeToOwnOrderChanges } from '../services/orderStreamEvents';
 import {
     formatAvailabilityWindow,
     getAvailabilityWindowOptions,
@@ -782,10 +783,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     };
 
     /* ---- My Orders fetch ---- */
-    const fetchMyOrders = useCallback(async (force = false) => {
+    // `background` reloads keep the visible list in place (no spinner) so a
+    // live change does not make the table flicker.
+    const fetchMyOrders = useCallback(async (force = false, background = false) => {
         if (!ready) return;
         const requestId = ++latestMyOrdersRequest.current;
-        setMyOrdersLoading(true);
+        if (!background) setMyOrdersLoading(true);
         setMyOrdersError(null);
         try {
             const data = force
@@ -795,7 +798,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             setMyOrders(Array.isArray(data) ? data : data.items ?? []);
         } catch (error) {
             if (requestId !== latestMyOrdersRequest.current) return;
-            if (!force) setMyOrders([]);
+            if (!force && !background) setMyOrders([]);
             setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.myOrders.error') : error instanceof Error ? error.message : t('marketplace.myOrders.error'));
         } finally {
             if (requestId === latestMyOrdersRequest.current) setMyOrdersLoading(false);
@@ -808,6 +811,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             latestMyOrdersRequest.current += 1;
         };
     }, [marketTab, fetchMyOrders]);
+
+    // A teammate or a match changed one of the organization's orders (private
+    // trade stream). Only the My Listings tab shows this data.
+    useEffect(() => {
+        if (!ready || marketTab !== 'my_orders') return undefined;
+        return subscribeToOwnOrderChanges(() => { void fetchMyOrders(true, true); });
+    }, [fetchMyOrders, marketTab, ready]);
 
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
         order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'

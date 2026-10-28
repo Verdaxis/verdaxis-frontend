@@ -44,6 +44,7 @@ vi.mock('../components/SupplierDemandFeed', () => ({ SupplierDemandFeed: () => n
 import { CommandCenter } from '../components/CommandCenter';
 import { renderWithProviders } from './test-utils';
 import { setAccessToken } from '../services/authToken';
+import { clearOwnTradeActions, isOwnTradeAction } from '../services/ownTradeActions';
 
 const trade = (id = 'trade-1', initiatedBy: 'BUYER' | 'SELLER' = 'SELLER') => ({
     id,
@@ -79,6 +80,7 @@ describe('Command Center trade summaries and action queue', () => {
         controls.confirm.mockReset().mockResolvedValue(undefined);
         controls.useSSE.mockReset();
         controls.refreshWatchlist.mockReset().mockResolvedValue(undefined);
+        clearOwnTradeActions();
     });
 
     afterEach(() => cleanup());
@@ -118,6 +120,61 @@ describe('Command Center trade summaries and action queue', () => {
             { skip: 0, limit: 8, action_required: true }, { force: true },
         );
         expect(controls.refreshWatchlist).toHaveBeenCalledOnce();
+    });
+
+    it('does not reload trades or the watchlist for private order events', async () => {
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        await screen.findByRole('button', { name: 'Confirm' });
+        const handleEvent = controls.useSSE.mock.calls.at(-1)![1];
+        controls.summary.mockClear();
+        controls.myTradesPaged.mockClear();
+
+        act(() => {
+            for (const event of ['order_created', 'order_updated', 'order_cancelled', 'orders_matched', 'order_expired']) {
+                handleEvent(event, { id: 'order-1' });
+            }
+        });
+
+        expect(controls.summary).not.toHaveBeenCalled();
+        expect(controls.myTradesPaged).not.toHaveBeenCalled();
+        expect(controls.refreshWatchlist).not.toHaveBeenCalled();
+    });
+
+    it('records the confirm event before the request is answered and keeps it after success', async () => {
+        let answer!: (value: undefined) => void;
+        controls.confirm.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+
+        await waitFor(() => expect(controls.confirm).toHaveBeenCalledTimes(1));
+        expect(isOwnTradeAction('trade-1', 'trade_confirmed')).toBe(true);
+        await act(async () => { answer(undefined); });
+        await screen.findByRole('heading', { name: 'Trade Confirmed' });
+        expect(isOwnTradeAction('trade-1', 'trade_confirmed')).toBe(true);
+    });
+
+    it('withdraws the record when the confirm fails for certain', async () => {
+        controls.confirm.mockRejectedValueOnce(new Error('Trade is no longer pending'));
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+
+        await waitFor(() => expect(controls.confirm).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(isOwnTradeAction('trade-1', 'trade_confirmed')).toBe(false));
+    });
+
+    it('keeps the record while the confirm outcome is unknown', async () => {
+        controls.confirm.mockRejectedValueOnce(new controls.OutcomeUnknown('Outcome unknown'));
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        await screen.findByRole('button', { name: /retry safely with the same request/i });
+
+        expect(isOwnTradeAction('trade-1', 'trade_confirmed')).toBe(true);
     });
 
     it('keeps action ownership aligned for buyer and supplier views', async () => {
