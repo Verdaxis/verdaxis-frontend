@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { API_URL } from '../services/config';
 import {
     AUTH_IDENTITY_CHANGED_EVENT,
+    applyPeerIdentityChange,
     clearAccessToken,
     getAccessToken,
     getAuthGeneration,
@@ -9,6 +10,7 @@ import {
     setAccessToken,
 } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
+import { openAuthTabSync, type AuthTabSync, type AuthTabSyncEvent } from '../services/authTabSync';
 import { analytics, reliability } from '../services/analytics';
 import { setReadCachePrincipal } from '../services/readCache';
 
@@ -96,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tabSyncRef = useRef<AuthTabSync | null>(null);
 
     const clearTokens = useCallback(() => {
         clearAccessToken();
@@ -126,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             credentials: 'include',
         }).catch(() => undefined);
         clearTokens();
+        tabSyncRef.current?.broadcast('logout');
     }, [clearTokens]);
 
     // --- Token refresh ---
@@ -331,10 +335,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [applyAccessToken, applyUserProfile, scheduleRefresh, clearTokens]);
 
+    // Local identity change: drop this tab's session and tell the other tabs.
     useEffect(() => {
-        const handleIdentityChanged = () => clearTokens();
+        const handleIdentityChanged = () => {
+            clearTokens();
+            tabSyncRef.current?.broadcast('identity_changed');
+        };
         window.addEventListener(AUTH_IDENTITY_CHANGED_EVENT, handleIdentityChanged);
         return () => window.removeEventListener(AUTH_IDENTITY_CHANGED_EVENT, handleIdentityChanged);
+    }, [clearTokens]);
+
+    // Auth events from other tabs. The server session was already ended (or
+    // the account changed) by the tab that sent the event, so this tab only
+    // drops its own state: no /auth/logout call and no re-broadcast.
+    useEffect(() => {
+        const handlePeerEvent = (event: AuthTabSyncEvent) => {
+            if (event === 'identity_changed') applyPeerIdentityChange();
+            clearTokens();
+        };
+        const tabSync = openAuthTabSync(handlePeerEvent);
+        tabSyncRef.current = tabSync;
+        return () => {
+            tabSync.close();
+            tabSyncRef.current = null;
+        };
     }, [clearTokens]);
 
     useEffect(() => {

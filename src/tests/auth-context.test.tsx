@@ -2,8 +2,10 @@ import React, { useLayoutEffect } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { clearAccessToken, getAccessToken, refreshAccessToken, refreshSession, setAccessToken } from '../services/authToken';
+import { AUTH_IDENTITY_CHANGED_EVENT, clearAccessToken, getAccessToken, refreshAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 import { api } from '../services/api';
+import { AUTH_TAB_SYNC_CHANNEL } from '../services/authTabSync';
+import { FakeBroadcastChannel } from './fake-broadcast-channel';
 
 function jwt(subject: string, expiresAt?: number): string {
   const payload = btoa(JSON.stringify({ sub: subject, ...(expiresAt ? { exp: expiresAt } : {}) }))
@@ -14,7 +16,7 @@ function jwt(subject: string, expiresAt?: number): string {
 }
 
 function Probe() {
-  const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth, login } = useAuth();
+  const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth, login, logout } = useAuth();
 
   return (
     <div>
@@ -23,6 +25,7 @@ function Probe() {
       <div data-testid="email">{user?.email ?? ''}</div>
       <div data-testid="backend-unavailable">{String(isBackendUnavailable)}</div>
       <button type="button" onClick={() => void checkAuth()}>retry</button>
+      <button type="button" onClick={logout}>sign out</button>
       <button type="button" onClick={() => void login('new-access-token')}>switch account</button>
       <button type="button" onClick={() => void api.feedback.submit('test').catch(() => undefined)}>API request</button>
       <button type="button" onClick={() => void login('profile-access-token', {
@@ -269,6 +272,119 @@ describe('AuthProvider token bootstrap', () => {
 
     await expect(refreshAccessToken()).resolves.toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('AuthProvider cross-tab sync', () => {
+  const originalFetch = global.fetch;
+  let otherTab: FakeBroadcastChannel;
+  let messagesToOtherTab: unknown[];
+
+  const logoutRequests = () => (global.fetch as ReturnType<typeof vi.fn>).mock.calls
+    .filter(([input]) => String(input).includes('/auth/logout'));
+
+  async function renderSignedInTab() {
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'profile login' }));
+    await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('true'));
+  }
+
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/app');
+    FakeBroadcastChannel.open.clear();
+    vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
+    // Stands in for a second browser tab listening to this tab's messages.
+    otherTab = new FakeBroadcastChannel(AUTH_TAB_SYNC_CHANNEL);
+    messagesToOtherTab = [];
+    otherTab.onmessage = (message) => messagesToOtherTab.push(message.data);
+    global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 401 })) as typeof fetch;
+  });
+
+  afterEach(() => {
+    clearAccessToken();
+    otherTab.close();
+    vi.unstubAllGlobals();
+    global.fetch = originalFetch;
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('broadcasts only a logout event when this tab signs out', async () => {
+    await renderSignedInTab();
+
+    fireEvent.click(screen.getByRole('button', { name: 'sign out' }));
+
+    await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('false'));
+    expect(logoutRequests()).toHaveLength(1);
+    expect(messagesToOtherTab).toEqual([{ type: 'logout' }]);
+  });
+
+  it('clears local auth when another tab logs out, without calling /auth/logout or re-broadcasting', async () => {
+    const loggedOutEvents = vi.fn();
+    window.addEventListener('verdaxis:auth-logout', loggedOutEvents);
+    await renderSignedInTab();
+    expect(getAccessToken()).toBe('profile-access-token');
+
+    otherTab.postMessage({ type: 'logout' });
+
+    await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('false'));
+    window.removeEventListener('verdaxis:auth-logout', loggedOutEvents);
+    expect(getAccessToken()).toBeNull();
+    expect(screen.getByTestId('email').textContent).toBe('');
+    // Same local cleanup as a normal logout, so the read cache and activity
+    // tracking (which listen for this event) are cleared too.
+    expect(loggedOutEvents).toHaveBeenCalledTimes(1);
+    expect(logoutRequests()).toHaveLength(0);
+    expect(messagesToOtherTab).toEqual([]);
+  });
+
+  it('broadcasts an identity change detected by this tab', async () => {
+    await renderSignedInTab();
+
+    window.dispatchEvent(new CustomEvent(AUTH_IDENTITY_CHANGED_EVENT));
+
+    await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('false'));
+    expect(messagesToOtherTab).toEqual([{ type: 'identity_changed' }]);
+    expect(logoutRequests()).toHaveLength(0);
+  });
+
+  it('drops the session and blocks silent restore when another tab reports an identity change', async () => {
+    await renderSignedInTab();
+    (global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+    otherTab.postMessage({ type: 'identity_changed' });
+
+    await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('false'));
+    expect(getAccessToken()).toBeNull();
+    // A straggling request must not quietly adopt the new account's cookie.
+    await expect(refreshAccessToken()).resolves.toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(messagesToOtherTab).toEqual([]);
+  });
+
+  it('stops listening for other tabs when the provider unmounts', async () => {
+    const { unmount } = render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    unmount();
+
+    expect(FakeBroadcastChannel.open).toEqual(new Set([otherTab]));
+  });
+
+  it('still logs out normally when BroadcastChannel is unavailable', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined);
+    await renderSignedInTab();
+
+    fireEvent.click(screen.getByRole('button', { name: 'sign out' }));
+
+    await waitFor(() => expect(screen.getByTestId('authenticated').textContent).toBe('false'));
+    expect(logoutRequests()).toHaveLength(1);
+    expect(getAccessToken()).toBeNull();
   });
 });
 
