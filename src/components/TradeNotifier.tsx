@@ -9,6 +9,13 @@ import { Notification } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import { useTradeAlerts } from '../hooks/useTradeAlerts';
 import { PAGE_SLUGS } from '../types';
+import { announcePriceAlertTriggered } from '../services/priceAlertEvents';
+
+/** Two decimals for a price text from the server; any other value is shown as sent. */
+const formatAmount = (value: unknown): string => {
+    const amount = Number(value);
+    return value !== null && value !== '' && Number.isFinite(amount) ? amount.toFixed(2) : String(value ?? '');
+};
 
 /**
  * Invisible component that listens to SSE trade events
@@ -26,11 +33,13 @@ export const TradeNotifier: React.FC = () => {
     const navigate = useNavigate();
 
     const openMyTrades = useCallback(() => navigate(`/app/${PAGE_SLUGS.TRADES}`), [navigate]);
+    const openPriceAlerts = useCallback(() => navigate(`/app/${PAGE_SLUGS.TRADES}?tab=alerts`), [navigate]);
     const alertForTradeEvent = useTradeAlerts({
         userId: user?.id ?? '',
         isMarketSupportActive,
         t,
         onOpenMyTrades: openMyTrades,
+        onOpenPriceAlerts: openPriceAlerts,
     });
 
     const handleTradeEvent = useCallback((event: string, data: any, eventId?: string) => {
@@ -70,6 +79,18 @@ export const TradeNotifier: React.FC = () => {
                 title = t('tradeNotifier.paid.title');
                 message = t('tradeNotifier.paid.message', { quantity: data.quantity });
                 toastType = 'success';
+                break;
+            case 'price_alert_triggered':
+                // Tell Trade History first: its alert list is stale even when
+                // the toast text cannot be built.
+                announcePriceAlertTriggered();
+                title = t('tradeNotifier.priceAlert.title');
+                message = t(`tradeNotifier.priceAlert.message.${data.direction === 'below' ? 'below' : 'above'}`, {
+                    product: data.product_name || t('tradeNotifier.priceAlert.anyProduct'),
+                    price: formatAmount(data.price),
+                    threshold: formatAmount(data.threshold_usd),
+                });
+                toastType = 'trade';
                 break;
             default:
                 return;

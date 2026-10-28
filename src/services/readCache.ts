@@ -84,6 +84,9 @@ export const invalidateReadsForEvent = (
     channel: 'prices' | 'orderbook' | 'trades',
     event?: string,
 ): void => {
+    // A triggered price alert changes the user's alert list only, not a market read.
+    if (event === 'price_alert_triggered') return;
+
     const invalidatesAllPublicMarketReads = (
         event === 'market_invalidated'
         || event === 'reset'
