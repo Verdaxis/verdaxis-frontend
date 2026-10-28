@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import i18n from '../i18n';
 import { API_URL } from '../services/config';
+import { requestTradeAlertPermissionAtSignIn } from '../services/tradeAlertNotifications';
 import { formatLocalizedAuthError, localizedAuthError } from './authApiError';
 import type { TFunction } from 'i18next';
 
@@ -134,6 +135,8 @@ const AcceptInvitationPage: React.FC = () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!token || !passwordReady || !acceptedTerms) return;
+    // Accepting signs the user in. Before any await: the prompt must run inside this click.
+    requestTradeAlertPermissionAtSignIn();
     setSubmitting(true);
     setError(null);
     try {

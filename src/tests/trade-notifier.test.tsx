@@ -1,11 +1,14 @@
 import React from 'react';
-import { act, render } from '@testing-library/react';
+import { act, render as renderBare } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TradeNotifier } from '../components/TradeNotifier';
 import i18n, { loadNamespace } from '../i18n';
 
 const useSSEMock = vi.fn();
+const alertForTradeEventMock = vi.fn();
+const tradeAlertOptions = vi.hoisted(() => ({ last: null as null | { userId: string; isMarketSupportActive: boolean } }));
 const addToastMock = vi.fn();
 const addNotificationMock = vi.fn();
 const namespaceControl = vi.hoisted(() => ({
@@ -19,6 +22,13 @@ const authControl = vi.hoisted(() => ({
 const supportControl = vi.hoisted(() => ({
   isActive: false,
   context: null as { id: string } | null,
+}));
+
+vi.mock('../hooks/useTradeAlerts', () => ({
+  useTradeAlerts: (options: { userId: string; isMarketSupportActive: boolean }) => {
+    tradeAlertOptions.last = options;
+    return alertForTradeEventMock;
+  },
 }));
 
 vi.mock('../hooks/useSSE', () => ({
@@ -44,6 +54,13 @@ vi.mock('../context/NotificationContext', () => ({
 vi.mock('../hooks/useNamespace', () => ({
   useNamespace: () => namespaceControl,
 }));
+
+// The notifier lives inside the router so a notification click can open My Trades.
+const render = (ui: React.ReactElement) => {
+  const wrap = (node: React.ReactElement) => <MemoryRouter>{node}</MemoryRouter>;
+  const result = renderBare(wrap(ui));
+  return { ...result, rerender: (next: React.ReactElement) => result.rerender(wrap(next)) };
+};
 
 describe('TradeNotifier', () => {
   beforeEach(async () => {
@@ -119,5 +136,30 @@ describe('TradeNotifier', () => {
       true,
       'user-2:org-2:',
     );
+  });
+
+  it('passes every trade stream event, with its stream id, to the optional alerts', () => {
+    namespaceControl.ready = true;
+    render(<TradeNotifier />);
+    const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
+
+    act(() => {
+      handler('trade_created', { id: 'trade-1' }, '41');
+      handler('trade_declined', { id: 'trade-1' }, '42');
+    });
+
+    expect(alertForTradeEventMock).toHaveBeenNthCalledWith(1, 'trade_created', { id: 'trade-1' }, '41');
+    expect(alertForTradeEventMock).toHaveBeenNthCalledWith(2, 'trade_declined', { id: 'trade-1' }, '42');
+    // Created and declined trades keep their previous behaviour: no toast.
+    expect(addToastMock).not.toHaveBeenCalled();
+    expect(addNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it('tells the alerts about the user and the assisted context', () => {
+    namespaceControl.ready = true;
+    supportControl.isActive = true;
+    render(<TradeNotifier />);
+
+    expect(tradeAlertOptions.last).toMatchObject({ userId: 'user-1', isMarketSupportActive: true });
   });
 });

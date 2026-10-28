@@ -10,6 +10,7 @@ import { KycDeadlineBanner } from './layout/KycDeadlineBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ServerStatusBanner } from './layout/ServerStatusBanner';
 import { FeedbackButton } from './FeedbackButton';
+import { TradeAlertPrompt } from './notifications/TradeAlertPrompt';
 import { useTranslation } from 'react-i18next';
 // Copilot removed per Gavin feedback
 
@@ -96,6 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
                 {/* Copilot removed per Gavin feedback */}
                 <FeedbackButton />
+                <TradeAlertPrompt />
             </div>
         </div>
     );

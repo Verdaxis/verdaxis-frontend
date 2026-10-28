@@ -141,6 +141,20 @@ describe('useSSE', () => {
     expect(FakeEventSource.instances[1].url).toContain('stream_token=stream-token');
   });
 
+  it('hands the durable event id to the handler, and omits it when the frame has none', async () => {
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit('trade_confirmed', { data: '{"id":"trade-1"}', lastEventId: '42' });
+      FakeEventSource.instances[0].emit('trade_declined', { data: '{"id":"trade-2"}' });
+    });
+
+    expect(onEvent).toHaveBeenNthCalledWith(1, 'trade_confirmed', { id: 'trade-1' }, '42');
+    expect(onEvent).toHaveBeenNthCalledWith(2, 'trade_declined', { id: 'trade-2' });
+  });
+
   it('invalidates trade reads before delivering a declined-trade event', async () => {
     const load = vi.fn()
       .mockResolvedValueOnce('before-event')
