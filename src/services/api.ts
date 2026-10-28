@@ -298,7 +298,7 @@ const classifyMutationFailure = (error: unknown, isMutation: boolean): unknown =
 };
 
 // Helper to fetch from API and handle response
-const fetchApi = async (path: string, options?: RequestInit) => {
+const fetchApi = async (path: string, options?: RequestInit, onResponse?: (response: Response) => void) => {
     // Mutations get a longer timeout (30s) since they must not be silently dropped
     const isMutation = options?.method && options.method !== 'GET';
     const timeout = isMutation ? 30000 : 15000;
@@ -396,7 +396,30 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
     }
+    onResponse?.(res);
     return responseBody;
+};
+
+// Older route owners return a single page without continuation metadata.
+// New owners signal continuation in the envelope or the exposed header.
+const fetchAdminItems = async <T extends { items: unknown[] }>(path: string): Promise<T> => {
+    const limit = 100;
+    const maxOffset = 10000;
+    let offset = 0;
+    let firstPage: T | undefined;
+    const items: unknown[] = [];
+    while (offset <= maxOffset) {
+        let headerTruncated = false;
+        const page = await fetchApi(`${path}?limit=${limit}&offset=${offset}`, undefined, response => {
+            headerTruncated = response.headers.get('X-Result-Truncated') === 'true';
+        }) as T & { truncated?: boolean };
+        firstPage ??= page;
+        items.push(...page.items);
+        if (!page.truncated && !headerTruncated) return { ...firstPage, items, truncated: false } as T;
+        if (page.items.length === 0) break;
+        offset += page.items.length;
+    }
+    throw new ApiError('Narrow the administrative selection before continuing.', 422, 'ADMIN_RESULT_BOUND');
 };
 
 export type ReadCacheOptions = { cacheOwner?: 'legacy' | 'query'; force?: boolean; signal?: AbortSignal };
@@ -1193,7 +1216,7 @@ export const api = {
             return fetchApi(`/admin/analytics/users${query ? `?${query}` : ''}`, { headers: getHeaders() });
         },
         invitationOrganizations: async (): Promise<{ items: AdminInvitationOrganization[] }> => {
-            return fetchApi('/auth/admin/invitations/organizations', { headers: getHeaders() });
+            return fetchAdminItems('/auth/admin/invitations/organizations');
         },
         createInvitation: async (input: AdminInvitationInput): Promise<AdminInvitationResponse> => {
             return fetchApi('/auth/admin/invitations', {
@@ -1250,7 +1273,7 @@ export const api = {
         auditLogs: async (params?: { action?: string; limit?: number }) => {
             const searchParams = new URLSearchParams();
             if (params?.action) searchParams.append('action', params.action);
-            if (params?.limit) searchParams.append('limit', String(params.limit));
+            if (params?.limit !== undefined) searchParams.append('limit', String(params.limit));
             const query = searchParams.toString();
             return fetchApi(`/admin/audit-logs${query ? `?${query}` : ''}`, { headers: getHeaders() });
         },
@@ -1261,7 +1284,7 @@ export const api = {
             return fetchApi(`/admin/feedback?limit=${limit}&offset=${offset}`, { headers: getHeaders() });
         },
         onboardingAttention: async (): Promise<OnboardingAttentionResponse> => {
-            return fetchApi('/admin/onboarding-attention', { headers: getHeaders() });
+            return fetchAdminItems('/admin/onboarding-attention');
         },
     },
     feedback: {

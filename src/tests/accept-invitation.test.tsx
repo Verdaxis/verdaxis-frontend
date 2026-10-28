@@ -34,6 +34,18 @@ describe('pre-approved invitation acceptance', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
   });
 
+  it('renders a structured resolve error without accepting the invitation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
+      detail: { code: 'INVITATION_EXPIRED', message: 'This invitation has expired.' },
+    }, { status: 400 }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MemoryRouter><AcceptInvitationPage /></MemoryRouter>);
+    expect(await screen.findByText('This invitation has expired.')).toBeTruthy();
+    expect(login).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/auth/invitations/resolve');
+  });
+
   it('shows the prepared account and accepts it only with password and consent', async () => {
     render(
       <MemoryRouter initialEntries={['/accept-invite']}>

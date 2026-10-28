@@ -43,6 +43,7 @@ vi.mock('../components/admin/product-analytics/ProductAnalyticsWorkspace', () =>
 }));
 
 import { AdminDashboard } from '../components/admin/AdminDashboard';
+import { ApiError, ApiOutcomeUnknownError } from '../services/api';
 import i18n, { loadNamespace } from '../i18n';
 
 const reviewCase = {
@@ -66,7 +67,9 @@ const reviewCase = {
 
 describe('admin onboarding review', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset (not just clear) so queued one-use implementations from a failed
+    // test cannot leak into the next one and corrupt its preconditions.
+    vi.resetAllMocks();
     mocks.users.mockResolvedValue({
       total: 1,
       items: [{
@@ -221,6 +224,68 @@ describe('admin onboarding review', () => {
     });
     expect(await screen.findByText('Invitation ready')).toBeTruthy();
     expect(screen.getByText(/Northstar Shipping/)).toBeTruthy();
+  });
+
+  it('kyc committed notification failure refreshes case without resubmit', async () => {
+    const verifiedPending = { ...reviewCase, email_verified: true };
+    const committed = { ...verifiedPending, account_status: 'APPROVED', requested_organizations: [] };
+    mocks.reviewCase.mockResolvedValueOnce(verifiedPending).mockResolvedValueOnce(committed);
+    // Real clients see the 502 wrapped by the outcome-unknown classification,
+    // with the original error on .cause.
+    mocks.approveUser.mockRejectedValueOnce(new ApiOutcomeUnknownError(new ApiError(
+      'The decision was saved, but the notification email failed.',
+      502,
+      'KYC_NOTIFICATION_FAILED',
+    )));
+
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Hapag-Lloyd AG');
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve account' }));
+
+    // The server kept the decision; the panel must reload it rather than
+    // leave the approve action in place for a repeat submission.
+    expect(mocks.approveUser).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.reviewCase).toHaveBeenCalledTimes(2));
+    expect(mocks.reviewCase).toHaveBeenLastCalledWith('user-1');
+    const complete = await screen.findByRole('button', { name: 'Onboarding complete' });
+    expect((complete as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Approve account' })).toBeNull();
+    // The operator sees the mapped notification-failure message, not a bare code.
+    expect(screen.getByRole('alert').textContent).toContain('notification email failed');
+  });
+
+  it('disables the stale approve action when the post-failure reload fails', async () => {
+    const verifiedPending = { ...reviewCase, email_verified: true };
+    mocks.reviewCase.mockResolvedValueOnce(verifiedPending).mockRejectedValueOnce(new Error('reload failed'));
+    mocks.approveUser.mockRejectedValueOnce(new ApiOutcomeUnknownError(new ApiError(
+      'The decision was saved, but the notification email failed.',
+      502,
+      'KYC_NOTIFICATION_FAILED',
+    )));
+
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Hapag-Lloyd AG');
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    const approve = await screen.findByRole('button', { name: 'Approve account' });
+    fireEvent.click(approve);
+
+    expect(mocks.approveUser).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.reviewCase).toHaveBeenCalledTimes(2));
+    // The reload failed, so the case state is untrusted: the review dialog
+    // closes and the stale approve action is gone.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Approve account' })).toBeNull());
+    expect(screen.queryByText(/complete each independent onboarding check/i)).toBeNull();
   });
 
   it('does not expose unknown organization or outreach enums in Chinese', async () => {
