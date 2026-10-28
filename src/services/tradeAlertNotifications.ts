@@ -1,10 +1,12 @@
 // Browser notifications for trade alerts. This is the ONLY module that asks for
-// notification permission, and only two functions do so, both from a user
-// gesture: `requestTradeAlertPermission` (the Settings toggle) and
-// `requestTradeAlertPermissionAtSignIn` (the sign-in submit). Never on page
-// load and never when a session is restored from a cookie.
+// notification permission, and only two functions do so, each from a user
+// gesture: `requestTradeAlertPermission` (the Settings toggle and the in-page
+// card) and `requestTradeAlertPermissionAtSignIn` (the sign-in submit). Never
+// on page load and never when a session is restored from a cookie.
 
 export type TradeAlertPermission = NotificationPermission | 'unsupported';
+
+let signInPromptSettled: Promise<void> | null = null;
 
 export const getTradeAlertPermission = (): TradeAlertPermission => {
   if (typeof window === 'undefined' || typeof window.Notification === 'undefined') return 'unsupported';
@@ -41,11 +43,23 @@ export const requestTradeAlertPermissionAtSignIn = (): void => {
 
   try {
     // Old Safari returns nothing and takes a callback; a modern browser returns a promise.
-    void Promise.resolve(window.Notification.requestPermission()).catch(() => undefined);
+    const settled = Promise.resolve(window.Notification.requestPermission())
+      .then(() => undefined, () => undefined);
+    signInPromptSettled = settled;
+    void settled.then(() => {
+      if (signInPromptSettled === settled) signInPromptSettled = null;
+    });
   } catch {
     // Sign-in must never depend on the prompt.
   }
 };
+
+
+/**
+ * Resolves once the sign-in prompt has been answered or dismissed (at once if
+ * none is open). The in-page card waits for it, so two prompts never compete.
+ */
+export const whenSignInPromptSettled = (): Promise<void> => signInPromptSettled ?? Promise.resolve();
 
 export interface TradeAlertNotificationInput {
   title: string;

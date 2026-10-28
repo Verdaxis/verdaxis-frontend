@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTradeAlerts, tradeAlertKindForEvent } from '../hooks/useTradeAlerts';
 import i18n, { loadNamespace } from '../i18n';
 import { CLAIM_WINDOW_MS } from '../services/tradeAlertElection';
-import { writeTradeAlertPreferences } from '../services/tradeAlertPreferences';
+import { DEFAULT_TRADE_ALERT_PREFERENCES, writeTradeAlertPreferences } from '../services/tradeAlertPreferences';
 
 const mocks = vi.hoisted(() => ({
   myTradesPaged: vi.fn(),
@@ -42,7 +42,7 @@ let visibility: DocumentVisibilityState = 'hidden';
 const USER_ID = 'user-1';
 
 const enableAlerts = (sound: boolean, notifications: boolean) => (
-  writeTradeAlertPreferences(USER_ID, { sound, notifications })
+  writeTradeAlertPreferences(USER_ID, { ...DEFAULT_TRADE_ALERT_PREFERENCES, sound, notifications })
 );
 
 type HookProps = { isMarketSupportActive?: boolean; onOpenMyTrades?: () => void };
