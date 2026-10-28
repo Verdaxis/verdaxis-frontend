@@ -263,6 +263,7 @@
   "abilities.reason.ACCOUNT_NOT_APPROVED": "您的账户尚未获批。",
   "abilities.reason.EMAIL_NOT_VERIFIED": "请先验证您的电子邮箱后再继续。",
   "abilities.reason.PASSWORD_CHANGE_REQUIRED": "请先修改密码后再继续。",
+  "abilities.reason.KYC_REQUIRED": "完成身份验证（KYC）后即可交易。",
   "abilities.reason.KYC_REJECTED": "您的身份验证未通过审核。",
   "abilities.reason.KYC_ORGANIZATION_MISMATCH": "您的身份验证属于另一个机构。",
   "abilities.reason.ORGANIZATION_NOT_APPROVED": "您所属的机构尚未获批。",
