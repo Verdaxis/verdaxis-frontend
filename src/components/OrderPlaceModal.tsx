@@ -20,6 +20,9 @@ import { formatOrderExpiry } from '../utils/fuel';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
+import { useAbilityDenial } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
+import { PLACE_ORDER_ABILITY } from '../types/abilities';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -148,6 +151,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const { context: marketSupportContext } = useMarketSupport();
+    // Server rule for placing this side. Null when unknown, allowed, or while acting
+    // for a customer in an assisted context (the server then judges that organization).
+    const placeDenial = useAbilityDenial(PLACE_ORDER_ABILITY[side]);
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -638,7 +644,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isOrderValid) return;
+        if (!isOrderValid || placeDenial) return;
         const snapshot = buildOrderSnapshot();
         if (snapshot.supportContextId !== (marketSupportContext?.id ?? null)) {
             setErrorMessage(t('orderPlaceModal.validation.supportContextChanged'));
@@ -895,7 +901,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 type="button"
                                 data-tour="order-final-confirm-button"
                                 onClick={() => { void confirmReviewedOrder(); }}
-                                disabled={modalState === 'submitting'}
+                                disabled={modalState === 'submitting' || placeDenial !== null}
+                                title={placeDenial?.message}
                                 className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 text-white disabled:cursor-not-allowed disabled:opacity-60 ${
                                     side === 'BID' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
                                 }`}
@@ -1324,6 +1331,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 {side === 'BID' ? t('orderPlaceModal.info.bid') : t('orderPlaceModal.info.ask')}
                             </p>
                         </div>
+
+                        {placeDenial && (
+                            <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-900/20">
+                                <AbilityDenialNote denial={placeDenial} id="order-place-denial" />
+                            </div>
+                        )}
                     </div>
 
                     <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
@@ -1339,9 +1352,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <button
                             type="submit"
                             data-tour="order-modal-submit-boundary"
-                            disabled={!isOrderValid || modalState === 'submitting'}
+                            disabled={!isOrderValid || modalState === 'submitting' || placeDenial !== null}
+                            title={placeDenial?.message}
+                            aria-describedby={placeDenial ? 'order-place-denial' : undefined}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                isOrderValid && modalState !== 'submitting'
+                                isOrderValid && modalState !== 'submitting' && !placeDenial
                                     ? side === 'BID'
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                                         : 'bg-[#5DADE2] hover:bg-[#4A9BD9] text-white'

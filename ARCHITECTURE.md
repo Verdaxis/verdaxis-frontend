@@ -71,6 +71,8 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 **Stream health and server status.** `useSSE` handles the id-less `heartbeat` event (`{status, message, server_time}`) outside the data and control paths: it never reaches the consumer handler, the replay cursor, or read-cache invalidation, and a malformed payload is ignored. Each enabled stream registers in the module store `services/streamHealth.ts`; `hooks/useStreamHealth.ts` reads it with `useSyncExternalStore` plus a 5 s tick. Connection is aggregated as any enabled stream open: `live`, `stale` (a heartbeat was seen before but none for 75 s = 2 x 30 s cadence + 15 s margin; never judged if no heartbeat ever arrived), `reconnecting`, or `offline` (no open stream for 30 s, or the browser is offline). Server status is the worst latest heartbeat (`operational` < `degraded` < `maintenance`); only open streams count while any is open, and remembered heartbeats expire after 5 min. No recent heartbeat means unknown. `layout/StreamStatusIndicator` (header) and `layout/ServerStatusBanner` (below the header, plain-text message, dismissible per status+message for the page session) read the aggregate.
 
+**Server abilities.** `GET /auth/me/abilities` (backend `docs/user-abilities.md`) says which of 23 fixed actions the signed-in account may use and why not. `context/AbilitiesContext` (mounted inside `AuthProvider`) fetches it once per identity and holds a lookup map; `useAbility(id)` returns `{allowed, reasonCode, reason}` or `undefined` while unknown. `undefined` means "do not decide from abilities": a 403 (including a pending password change), network or 5xx failure, a missing route (older backend; not retried), or an unknown `schema_version` all leave the map empty, so every control keeps its previous behavior and no user is blocked by a failed load. The key `abilitiesSubjectKey(user)` covers id, role, organization, approval, email, KYC and password-change fields, so a changed profile refetches and one user's hints never show for another. `AUTH_IDENTITY_CHANGED_EVENT` and `verdaxis:auth-logout` clear the map, drop any in-flight answer, and force a fetch for the next sign-in. Organization, KYC and approval changes made elsewhere have no push event, so window focus or tab visibility refetches at most once per 60 s. Controls read denials through `hooks/useAbilityDenial` (`useAbilityGate`, `useAbilityDenial`, `useAnyAbilityAllowed`): a denied control is `disabled`, carries the reason in `title`, and shows `ui/AbilityDenialNote` where there is room. Reason text is `abilities.reason.<CODE>` in the `common` namespace (en and zh); an unknown code falls back to the server `reason`, then to a generic sentence. Market actions are not evaluated while an assisted Market Support context is active, because the server then judges the supported organization rather than the administrator. Abilities are hints: endpoints stay authoritative, and per-subject rules (order owner, trade party, order state) are not in the payload. No UI exists yet for `deliver_trade`, `pay_trade`, inventory, RFQ, or `amend_order`; the admin ids `view_audit_log`, `view_user_activity`, `manage_subscriptions`, `review_kyc`, `manage_commissions` and `market_support_access` only feed the Admin entry check.
+
 **Production activity.** `ActivityTrackingProvider`, `services/activityTracking.ts`, and `types/activity.ts` send bounded authenticated page and canonical market-slice activity. The adapter clears account-bound state at auth changes and does not replace optional Umami analytics consent.
 
 **Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo or reference values into executable claims.
@@ -86,6 +88,7 @@ src/
   prerender/renderPublicRoute.tsx    build-only public content rendering
   types.ts                          shared UI and API domain types
   types/{activity,marketSupport}.ts production activity and assisted-workspace contracts
+  types/abilities.ts                ability ids, reason codes, action-to-ability maps
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
@@ -101,7 +104,7 @@ src/
     admin/market-support/           eligible-organization entry
     market-support/                 acting banner and final order confirmation
     public/                         localized public shell and components
-  context/                          auth, market support, theme, notifications, tutorial
+  context/                          auth, abilities, market support, theme, notifications, tutorial
   services/
     api.ts                          fetch client and response transforms
     authToken.ts                    in-memory access-token generation
@@ -110,8 +113,9 @@ src/
     activityTracking.ts             bounded production activity queue
     publicMarketSync.ts             shared market invalidation subscriber
     streamHealth.ts                 SSE heartbeat parsing, stream registry, aggregation
+    abilities.ts                    abilities response parsing and route-missing check
     analytics.ts                    optional consent-gated Umami adapter
-  hooks/                            workspace readiness, SSE, preferences, watchlists
+  hooks/                            workspace readiness, SSE, preferences, watchlists, ability denials
   utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/                            market identity, slice URLs, axis and display helpers
   locales/{en,zh}/                  lazy translation namespaces
@@ -139,6 +143,7 @@ scripts/
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
 | Activity | `ActivityTrackingProvider.tsx`, `activityTracking.ts` | `activity-*.test.ts`, `user-activity-drawer.test.tsx` |
 | Stream health | `useSSE.ts`, `streamHealth.ts`, `useStreamHealth.ts`, `layout/StreamStatusIndicator.tsx`, `layout/ServerStatusBanner.tsx` | `use-sse.test.tsx`, `stream-health.test.ts`, `stream-status-indicator.test.tsx`, `server-status-banner.test.tsx` |
+| Server abilities | `AbilitiesContext.tsx`, `useAbilityDenial.ts`, `services/abilities.ts`, `types/abilities.ts`, `ui/AbilityDenialNote.tsx` | `abilities-parse.test.ts`, `abilities-context.test.tsx`, `abilities-ui.test.tsx`, `abilities-order-modal.test.tsx`, ability cases in `marketplace-green-fuels.test.tsx` |
 | Release | workflow and release/artifact scripts | artifact/release guard tests and target builds |
 
 ## Run commands

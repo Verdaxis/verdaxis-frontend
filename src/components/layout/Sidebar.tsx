@@ -13,6 +13,9 @@ import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
 import { buildPrimarySidebarItems } from './sidebarConfig';
 import { CookieSettingsButton } from '../CookieConsent';
+import { AbilityDenialNote } from '../ui/AbilityDenialNote';
+import { useAbilityDenial, useAnyAbilityAllowed } from '../../hooks/useAbilityDenial';
+import { ADMIN_ABILITY_IDS, PLACE_ORDER_ABILITY } from '../../types/abilities';
 
 interface SidebarProps {
     viewMode: ViewMode;
@@ -41,6 +44,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
+    const primaryActionDenial = useAbilityDenial(PLACE_ORDER_ABILITY[viewMode === 'BUYER' ? 'BID' : 'ASK']);
+    // The Admin entry follows the server's admin abilities. Without an answer it
+    // keeps the role check. A non-admin simply has no Admin entry (not a disabled one).
+    const showAdminEntry = useAnyAbilityAllowed(ADMIN_ABILITY_IDS) ?? userRole === 'ADMIN';
 
     const sidebarItems = buildPrimarySidebarItems(t).filter((item) => (
         !isMarketSupportActive || !['WATCHLISTS', 'TRADES'].includes(item.key)
@@ -104,11 +111,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     data-tour="sidebar-primary-action"
                     aria-label={viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply')}
                     onClick={() => (onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE'))}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
+                    disabled={primaryActionDenial !== null}
+                    title={primaryActionDenial?.message}
+                    aria-describedby={primaryActionDenial && !isCollapsed ? 'sidebar-primary-action-denial' : undefined}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:hover:bg-slate-600 ${isCollapsed ? 'px-2' : 'px-4'}`}
                 >
                     <Plus size={18} />
                     {!isCollapsed && (viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply'))}
                 </button>
+                {primaryActionDenial && !isCollapsed && (
+                    <AbilityDenialNote denial={primaryActionDenial} id="sidebar-primary-action-denial" className="mt-2 !text-amber-300" />
+                )}
             </div>
 
             <nav className="flex-1 py-2 space-y-1 px-3">
@@ -137,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </nav>
 
             <div className="p-4 border-t border-[#2A3344] space-y-1">
-                {userRole === 'ADMIN' && !isMarketSupportActive && (
+                {showAdminEntry && !isMarketSupportActive && (
                     <Tooltip content={isCollapsed ? t('sidebar.admin') : ''} position="right">
                         <NavLink
                             to="/app/admin"

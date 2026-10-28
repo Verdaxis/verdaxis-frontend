@@ -18,6 +18,9 @@ import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
 import { SupplierDemandFeed } from './SupplierDemandFeed';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { useAuth } from '../context/AuthContext';
+import { useAbilityDenial } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
+import { PLACE_ORDER_ABILITY } from '../types/abilities';
 import { useSSE } from '../hooks/useSSE';
 
 interface CommandCenterProps {
@@ -64,6 +67,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const [orderModalOpen, setOrderModalOpen] = useState(false);
     const { radar, events, loading: radarLoading, error: radarError, refresh: refreshWatchlist } = useWatchlist();
     const { context, isActive: isMarketSupportActive } = useMarketSupport();
+    const placeOrderDenial = useAbilityDenial(PLACE_ORDER_ABILITY[CTA_CONFIG[viewMode].primary.side]);
     const loadGeneration = useRef(0);
     const confirmRequestRef = useRef<FrozenConfirmRequest | null>(null);
     const scopeKey = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${context?.id ?? 'direct'}`;
@@ -285,7 +289,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     <button
                         data-tour="command-center-primary-action"
                         onClick={() => setOrderModalOpen(true)}
-                        className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                        disabled={placeOrderDenial !== null}
+                        title={placeOrderDenial?.message}
+                        aria-describedby={placeOrderDenial ? 'command-center-place-order-denial' : undefined}
+                        className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
                     >
                         <cta.primary.icon className="h-5 w-5 shrink-0" />
                         <span className="min-w-0">
@@ -317,6 +324,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
                     </button>}
                 </div>
+                {placeOrderDenial && (
+                    <AbilityDenialNote denial={placeOrderDenial} id="command-center-place-order-denial" className="mt-2" />
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3" aria-label={t('commandCenter.metrics.scope', { count: summary.total_count })}>

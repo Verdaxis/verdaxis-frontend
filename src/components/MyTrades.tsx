@@ -19,6 +19,8 @@ import { getMarketSupportContextId } from '../services/marketSupportContextStore
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { useAuth } from '../context/AuthContext';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { useAbilityDenial } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useNamespace } from '../hooks/useNamespace';
@@ -55,6 +57,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const { addToast } = useToast();
     const { t, ready } = useNamespace('trading');
     const userRole = user?.role;
+    const confirmTradeDenial = useAbilityDenial('confirm_trade');
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -286,8 +289,14 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         },
     } as const;
 
-    const renderActions = (trade: Trade) => {
+    // The other party started the trade, so this user is the one who can confirm it.
+    const isCounterparty = (trade: Trade): boolean => {
         const userSide = getUserSide(trade);
+        return (trade.initiated_by === 'BUYER' && userSide === 'SELLER')
+            || (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
+    };
+
+    const renderActions = (trade: Trade) => {
         const isLoadingThis = actionLoadingId === trade.id;
         const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
@@ -296,11 +305,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
             }
 
-            const isCounterparty =
-                (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
-                (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
-
-            if (!isCounterparty) {
+            if (!isCounterparty(trade)) {
                 return (
                     <span className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                         <Clock size={12} />
@@ -313,8 +318,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => handleConfirm(trade.id)}
-                        disabled={actionLoadingId !== null}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                        disabled={actionLoadingId !== null || confirmTradeDenial !== null}
+                        title={confirmTradeDenial?.message}
+                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                         {t('myTrades.btn.confirm')}
@@ -408,6 +414,12 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     </button>
                 ))}
             </div>
+
+            {confirmTradeDenial && trades.some(trade => (
+                normalizeTradeLifecycleStatus(trade.status) === 'PENDING_CONFIRMATION' && isCounterparty(trade)
+            )) && (
+                <AbilityDenialNote denial={confirmTradeDenial} className="mb-4" />
+            )}
 
             {retryRequest && (
                 <div role="status" className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">

@@ -3,6 +3,9 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock, Loader2 } from 'lucide-
 import { Trade, ViewMode, Page } from '../types';
 import { useTranslation } from 'react-i18next';
 import { getMarketplaceProductLabel, getMarketplaceProductValue } from '../utils/marketProducts';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
+import { useAbilityGate } from '../hooks/useAbilityDenial';
+import { PLACE_ORDER_ABILITY } from '../types/abilities';
 
 interface NeedsAttentionFeedProps {
     trades: Trade[];
@@ -28,6 +31,9 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
     total,
 }) => {
     const { t, i18n } = useTranslation('common');
+    const getAbilityDenial = useAbilityGate();
+    const confirmTradeDenial = getAbilityDenial('confirm_trade');
+    const postOrderDenial = getAbilityDenial(PLACE_ORDER_ABILITY[viewMode === 'BUYER' ? 'BID' : 'ASK']);
     const actionable = trades.filter(trade => {
         if (trade.status !== 'PENDING_CONFIRMATION') return false;
         if (viewMode === 'BUYER' && trade.initiated_by === 'SELLER') return true;
@@ -73,7 +79,9 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                 {onPostOrder && (
                     <button
                         onClick={onPostOrder}
-                        className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                        disabled={postOrderDenial !== null}
+                        title={postOrderDenial?.message}
+                        className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
                     >
                         {t(viewMode === 'BUYER' ? 'attention.postBid' : 'attention.postSupply')}
                     </button>
@@ -121,7 +129,9 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                         {onConfirmTrade && (
                             <button
                                 onClick={() => onConfirmTrade(trade.id)}
-                                className="flex-shrink-0 px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                                disabled={confirmTradeDenial !== null}
+                                title={confirmTradeDenial?.message}
+                                className="flex-shrink-0 px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {t('attention.confirm')}
                             </button>
@@ -129,6 +139,9 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                     </div>
                 );
             })}
+            {confirmTradeDenial && onConfirmTrade && (
+                <AbilityDenialNote denial={confirmTradeDenial} />
+            )}
             {actionTotal > actionable.length && (
                 <button
                     onClick={() => onNavigate('TRADES')}
