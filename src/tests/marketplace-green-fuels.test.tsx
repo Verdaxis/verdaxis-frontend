@@ -786,21 +786,22 @@ describe('Marketplace green fuels surface', () => {
       fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
       expect(await screen.findByText('Bio Methanol')).toBeTruthy();
       myOrders.mockClear();
-      myOrders.mockResolvedValue([
-        { ...listingsResponse.items[0], id: 'mine-2', side: 'BID', product_name: 'Teammate Order', status: 'OPEN' },
-      ]);
+      let finishReload!: (orders: unknown[]) => void;
+      myOrders.mockReturnValueOnce(new Promise((resolve) => { finishReload = resolve; }));
 
-      vi.useFakeTimers();
       act(() => announceOwnOrdersChanged());
       expect(myOrders).not.toHaveBeenCalled(); // debounced
-      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+      await waitFor(() => expect(myOrders).toHaveBeenCalledTimes(1), { timeout: 3000 });
 
-      expect(myOrders).toHaveBeenCalledTimes(1);
       expect(myOrders).toHaveBeenCalledWith({ force: true });
       // The old list stays on screen while the new one loads.
       expect(screen.queryByText('Loading your listings...')).toBeNull();
       expect(screen.getByText('Bio Methanol')).toBeTruthy();
-      vi.useRealTimers();
+      await act(async () => {
+        finishReload([
+          { ...listingsResponse.items[0], id: 'mine-2', side: 'BID', product_name: 'Teammate Order', status: 'OPEN' },
+        ]);
+      });
       expect(await screen.findByText('Teammate Order')).toBeTruthy();
       expect(screen.queryByText('Bio Methanol')).toBeNull();
     });
