@@ -1,6 +1,7 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
@@ -9,8 +10,9 @@ import { activity } from '../services/activityTracking';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 import { AbilitiesProvider } from '../context/AbilitiesContext';
 import { abilitiesPayload } from './abilities-fixtures';
+import { buildLngAskTerms, toPublicLngAskTerms, type LngAskTermsForm } from '../utils/bioLngSpecification';
 
-const { abilitiesMine, userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+const { abilitiesMine, userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, catalogProducts, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   abilitiesMine: vi.fn(),
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
@@ -23,6 +25,7 @@ const { abilitiesMine, userRole, marketSupportActive, orderPlaceModalSpy, listAs
   myOrders: vi.fn(),
   cancelOrder: vi.fn(),
   deliveryPoints: vi.fn(),
+  catalogProducts: vi.fn(),
   toggleSlice: vi.fn(),
   togglePin: vi.fn(),
   tradeTapeList: vi.fn(),
@@ -82,10 +85,12 @@ vi.mock('../components/ui/Pagination', () => ({
 vi.mock('../services/api', () => ({
   ApiError: TestApiError,
   ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
+  isKycRequiredError: (error: unknown) => error instanceof TestApiError && error.code === 'KYC_REQUIRED',
   api: {
     abilities: { mine: abilitiesMine },
     catalog: {
       deliveryPoints,
+      products: catalogProducts,
     },
     orderbook: {
       listAsksPaged,
@@ -229,6 +234,8 @@ describe('Marketplace green fuels surface', () => {
       { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
       { id: 'dp-3', name: 'Santos', region: 'South America', is_active: true },
     ]);
+    // No lane by default, as for every product that trades at every port.
+    catalogProducts.mockResolvedValue([]);
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
@@ -1249,6 +1256,12 @@ describe('Marketplace green fuels surface', () => {
   }, 30_000);
 
   describe('server abilities', () => {
+    // Later top-level describes reuse the shared mocks without resetting them.
+    afterEach(() => {
+      userRole.current = 'BUYER';
+      marketSupportActive.current = false;
+      abilitiesMine.mockReset();
+    });
     const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
     const renderWithAbilities = () => renderWithProviders(<AbilitiesProvider><Marketplace /></AbilitiesProvider>);
 
@@ -1320,4 +1333,210 @@ describe('Marketplace green fuels surface', () => {
     });
   });
 
+});
+
+describe('Marketplace bio-LNG take flow', () => {
+  // Call history only; the shared api mock implementations stay in place.
+  beforeEach(() => tradesInitiate.mockClear());
+
+  const LNG_ASK_FORM: LngAskTermsForm = {
+    sustainability_scheme: 'ISCC_EU',
+    scheme_certificate_number: 'DE-NL-2026-000123',
+    chain_of_custody: 'PHYSICAL_SEGREGATION',
+    union_database_registered: true,
+    bio_share_pct: '97.5',
+    feedstock: 'MANURE',
+    feedstock_detail: '',
+    production_country: 'NL',
+    wtt_ghg_gco2e_mj: '-45.5',
+    min_methane_number: '',
+    delivery_method: 'SHIP_TO_SHIP',
+    seller_is_physical_supplier: false,
+    physical_supplier_name: 'Rotterdam Bio Supplier BV',
+    pos_timing: 'WITH_DELIVERY',
+  };
+
+  const bioLngListing = {
+    ...listingsResponse.items[0],
+    id: 'ask-lng',
+    terms_digest: 'terms-digest-lng',
+    product_id: 'product-lng',
+    product_name: 'Bio-LNG',
+    market_product: 'BIO_LNG',
+    fuel_type: 'LNG',
+    fuel_grade: 'Bio',
+    delivery_point_id: 'dp-2',
+    delivery_point_name: 'Rotterdam',
+    region: 'Europe',
+    price_per_mt_usd: 1420,
+    remaining_quantity_mt: 500,
+    // The order book projection withholds seller identity.
+    lng_terms: toPublicLngAskTerms(buildLngAskTerms(LNG_ASK_FORM).terms!),
+  };
+
+  const openBioLngAsk = async () => {
+    listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [bioLngListing] });
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /Bio-LNG/i }));
+    await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'BIO_LNG' })));
+    fireEvent.click(await screen.findByRole('button', { name: /lift ask/i }));
+    await screen.findByRole('button', { name: /submit trade/i });
+  };
+
+  it('offers the public terms and sends the buyer requirements with the take', async () => {
+    await openBioLngAsk();
+
+    // The public terms carry no certificate number and no physical supplier name.
+    expect(screen.getByText('Bio-LNG terms')).toBeTruthy();
+    expect(screen.getByText('97.5%')).toBeTruthy();
+    expect(screen.getByText(/Excludes engine methane slip/)).toBeTruthy();
+    expect(screen.queryByText('DE-NL-2026-000123')).toBeNull();
+    expect(screen.queryByText('Rotterdam Bio Supplier BV')).toBeNull();
+
+    expect(screen.getByText('Bio-LNG requirements')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Physical suppliers only/));
+    expect(screen.getByText('Physical suppliers only')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit trade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm trade/i }));
+
+    await waitFor(() => expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
+      order_id: 'ask-lng',
+      quantity_mt: 500,
+      expected_terms_digest: 'terms-digest-lng',
+      lng_terms: expect.objectContaining({
+        side: 'BID',
+        accepted_schemes: ['ISCC_EU', 'REDCERT_EU'],
+        accept_resellers: false,
+      }),
+    })));
+  });
+
+  it('blocks the take until the requirements are complete', async () => {
+    await openBioLngAsk();
+
+    // Clearing every accepted scheme leaves the requirements unsatisfiable.
+    fireEvent.click(screen.getByLabelText('ISCC EU'));
+    fireEvent.click(screen.getByLabelText('REDcert-EU'));
+
+    expect(screen.getByRole('button', { name: /submit trade/i })).toHaveProperty('disabled', true);
+    expect(screen.getByText('Select at least one accepted scheme.')).toBeTruthy();
+    expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
+  it('explains an incompatible bio-LNG take without counterparty detail', async () => {
+    tradesInitiate.mockRejectedValueOnce(new TestApiError(409, 'LNG_TERMS_INCOMPATIBLE'));
+    await openBioLngAsk();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit trade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm trade/i }));
+
+    expect(await screen.findByText('Bio-LNG terms incompatible')).toBeTruthy();
+    expect(screen.getByText(/do not satisfy the requirements of the other side/)).toBeTruthy();
+  });
+});
+
+describe('Marketplace product trading lane', () => {
+  const LocationProbe = () => {
+    const location = useLocation();
+    return <span data-testid="location">{location.pathname}</span>;
+  };
+
+  const bioLngProduct = (available_delivery_point_ids: string[]) => ({
+    id: 'prod-bio-lng',
+    name: 'Bio-LNG',
+    market_product: 'BIO_LNG',
+    fuel_type: 'LNG',
+    fuel_grade: 'Bio',
+    unit: 'MT',
+    min_lot_size: 1,
+    is_active: true,
+    available_delivery_point_ids,
+  });
+
+  const catalogScope = () => ({
+    counts: { BIO_LNG: 1 },
+    total: 1,
+  });
+
+  it('offers only the ports the selected product trades at', async () => {
+    catalogProducts.mockResolvedValue([bioLngProduct(['dp-2'])]);
+    productCounts.mockResolvedValue(catalogScope());
+    listAsksPaged.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 20 });
+    setMarketplaceSlice({ product: 'BIO_LNG', port: null });
+
+    renderWithProviders(<Marketplace />);
+    await waitFor(() => expect(catalogProducts).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByRole('button', { name: /more filters/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Port' }));
+
+    expect(await screen.findByRole('option', { name: /Rotterdam/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Singapore/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /Santos/ })).toBeNull();
+  });
+
+  it('keeps every port for a product that declares no lane', async () => {
+    catalogProducts.mockResolvedValue([{
+      id: 'prod-methanol', name: 'Bio Methanol', market_product: 'BIO_METHANOL', fuel_type: 'Methanol',
+      fuel_grade: 'Bio', unit: 'MT', min_lot_size: 500, is_active: true,
+    }]);
+    setMarketplaceSlice({ product: 'BIO_METHANOL', port: null });
+
+    renderWithProviders(<Marketplace />);
+    await waitFor(() => expect(catalogProducts).toHaveBeenCalled());
+
+    fireEvent.click(await screen.findByRole('button', { name: /more filters/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Port' }));
+
+    expect(await screen.findByRole('option', { name: /Singapore/ })).toBeTruthy();
+    expect(screen.getByRole('option', { name: /Rotterdam/ })).toBeTruthy();
+    expect(screen.getByRole('option', { name: /Santos/ })).toBeTruthy();
+  });
+
+  it('redirects a deep link outside the lane to the first allowed port', async () => {
+    catalogProducts.mockResolvedValue([bioLngProduct(['dp-2'])]);
+    productCounts.mockResolvedValue(catalogScope());
+    listAsksPaged.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 20 });
+
+    renderWithProviders(
+      <>
+        <Marketplace initialSlice={{ product: 'BIO_LNG', port: 'Singapore', window: 'SPOT' }} />
+        <LocationProbe />
+      </>,
+      { route: '/app/m/bio-lng/singapore/spot', path: '/app/*' },
+    );
+
+    await waitFor(() => expect(catalogProducts).toHaveBeenCalled());
+    // The unsupported slice must not stand in the address bar or in the filter.
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/m/bio-lng/rotterdam/spot'));
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    expect(screen.getByRole('combobox', { name: 'Port' }).textContent).toContain('Rotterdam');
+    // The order book follows the same corrected slice.
+    await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+      market_product: 'BIO_LNG',
+      delivery_point_id: 'dp-2',
+    })));
+  });
+
+  it('falls back to the marketplace root when the declared lane has no usable point', async () => {
+    catalogProducts.mockResolvedValue([bioLngProduct([])]);
+    productCounts.mockResolvedValue(catalogScope());
+    listAsksPaged.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 20 });
+
+    renderWithProviders(
+      <>
+        <Marketplace initialSlice={{ product: 'BIO_LNG', port: 'Rotterdam', window: 'SPOT' }} />
+        <LocationProbe />
+      </>,
+      { route: '/app/m/bio-lng/rotterdam/spot', path: '/app/*' },
+    );
+
+    await waitFor(() => expect(catalogProducts).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/marketplace'));
+    // No port is claimed, so the filter stands on the all-ports value.
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    expect(screen.getByRole('combobox', { name: 'Port' }).textContent).toContain('All ports');
+    expect(screen.queryByRole('option', { name: /Rotterdam/ })).toBeNull();
+  });
 });

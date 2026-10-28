@@ -6,6 +6,35 @@ import { renderWithProviders } from './test-utils';
 import { MyTrades } from '../components/MyTrades';
 import i18n from '../i18n';
 import { setAccessToken } from '../services/authToken';
+import { buildLngAskTerms, buildLngBidTerms, type LngAskTermsForm, type LngBidTermsForm } from '../utils/bioLngSpecification';
+
+const LNG_ASK_TERMS = buildLngAskTerms({
+  sustainability_scheme: 'ISCC_EU',
+  scheme_certificate_number: 'DE-NL-2026-000123',
+  chain_of_custody: 'MASS_BALANCE',
+  union_database_registered: true,
+  bio_share_pct: '97.5',
+  feedstock: 'MANURE',
+  feedstock_detail: '',
+  production_country: 'NL',
+  wtt_ghg_gco2e_mj: '-38.25',
+  min_methane_number: '',
+  delivery_method: 'SHIP_TO_SHIP',
+  seller_is_physical_supplier: true,
+  physical_supplier_name: 'Rotterdam Bio Supplier BV',
+  pos_timing: 'WITH_DELIVERY',
+} satisfies LngAskTermsForm).terms!;
+
+const LNG_BID_TERMS = buildLngBidTerms({
+  accepted_schemes: ['ISCC_EU', 'REDCERT_EU'],
+  accepted_custody: ['MASS_BALANCE', 'PHYSICAL_SEGREGATION'],
+  require_union_database: true,
+  min_bio_share_pct: '',
+  max_wtt_ghg_gco2e_mj: '',
+  accepted_delivery_methods: ['SHIP_TO_SHIP'],
+  min_methane_number: '',
+  accept_resellers: false,
+} satisfies LngBidTermsForm).terms!;
 
 const { myTradesPagedMock, confirmMock, declineMock, addToastMock, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   myTradesPagedMock: vi.fn(),
@@ -68,18 +97,23 @@ vi.mock('../hooks/useNamespace', () => ({
   useNamespace: () => namespaceControl,
 }));
 
-vi.mock('../services/api', () => ({
-  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
-  api: {
-    trades: {
-      myTradesPaged: (...args: unknown[]) => myTradesPagedMock(...args),
-      confirm: confirmMock,
-      decline: declineMock,
-      deliver: vi.fn(),
-      pay: vi.fn(),
+vi.mock('../services/api', async importOriginal => {
+  const actual = await importOriginal<typeof import('../services/api')>();
+  return {
+    ApiError: actual.ApiError,
+    isKycRequiredError: actual.isKycRequiredError,
+    ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
+    api: {
+      trades: {
+        myTradesPaged: (...args: unknown[]) => myTradesPagedMock(...args),
+        confirm: confirmMock,
+        decline: declineMock,
+        deliver: vi.fn(),
+        pay: vi.fn(),
+      },
     },
-  },
-}));
+  };
+});
 
 describe('MyTrades lifecycle', () => {
   beforeEach(async () => {
@@ -332,6 +366,50 @@ describe('MyTrades lifecycle', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('Refresh unavailable');
     expect(screen.getByText('Buy Corp')).toBeTruthy();
     expect(screen.getByRole('table')).toBeTruthy();
+  });
+
+  it('reveals the frozen bio-LNG terms of a confirmed trade on demand', async () => {
+    myTradesPagedMock.mockResolvedValue({
+      items: [{
+        id: 'trade-biolng',
+        buyer_id: 'buyer-org',
+        seller_id: 'seller-org',
+        buyer_name: 'Buy Corp',
+        seller_name: 'Sell Corp',
+        initiated_by: 'BUYER',
+        is_anonymous: false,
+        quantity_mt: 500,
+        price_per_mt_usd: 1420,
+        status: 'CONFIRMED',
+        commission_rate_pct: 0,
+        created_at: '2026-10-14T00:00:00Z',
+        product_name: 'Bio-LNG',
+        market_product: 'BIO_LNG',
+        delivery_point_name: 'Rotterdam',
+        availability_window: 'SPOT',
+        fuel_type: 'LNG',
+        region: 'Europe',
+        lng_terms_snapshot: { ask: LNG_ASK_TERMS, bid: LNG_BID_TERMS },
+      }],
+      total: 1,
+      skip: 0,
+      limit: 20,
+    });
+
+    renderWithProviders(<MyTrades />);
+
+    const toggle = await screen.findByRole('button', { name: 'bioLng.display.title' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    // Identity stays hidden until the reader asks for the trade terms.
+    expect(screen.queryByText('DE-NL-2026-000123')).toBeNull();
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByText('DE-NL-2026-000123')).toBeTruthy();
+    expect(screen.getByText('Rotterdam Bio Supplier BV')).toBeTruthy();
+    expect(screen.getByText('-38.25 gCO2e/MJ')).toBeTruthy();
+    expect(screen.getByText('bioLng.display.bid.title')).toBeTruthy();
+    expect(screen.getByText('bioLng.display.bid.acceptResellers')).toBeTruthy();
   });
 
   it('waits for Chinese trading translations before loading and suppresses backend errors', async () => {

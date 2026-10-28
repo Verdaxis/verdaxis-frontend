@@ -45,7 +45,9 @@ const DEFAULT_PINNED_PORT_COUNT = 5;
 const MIN_AUTO_SCROLL_ROWS = 4;
 const EMPTY_AGGREGATED_DATA: AggregatedOrderbook[] = [];
 
-const DEMO_PREVIEW_PRICES: Record<MarketProduct, number> = {
+// Only products with a disclosed reference anchor carry a demo preview price.
+// BIO_LNG is live-only, so it is absent here and rows without a quote show '--'.
+const DEMO_PREVIEW_PRICES: Partial<Record<MarketProduct, number>> = {
     BIO_METHANOL: 960,
     E_METHANOL: 1150,
     BIO_ETHANOL: 850,
@@ -56,7 +58,8 @@ const DEMO_PREVIEW_PRICES: Record<MarketProduct, number> = {
 };
 
 const productValues = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value);
-const DEFAULT_PRODUCTS = productValues;
+// BIO_LNG is selectable but has no preview anchor, so it is not a default row.
+const DEFAULT_PRODUCTS = productValues.filter(product => product !== 'BIO_LNG');
 
 const normalize = (value: string | null | undefined) => (value ?? '').trim().toLowerCase();
 

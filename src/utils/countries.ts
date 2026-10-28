@@ -30,6 +30,12 @@ export interface CountryOption {
   name: string;
 }
 
+/** True when the code is an official ISO 3166-1 alpha-2 country code. */
+export function isIsoCountryCode(code: string | null | undefined): boolean {
+  if (typeof code !== 'string') return false;
+  return (ISO_COUNTRY_CODES as readonly string[]).includes(code.trim().toUpperCase());
+}
+
 export function getAvailableCountries(locale = 'en'): CountryOption[] {
   const displayNames = typeof Intl.DisplayNames === 'function'
     ? new Intl.DisplayNames([locale], { type: 'region' })

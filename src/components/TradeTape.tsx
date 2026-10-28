@@ -17,8 +17,10 @@ const FUEL_DOT_COLORS: Record<string, string> = {
     SYNTHETIC_ETHANOL: 'bg-amber-500',
     B30: 'bg-emerald-500',
     B100: 'bg-lime-500',
+    BIO_LNG: 'bg-sky-500',
     methanol: 'bg-violet-500',
     ethanol: 'bg-orange-500',
+    lng: 'bg-sky-500',
 };
 
 function getDotColor(entry: TradeTapeEntry): string {

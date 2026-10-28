@@ -19,9 +19,9 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ApiError, ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiError, ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Trade, TradeCreateInput } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { useAbilityGate } from '../hooks/useAbilityDenial';
@@ -30,6 +30,7 @@ import { HIT_ORDER_ABILITY, PLACE_ORDER_ABILITY } from '../types/abilities';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
+import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import { Pagination } from './ui/Pagination';
 import {
     getFuelRowClasses,
@@ -50,9 +51,13 @@ import {
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { getBioLngSpecification, isLngTermsIncompatibleError, buildLngBidTerms, createInitialLngBidForm, type LngBidTermsForm } from '../utils/bioLngSpecification';
+import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
+import { BioLngBidTermsFields } from './trading/BioLngTermsFields';
 import { isDemoMarketActivity } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
+import { resolveTradingLane, isPointInLane } from '../utils/tradingLane';
 import { MARKETPLACE_SELECTION_STORAGE_KEYS } from '../utils/marketplaceSelection';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
@@ -108,9 +113,11 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 };
 
 // ─── Product chip options ─────────────────────────────────────────
-const requiresBiofuelAsk = (order: OrderBookOrder): boolean => (
+// A supplier must declare product terms through the normal ASK flow, so a bid
+// for a product with fixed or contract terms is never taken directly.
+const requiresSupplierDeclarations = (order: OrderBookOrder): boolean => (
     order.side === 'BID'
-    && Boolean(getBiofuelSpecification(order.market_product))
+    && Boolean(getBiofuelSpecification(order.market_product) || getBioLngSpecification(order.market_product))
     && !order.is_demo_listing
     && !isDemoMarketActivity(order)
 );
@@ -181,6 +188,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [deliveryPointsStatus, setDeliveryPointsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+    const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+    const [catalogProductsStatus, setCatalogProductsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => initialSlice?.product ?? readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         if (initialSlice) return initialSlice.window as AvailabilityWindow;
@@ -211,6 +220,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
         return deliveryPoints.find(point => point.name.trim().toLowerCase() === q)?.id || '';
     }, [deliveryPoints, resolvedPort, storedDeliveryPointId]);
+
+    // A product may restrict the delivery points it trades at (bio-LNG is
+    // Rotterdam only). The catalog is the source of truth, and a declared lane
+    // that resolves to nothing allows nothing.
+    const tradingLane = useMemo(
+        () => resolveTradingLane(
+            catalogProducts,
+            deliveryPoints,
+            marketProduct === ALL_MARKET_PRODUCTS ? null : marketProduct,
+        ),
+        [catalogProducts, deliveryPoints, marketProduct],
+    );
+    const catalogSettled = catalogProductsStatus !== 'loading' && deliveryPointsStatus !== 'loading';
 
     const currentSliceTarget = useMemo(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
@@ -266,7 +288,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
+    const [tradeKycBlocked, setTradeKycBlocked] = useState(false);
     const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
+    const [tradeTermsIncompatible, setTradeTermsIncompatible] = useState(false);
+    // Taking a bio-LNG ask states the buyer's own requirements.
+    const [tradeLngBid, setTradeLngBid] = useState<LngBidTermsForm>(createInitialLngBidForm);
+    const [tradeLngTouched, setTradeLngTouched] = useState(false);
+    const tradeLngBidParse = useMemo(() => buildLngBidTerms(tradeLngBid), [tradeLngBid]);
+    // A buyer states its requirements when it takes a bio-LNG ask.
+    const requiresLngBidTerms = Boolean(
+        selectedOrder?.side === 'ASK' && getBioLngSpecification(selectedOrder.market_product),
+    );
+    const hasTradeLngTerms = !requiresLngBidTerms || tradeLngBidParse.terms !== null;
+    const handleTradeLngBidChange = (patch: Partial<LngBidTermsForm>) => {
+        setTradeLngTouched(true);
+        setTradeLngBid(current => ({ ...current, ...patch }));
+    };
     const [tradeResult, setTradeResult] = useState<Trade | null>(null);
     const tradeRequestRef = useRef<{
         signature: string;
@@ -315,7 +352,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     useEffect(() => {
         if (!ready) return;
         let cancelled = false;
-        const loadDeliveryPoints = async () => {
+        const loadCatalog = async () => {
             try {
                 const response = await api.catalog.deliveryPoints();
                 if (!cancelled) {
@@ -329,9 +366,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                     setDeliveryPointsStatus('failed');
                 }
             }
+            try {
+                const products = await api.catalog.products();
+                if (!cancelled) {
+                    setCatalogProducts(products.filter(product => product.is_active !== false));
+                    setCatalogProductsStatus('ready');
+                }
+            } catch (error) {
+                console.warn('Marketplace catalog products unavailable', error);
+                if (!cancelled) {
+                    setCatalogProducts([]);
+                    setCatalogProductsStatus('failed');
+                }
+            }
         };
 
-        loadDeliveryPoints();
+        loadCatalog();
         return () => {
             cancelled = true;
         };
@@ -532,6 +582,28 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [availability, marketProduct, resolvedPort]);
 
+    // A stored or deep-linked port the product's lane does not allow must not
+    // stand. Correct it to the product's first allowed port, or to no port at
+    // all, so a restriction never widens into an unsupported slice.
+    useEffect(() => {
+        if (!catalogSettled || !tradingLane) return;
+        // Wait until the deep-linked product is the active one before judging its port.
+        if (initialSlice && marketProduct !== initialSlice.product) return;
+        if (!resolvedPort || isPointInLane(tradingLane, resolvedPort)) return;
+
+        const [firstAllowed] = tradingLane.points;
+        setPortInput(firstAllowed ? firstAllowed.name : '');
+        if (initialSlice) {
+            navigate(
+                firstAllowed
+                    ? sliceToPath({ product: marketProduct as MarketProduct, port: firstAllowed.name, window: initialSlice.window })
+                    : '/app/marketplace',
+                { replace: true },
+            );
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [catalogSettled, initialSlice?.product, initialSlice?.window, marketProduct, resolvedPort, tradingLane]);
+
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
         localStorage.setItem(MARKETPLACE_SELECTION_STORAGE_KEYS.port, portInput);
@@ -566,15 +638,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
     }, [availability, initialSlice?.window, ready]);
 
+    // Offer only the ports the selected product trades at.
     const portOptions = useMemo(() => ([
         { value: '', label: t('marketplace.filter.allPorts') },
-        ...PORTS.map((port) => ({
+        ...PORTS.filter((port) => !tradingLane || isPointInLane(tradingLane, port.name)).map((port) => ({
             value: port.name,
             label: port.name,
             description: port.country,
             tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
         })),
-    ]), [t]);
+    ]), [t, tradingLane]);
 
     const sliceSummary = useMemo(() => {
         const parts = [
@@ -711,7 +784,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 demo_status: isDemo ? 'DEMO' : 'LIVE',
             });
         }
-        if (requiresBiofuelAsk(order)) {
+        if (requiresSupplierDeclarations(order)) {
             // The supplier must declare the fuel metadata through the normal ASK flow.
             // Normal orderbook priority applies; this is not a targeted trade.
             setOrderModalPrefill(order);
@@ -722,7 +795,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
+        setTradeKycBlocked(false);
         setTradeNeedsRefresh(false);
+        setTradeTermsIncompatible(false);
+        setTradeLngBid(createInitialLngBidForm());
+        setTradeLngTouched(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
     };
@@ -888,7 +965,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
+        setTradeKycBlocked(false);
         setTradeNeedsRefresh(false);
+        setTradeTermsIncompatible(false);
+        setTradeLngBid(createInitialLngBidForm());
+        setTradeLngTouched(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
     }, []);
@@ -923,6 +1004,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             return;
         }
         if (validateTradeQuantity() == null) return;
+        if (!hasTradeLngTerms) return;
         if (!selectedOrder.terms_digest) {
             tradeRequestRef.current = null;
             setTradeNeedsRefresh(true);
@@ -935,11 +1017,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
         });
         setTradeError('');
+        setTradeKycBlocked(false);
         setTradeState('reviewing');
     };
 
     const confirmTrade = async () => {
         if (!selectedOrder || tradeState === 'submitting' || tradeInFlightRef.current) return;
+        if (!hasTradeLngTerms) return;
         if (selectedOrder.is_demo_listing) {
             setTradeError(t('marketplace.demo.blocked'));
             setTradeState('error');
@@ -972,6 +1056,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 order_id: selectedOrder.id,
                 quantity_mt: normalizedTradeQuantity,
                 expected_terms_digest: selectedOrder.terms_digest!,
+                // The buyer states its bio-LNG requirements with the take.
+                ...(requiresLngBidTerms ? { lng_terms: tradeLngBidParse.terms } : {}),
             };
             const signature = JSON.stringify(requestPayload);
             if (!retainedRequest && (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature)) {
@@ -994,6 +1080,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 tradeRequestRef.current = null;
                 setTradeNeedsRefresh(true);
                 setTradeError(t('marketplace.modal.reviewRequired'));
+                setTradeState('error');
+            } else if (isKycRequiredError(err)) {
+                tradeRequestRef.current = null;
+                setTradeKycBlocked(true);
+                setTradeError('');
+                setTradeState('error');
+            } else if (isLngTermsIncompatibleError(err)) {
+                // The API refuses a take whose bio-LNG terms do not satisfy both sides.
+                tradeRequestRef.current = null;
+                setTradeTermsIncompatible(true);
+                setTradeError(t('bioLng.error.incompatible'));
                 setTradeState('error');
             } else {
                 tradeRequestRef.current = null;
@@ -1136,10 +1233,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 // The demo "view" button opens a read-only preview, so it is not an action.
-                // A BID that needs biofuel metadata is answered with a new ASK instead of a hit.
+                // A BID that needs supplier declarations is answered with a new ASK instead of a hit.
                 const actionDenial = isDemo
                     ? null
-                    : getAbilityDenial(requiresBiofuelAsk(order) ? PLACE_ORDER_ABILITY.ASK : HIT_ORDER_ABILITY[order.side]);
+                    : getAbilityDenial(requiresSupplierDeclarations(order) ? PLACE_ORDER_ABILITY.ASK : HIT_ORDER_ABILITY[order.side]);
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
@@ -1152,7 +1249,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     title={actionDenial?.message}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#334155] disabled:hover:shadow-sm"
                                 >
-                                    {t(isDemo ? 'marketplace.demo.view' : requiresBiofuelAsk(order) ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
+                                    {t(isDemo ? 'marketplace.demo.view' : requiresSupplierDeclarations(order) ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
                                 </button>
                             ) : (
                                 <span className="text-xs text-slate-400 font-medium">
@@ -1860,8 +1957,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <div className="p-4 bg-red-500/10 rounded-full mb-4">
                                     <AlertCircle size={28} className="text-red-500" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t(tradeTermsIncompatible ? 'bioLng.error.incompatibleTitle' : 'marketplace.modal.tradeFailed')}</h3>
+                                {tradeError && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>}
+                                {tradeKycBlocked && <KycRequiredNotice className="mb-4 w-full" />}
                                 {tradeNeedsRefresh && (
                                     <button
                                         type="button"
@@ -1955,6 +2053,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         </div>
                                     )}
 
+                                    {getBioLngSpecification(selectedOrder.market_product) && (
+                                        <div className="space-y-2">
+                                            <BioLngTermsPanel terms={selectedOrder.lng_terms} />
+                                            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                                {t('bioLng.display.confirmedOnly')}
+                                            </p>
+                                            {requiresLngBidTerms && (
+                                                <BioLngBidTermsFields
+                                                    form={tradeLngBid}
+                                                    issues={tradeLngBidParse.issues}
+                                                    showIssues={tradeLngTouched}
+                                                    onChange={handleTradeLngBidChange}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Quantity input */}
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
@@ -2017,7 +2132,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             type="button"
                                             onClick={tradeState === 'reviewing' ? confirmTrade : reviewTrade}
                                             data-tour={tradeState === 'reviewing' ? 'trade-final-confirm-button' : 'trade-review-button'}
-                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting' || !hasTradeLngTerms}
                                             className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}

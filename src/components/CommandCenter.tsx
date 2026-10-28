@@ -2,13 +2,14 @@ import { LoadingScreen } from './LoadingScreen';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, FileText, Gavel, HandCoins, Search } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
-import { ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import type { TradeSummary } from '../services/api';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 import { useNamespace } from '../hooks/useNamespace';
@@ -83,7 +84,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
-        type: 'CONFIRM' | 'RETRY' | 'ERROR' | 'SUCCESS' | null;
+        type: 'CONFIRM' | 'RETRY' | 'ERROR' | 'KYC_ERROR' | 'SUCCESS' | null;
         title: string;
         message: string;
         tradeId?: string;
@@ -257,6 +258,18 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     return;
                 }
                 confirmRequestRef.current = null;
+                if (isKycRequiredError(error)) {
+                    // A distinct state so the dialog can render the KYC notice
+                    // and its /kyc link, not just a dismiss-only message.
+                    setConfirmState({
+                        isOpen: true,
+                        type: 'KYC_ERROR',
+                        title: t('common:kycGate.blocked.title'),
+                        message: t('common:kycGate.blocked.message'),
+                        variant: 'warning',
+                    });
+                    return;
+                }
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
@@ -279,6 +292,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     }
 
     const cta = CTA_CONFIG[viewMode];
+    // Terminal result dialogs (and the KYC block) only offer a way to dismiss.
+    const isDismissOnlyState = confirmState.type === 'ERROR'
+        || confirmState.type === 'SUCCESS'
+        || confirmState.type === 'KYC_ERROR';
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -394,13 +411,15 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 message={confirmState.message}
                 variant={confirmState.variant}
                 isLoading={processing}
-                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? '' : t('common:btn.cancel')}
+                cancelText={isDismissOnlyState ? '' : t('common:btn.cancel')}
                 confirmText={confirmState.type === 'RETRY'
                     ? t('common:commandCenter.confirmRetry.action')
-                    : confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS'
+                    : isDismissOnlyState
                         ? t('common:btn.close')
                         : t('common:btn.confirm')}
-            />
+            >
+                {confirmState.type === 'KYC_ERROR' && <KycRequiredNotice className="mt-4" />}
+            </ConfirmModal>
         </div>
     );
 };
