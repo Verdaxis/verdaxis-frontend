@@ -84,6 +84,7 @@
   "billing.pilotFree": "试点前六个月免费。",
   "billing.loading": "正在加载您的订阅和卖方费率…",
   "billing.loadError": "无法加载账单详情。请重试。",
+  "billing.noOrganization": "账单属于组织。此账户尚未关联任何组织。",
   "billing.retry": "重试",
   "billing.currentPlanDesc": "您当前的订阅方案是{{plan}}。交易费用由卖方承担。",
   "billing.currentSellerRate": "卖方交易费用：{{rate}}",

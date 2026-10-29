@@ -84,6 +84,7 @@
   "billing.pilotFree": "Free during the first six pilot months.",
   "billing.loading": "Loading your subscription and seller fee schedule…",
   "billing.loadError": "We could not load billing details. Please try again.",
+  "billing.noOrganization": "Billing belongs to an organization. This account is not linked to an organization.",
   "billing.retry": "Try again",
   "billing.currentPlanDesc": "Your current subscription is {{plan}}. The seller pays the transaction fee.",
   "billing.currentSellerRate": "Seller transaction fee: {{rate}}",
