@@ -3,13 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Settings } from '../components/Settings';
+import { ApiError } from '../services/api';
+import i18n, { loadNamespace } from '../i18n';
 
 const billingApi = vi.hoisted(() => ({
   fees: vi.fn(),
   me: vi.fn(),
 }));
 
-vi.mock('../services/api', () => ({ api: { subscriptions: billingApi } }));
+vi.mock('../services/api', async importOriginal => ({
+  ...await importOriginal<typeof import('../services/api')>(),
+  api: { subscriptions: billingApi },
+}));
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({
   user: { first_name: 'Test', last_name: 'Buyer', email: 'buyer@example.test', role: 'BUYER' },
   token: 'test-token',
@@ -33,7 +38,10 @@ describe('billing fee display', () => {
     billingApi.me.mockResolvedValue({ id: 'subscription', org_id: 'org', tier: 'standard', is_active: true });
   });
 
-  afterEach(() => cleanup());
+  afterEach(async () => {
+    cleanup();
+    await i18n.changeLanguage('en');
+  });
 
   const openBilling = async () => {
     renderWithProviders(<Settings viewMode="BUYER" />);
@@ -78,6 +86,42 @@ describe('billing fee display', () => {
     expect(within(screen.getByRole('table')).getByText('Negotiated')).toBeTruthy();
     expect(within(currentPlanCard as HTMLElement).queryByText(/\$0\.00\/MT/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Upgrade' })).toBeNull();
+  });
+
+  it.each([
+    ['en', 'Billing', 'Billing belongs to an organization. This account is not linked to an organization.'],
+    ['zh', '账单', '账单属于组织。此账户尚未关联任何组织。'],
+  ])('explains organization billing in %s when the account has no organization', async (language, tabName, message) => {
+    await loadNamespace('settings');
+    await i18n.changeLanguage(language);
+    billingApi.me.mockRejectedValueOnce(new ApiError('Organization required', 403, 'ORGANIZATION_REQUIRED'));
+    renderWithProviders(<Settings viewMode="BUYER" />);
+    fireEvent.click(await screen.findByRole('button', { name: tabName }));
+    expect((await screen.findByText(message)).getAttribute('role')).toBe('status');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(billingApi.me).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [403, 'FORBIDDEN'],
+    [403, null],
+    [500, null],
+    [500, 'ORGANIZATION_REQUIRED'],
+  ])('keeps the generic billing error for status %s and code %s', async (status, code) => {
+    billingApi.me.mockRejectedValueOnce(new ApiError('Unavailable', status, code));
+    renderWithProviders(<Settings viewMode="BUYER" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Billing' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('We could not load billing details.');
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(screen.queryByText('Billing belongs to an organization. This account is not linked to an organization.')).toBeNull();
+  });
+
+  it('keeps fee schedule errors on the generic billing error path', async () => {
+    billingApi.fees.mockRejectedValueOnce(new ApiError('Organization required', 403, 'ORGANIZATION_REQUIRED'));
+    renderWithProviders(<Settings viewMode="BUYER" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Billing' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('We could not load billing details.');
   });
 
   it('shows an honest error and retries both reads', async () => {

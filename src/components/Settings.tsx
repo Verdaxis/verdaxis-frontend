@@ -9,7 +9,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useServerPreference } from '../hooks/useServerPreference';
 import { useTranslation } from 'react-i18next';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
 
 interface SettingsProps {
     viewMode: ViewMode;
@@ -47,7 +47,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
     inapp_order_matches: true,
 };
 
-type BillingState = 'idle' | 'loading' | 'ready' | 'error';
+type BillingState = 'idle' | 'loading' | 'ready' | 'no-organization' | 'error';
 
 const formatSellerRate = (rate: string | number | null | undefined): string | null => {
     if (rate === null || rate === undefined || rate === '') return null;
@@ -191,8 +191,15 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         setBillingState('loading');
         Promise.all([
             api.subscriptions.fees(force ? { force: true } : undefined),
-            api.subscriptions.me(force ? { force: true } : undefined),
+            api.subscriptions.me(force ? { force: true } : undefined).catch((error: unknown) => {
+                if (error instanceof ApiError && error.status === 403 && error.code === 'ORGANIZATION_REQUIRED') return null;
+                throw error;
+            }),
         ]).then(([fees, currentSubscription]) => {
+            if (!currentSubscription) {
+                setBillingState('no-organization');
+                return;
+            }
             setFeeSchedule(fees);
             setSubscription(currentSubscription);
             setBillingState('ready');
@@ -367,6 +374,9 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                             <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('billing.title')}</h2>
                             {billingState === 'loading' && (
                                 <p role="status" className="text-sm text-slate-500 dark:text-slate-400">{t('billing.loading')}</p>
+                            )}
+                            {billingState === 'no-organization' && (
+                                <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{t('billing.noOrganization')}</p>
                             )}
                             {billingState === 'error' && (
                                 <div role="alert" className="space-y-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/10 dark:text-rose-300">
