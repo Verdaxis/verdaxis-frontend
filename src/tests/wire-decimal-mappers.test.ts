@@ -1,5 +1,6 @@
 import type { NormalizedOrderWire, NormalizedTradeWire } from '../api/mappers';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { api, ApiError } from '../services/api';
 
 import type {
     WireAggregatedOrderbook,
@@ -559,5 +560,42 @@ describe('wire decimal displays: every spelling renders the same text', () => {
         const rendered = SPELLINGS.map(spelling => parseWireDecimal(spelling)?.toLocaleString('en'));
         expect(new Set(rendered).size).toBe(1);
         expect(rendered[0]).toBe('650');
+    });
+});
+
+
+describe('Trade participant freeze projection', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const freeze = { reason_code: 'COMPLIANCE_REVIEW', set_at: '2026-10-29T12:34:00Z' };
+
+    it('preserves optional freeze fields through the paged API read', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({
+            items: [{ ...WIRE_TRADE, is_frozen: true, freeze }], total: 1, skip: 0, limit: 20,
+        }));
+        const result = await api.trades.myTradesPaged(undefined, { force: true });
+        expect(result.items[0]).toMatchObject({ is_frozen: true, freeze, quantity_mt: 650 });
+    });
+
+    it.each(['confirm', 'decline', 'deliver', 'pay'] as const)('preserves the participant block in %s responses', async operation => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ...WIRE_TRADE, is_frozen: true, freeze }));
+        const result = operation === 'deliver'
+            ? await api.trades.deliver('trade-projection', { final_quantity_mt: 650, final_price_per_mt: 650 })
+            : await api.trades[operation]('trade-projection');
+        expect(result).toMatchObject({ is_frozen: true, freeze, quantity_mt: 650 });
+    });
+
+    it.each(['confirm', 'decline', 'deliver', 'pay'] as const)('retains a structured freeze refusal from %s', async operation => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ detail: { code: 'TRADE_FROZEN', message: 'Trade frozen' } }, { status: 409 }));
+        const result = operation === 'deliver'
+            ? api.trades.deliver('trade-refusal', { final_quantity_mt: 650, final_price_per_mt: 650 })
+            : api.trades[operation]('trade-refusal');
+        await expect(result).rejects.toMatchObject({ status: 409, code: 'TRADE_FROZEN' });
+        await expect(result).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it.each([{}, { is_frozen: false, freeze: null }])('preserves the compatible unfrozen projection %j', projection => {
+        const result = toTrade({ ...WIRE_TRADE, fame_terms_snapshot: null, lng_terms_snapshot: null, ...projection });
+        expect(result.is_frozen).toBe((projection as { is_frozen?: boolean }).is_frozen);
+        expect(result.freeze).toBe((projection as { freeze?: null }).freeze);
     });
 });
