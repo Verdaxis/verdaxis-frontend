@@ -323,6 +323,8 @@ export interface Trade extends Pick<WireTrade, 'unknown_count' | 'source_kind' |
     confirmed_at?: string;
     delivered_at?: string;
     paid_at?: string;
+    is_frozen?: boolean;
+    freeze?: { reason_code: string; set_at: string } | null;
     created_at: string;
     // Denormalized from order product/delivery_point
     product_id?: string;

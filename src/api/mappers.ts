@@ -143,7 +143,7 @@ export const mapWirePage = <T>(page: T, map: (record: any) => unknown): T => {
 export type NormalizedOrderWire = Omit<WireOrder, 'fame_terms' | 'lng_terms'>
     & Pick<OrderBookOrder, 'fame_terms' | 'lng_terms'>;
 export type NormalizedTradeWire = Omit<WireTrade, 'fame_terms_snapshot' | 'lng_terms_snapshot'>
-    & Pick<Trade, 'fame_terms_snapshot' | 'lng_terms_snapshot'>;
+    & Pick<Trade, 'fame_terms_snapshot' | 'lng_terms_snapshot' | 'is_frozen' | 'freeze'>;
 
 // ─── Orders ─────────────────────────────────────────────────────────
 
