@@ -47,8 +47,8 @@ describe('Trade freeze presentation', () => {
 
   it.each([false, true])('frontend_shows_frozen_trade_and_disables_settlement_actions (embedded=%s)', async embedded => {
     mount(frozen(), embedded);
-    const confirm = await screen.findByRole('button', { name: 'Confirm', exact: true });
-    const decline = screen.getByRole('button', { name: 'Decline', exact: true });
+    const confirm = await screen.findByRole('button', { name: 'Confirm' });
+    const decline = screen.getByRole('button', { name: 'Decline' });
     expect(confirm).toHaveProperty('disabled', true);
     expect(decline).toHaveProperty('disabled', true);
     expect(screen.getByText('Payment dispute')).toBeTruthy();
@@ -85,14 +85,14 @@ describe('Trade freeze presentation', () => {
 
   it.each([{}, { is_frozen: false, freeze: null }])('keeps normal actions for an unfrozen projection %j', async projection => {
     mount(trade(projection));
-    expect(await screen.findByRole('button', { name: 'Confirm', exact: true })).toHaveProperty('disabled', false);
-    expect(screen.getByRole('button', { name: 'Decline', exact: true })).toHaveProperty('disabled', false);
+    expect(await screen.findByRole('button', { name: 'Confirm' })).toHaveProperty('disabled', false);
+    expect(screen.getByRole('button', { name: 'Decline' })).toHaveProperty('disabled', false);
     expect(screen.queryByText('Trade frozen')).toBeNull();
   });
 
   it.each([null, undefined, { reason_code: 'UNRECOGNIZED', set_at: 'not-a-date' }])('blocks an active freeze with incomplete details %j', async freeze => {
     mount(frozen({ freeze }));
-    expect(await screen.findByRole('button', { name: 'Confirm', exact: true })).toHaveProperty('disabled', true);
+    expect(await screen.findByRole('button', { name: 'Confirm' })).toHaveProperty('disabled', true);
     expect(screen.getByText('Reason unavailable')).toBeTruthy();
     expect(screen.queryByText('Invalid Date')).toBeNull();
   });
@@ -110,14 +110,14 @@ describe('Trade freeze presentation', () => {
     controls.page.mockResolvedValueOnce(page(trade())).mockResolvedValue(page(frozen()));
     controls[operation].mockRejectedValueOnce(new ApiError('Server text', 409, 'TRADE_FROZEN'));
     renderWithProviders(<MyTrades />);
-    fireEvent.click(await screen.findByRole('button', { name: operation === 'confirm' ? 'Confirm' : 'Decline', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: operation === 'confirm' ? 'Confirm' : 'Decline' }));
     await waitFor(() => expect(controls.toast).toHaveBeenCalledWith(expect.objectContaining({
       type: 'warning', title: 'Trade frozen', message: 'This trade is frozen. No action was completed. Refresh the trade details before trying again.',
     })));
     await screen.findByText('Payment dispute');
     expect(controls.page).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
     expect(controls.toast.mock.calls.some(([toast]) => toast.type === 'success')).toBe(false);
-    expect(screen.getByRole('button', { name: 'Confirm', exact: true })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Confirm' })).toHaveProperty('disabled', true);
     expect(screen.queryByRole('button', { name: /Retry safely/ })).toBeNull();
   });
 
@@ -126,14 +126,14 @@ describe('Trade freeze presentation', () => {
     controls.user.role = 'BUYER';
     mount(frozen());
     await screen.findByText('Trade frozen');
-    expect(screen.queryByRole('button', { name: 'Confirm', exact: true })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Decline', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Decline' })).toBeNull();
   });
 
   it('keeps the KYC refusal separate from freeze handling', async () => {
     controls.confirm.mockRejectedValue(new ApiError('KYC required', 403, 'KYC_REQUIRED'));
     mount(trade());
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
     expect(await screen.findByRole('link', { name: /KYC/i })).toBeTruthy();
     expect(controls.toast).not.toHaveBeenCalled();
   });
@@ -141,7 +141,7 @@ describe('Trade freeze presentation', () => {
   it('keeps ordinary errors on the existing failure path', async () => {
     controls.confirm.mockRejectedValue(new ApiError('Ordinary conflict', 409, 'OTHER_CONFLICT'));
     mount(trade());
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
     await waitFor(() => expect(controls.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Confirm Failed', message: 'Ordinary conflict' })));
     expect(controls.page).toHaveBeenCalledTimes(1);
   });

@@ -594,7 +594,7 @@ describe('Trade participant freeze projection', () => {
     });
 
     it.each([{}, { is_frozen: false, freeze: null }])('preserves the compatible unfrozen projection %j', projection => {
-        const result = toTrade({ ...WIRE_TRADE, ...projection });
+        const result = toTrade({ ...WIRE_TRADE, fame_terms_snapshot: null, lng_terms_snapshot: null, ...projection });
         expect(result.is_frozen).toBe((projection as { is_frozen?: boolean }).is_frozen);
         expect(result.freeze).toBe((projection as { freeze?: null }).freeze);
     });
