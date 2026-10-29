@@ -130,6 +130,14 @@ describe('Trade freeze presentation', () => {
     expect(screen.queryByRole('button', { name: 'Decline', exact: true })).toBeNull();
   });
 
+  it('keeps the KYC refusal separate from freeze handling', async () => {
+    controls.confirm.mockRejectedValue(new ApiError('KYC required', 403, 'KYC_REQUIRED'));
+    mount(trade());
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm', exact: true }));
+    expect(await screen.findByRole('link', { name: /KYC/i })).toBeTruthy();
+    expect(controls.toast).not.toHaveBeenCalled();
+  });
+
   it('keeps ordinary errors on the existing failure path', async () => {
     controls.confirm.mockRejectedValue(new ApiError('Ordinary conflict', 409, 'OTHER_CONFLICT'));
     mount(trade());
