@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_MAPBOX_PUBLIC_TOKEN: string
   readonly VITE_ANALYTICS_HOST?: string
   readonly VITE_ANALYTICS_WEBSITE_ID?: string
+  readonly VITE_OFFBOARDING_ENABLED?: string
 }
 
 interface ImportMeta {

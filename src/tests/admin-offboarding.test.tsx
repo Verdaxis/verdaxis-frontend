@@ -250,7 +250,7 @@ describe('admin member offboarding', () => {
 
       await openOffboardDialog('omar@former.example');
       expect(mocks.offboardingPreview).toHaveBeenCalledWith('user-2');
-      expect(screen.getByText('No company (detached)')).toBeTruthy();
+      expect(within(screen.getByRole('dialog')).getByText('No company (detached)')).toBeTruthy();
 
       fillOffboardForm();
       tickConfirmation();
@@ -272,7 +272,7 @@ describe('admin member offboarding', () => {
       renderUsers();
 
       await openOffboardDialog();
-      expect(screen.getByText('Northstar Shipping')).toBeTruthy();
+      expect(within(screen.getByRole('dialog')).getByText('Northstar Shipping')).toBeTruthy();
       fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'SECURITY_REPORT' } });
       fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: ' SEC-77 ' } });
       fireEvent.click(screen.getByLabelText(/Urgent security report/));

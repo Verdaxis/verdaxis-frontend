@@ -67,6 +67,8 @@ index.html
 
 **ECA zone geometry.** `src/data/eca-zones-web.json` (1.1 MB of web-simplified zone polygons) is emitted as a hashed static asset, not a JS import. `src/data/secaZones.ts` exposes its URL (`?url` import) and `loadEcaZoneCollection()`, which fetches and caches it once. `loadEcaLayers` awaits both the layer code and that data, so `BuyerMap` installs the overlay on `style.load` after first paint and keeps a single failure path (`ecaOverlayError`). Removing the dataset from the bundle cut the intelligence map's first-load JS by about 394 KB gzip; the asset keeps the same geometry and the `/assets/*` immutable cache header.
 
+**Member offboarding (admin only).** The Users tab can end a member's access and hand over their trades through `OffboardMemberDialog` and `OffboardingTrades`. The actions render only for a signed-in `ADMIN` and only when the build sets `VITE_OFFBOARDING_ENABLED=true`, which is switched on together with the matching backend routes (see `offboardingAccess.ts`). The dialog reads advisory counts, always sends `expected_organization_id` (explicit `null` for a detached member), asks for a new confirmation after a 409, and re-reads the user after an uncertain result without ever repeating the command. Error text comes from translated error codes, never from server text.
+
 **On-demand chart libraries.** Recharts is the heaviest workspace dependency and only two chart components use it: `compliance/FuelEuBarChart.tsx` (lazily imported by `ComplianceDashboard`) and `admin/product-analytics/TrendChart.tsx` (lazily imported through `LazyTrendChart`, used by the five analytics tabs). Both lazy boundaries reserve the chart's box (`h-52` / the `height` prop) so the layout does not move while the chunk arrives. Recharts therefore leaves the compliance and admin route chunks' static imports; the checker fails the build if any route statically reaches `vendor-recharts`.
 
 **Orderbook snapshots.** `OrderBook` treats the bids, asks, and server `generated_at` value from one canonical market-slice snapshot as one dated view. It clears that evidence when the slice changes. If refresh fails, it keeps the last depth visible and labels its age and refresh failure. Query stores the snapshot under the canonical slice key. `useOrderBookSnapshot` registers the slice's ordinary and forced reads with `registerQueryRefresh`; `snapshotRequests.ts` never lets an older result replace a newer one when reads overlap. One forced resume read covers every freshness signal received while the tab was hidden, and a committed event that arrives during a read costs exactly one further read.
@@ -114,6 +116,8 @@ src/
     supplier/                       earlier FAME supplier-offer history
     admin/                          admin and product analytics workspaces
     admin/market-support/           eligible-organization entry
+    admin/OffboardMemberDialog.tsx  admin-only member offboarding dialog and Users-table row actions
+    admin/OffboardingTrades.tsx     admin-only confirmed/delivered trade list and responsible-person reassignment
     market-support/                 acting banner and final order confirmation
     public/                         localized public shell and components
   features/marketplace/             Marketplace composition and unchanged presentation components; old component path is a re-export shim
