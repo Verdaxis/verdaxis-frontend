@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   users: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock('../components/admin/product-analytics/ProductAnalyticsWorkspace', () =>
 }));
 
 import { AdminDashboard } from '../components/admin/AdminDashboard';
-import { ApiError, ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiError, ApiOutcomeUnknownError } from '../services/api';
 import { clearAccessToken } from '../services/authToken';
 import i18n, { loadNamespace } from '../i18n';
 
@@ -636,7 +636,14 @@ describe('admin member offboarding', () => {
   });
 });
 
+// The component tests above replace the admin calls; these exercise the real client.
 describe('offboarding api contract', () => {
+  let api: typeof import('../services/api')['api'];
+
+  beforeAll(async () => {
+    ({ api } = await vi.importActual<typeof import('../services/api')>('../services/api'));
+  });
+
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },

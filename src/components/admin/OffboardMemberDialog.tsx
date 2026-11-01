@@ -166,7 +166,7 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
   };
 
   const submit = async () => {
-    if (submitting.current || !canSubmit || !preview || reasonCode === '') return;
+    if (submitting.current || !canSubmit || !preview) return;
     submitting.current = true;
     setStage('submitting');
     setError(null);
