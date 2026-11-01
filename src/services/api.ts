@@ -1,6 +1,7 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { Trade, TradeCreateInput } from '../types';
 import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot } from '../types';
+import { parseWireDecimal } from '../utils/wireDecimal';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -48,6 +49,21 @@ export const mapPortResponse = (p: any): Port => ({
         lastDone: p.details?.lastDone ?? undefined,
     }
 });
+
+/**
+ * The catalog API sends `min_lot_size` as a decimal string ("200.00"). Read it
+ * here, where the catalog enters the app. A minimum must be a positive amount;
+ * any other value becomes `null`, so the order window shows "catalog minimum
+ * unavailable" and refuses the order.
+ */
+const mapCatalogProduct = (raw: Record<string, unknown>): Product => {
+    const minimum = parseWireDecimal(raw.min_lot_size);
+    return { ...raw, min_lot_size: minimum !== null && minimum > 0 ? minimum : null } as Product;
+};
+
+const mapCatalogProducts = (raw: unknown): Product[] => (
+    Array.isArray(raw) ? raw.map(mapCatalogProduct) : []
+);
 
 const getHeaders = () => {
     const token = getAccessToken();
@@ -870,7 +886,8 @@ export const api = {
 
     catalog: {
         products: async (cacheOptions?: ReadCacheOptions): Promise<Product[]> => {
-            return readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+            const raw = await readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+            return mapCatalogProducts(raw);
         },
         deliveryPoints: async (cacheOptions?: ReadCacheOptions): Promise<DeliveryPoint[]> => {
             return readApi('catalog:delivery-points', '/catalog/delivery-points', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
@@ -1401,44 +1418,6 @@ export const api = {
     fleetIntelligence: {
         get: async (cacheOptions?: ReadCacheOptions): Promise<{ entries: Array<{ fuel: string; ordered_vessels: number; delivered_vessels: number; avg_consumption_mt: number; color: string }>; last_updated: string; sources: string[] }> => {
             return readApi('fleet-intelligence:get', '/fleet-intelligence', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
-        },
-    },
-
-    rfq: {
-        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; is_anonymous?: boolean; expires_in_hours?: number }) => {
-            return fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
-        },
-        list: async (params?: { status?: string; skip?: number; limit?: number }) => {
-            const sp = new URLSearchParams();
-            if (params?.status) sp.append('status', params.status);
-            sp.append('skip', String(params?.skip ?? 0));
-            sp.append('limit', String(params?.limit ?? 20));
-            return fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() });
-        },
-        get: async (id: string) => fetchApi(`/rfq/${id}`, { headers: getHeaders() }),
-        quote: async (rfqId: string, data: { price_per_mt_usd: number; notes?: string }) => {
-            return fetchApi(`/rfq/${rfqId}/quote`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
-        },
-        accept: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/accept/${quoteId}`, { method: 'POST', headers: getHeaders() });
-        },
-        cancel: async (rfqId: string) => {
-            return fetchApi(`/rfq/${rfqId}/cancel`, { method: 'POST', headers: getHeaders() });
-        },
-        decline: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/decline`, { method: 'POST', headers: getHeaders() });
-        },
-        counter: async (rfqId: string, quoteId: string, data: { counter_price_per_mt: number }) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/counter`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
-        },
-        revise: async (rfqId: string, quoteId: string, data: { price_per_mt_usd: number }) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(data) });
-        },
-        withdraw: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/withdraw`, { method: 'POST', headers: getHeaders() });
-        },
-        sellerAccept: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/seller-accept`, { method: 'POST', headers: getHeaders() });
         },
     },
 

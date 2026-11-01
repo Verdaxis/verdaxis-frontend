@@ -158,7 +158,11 @@ export interface Product {
     fuel_type: string;
     fuel_grade: string;
     unit: string;
-    min_lot_size: number;
+    /**
+     * Smallest order quantity in MT. The API sends a decimal string; the catalog
+     * read converts it. `null` means the catalog value was missing or unusable.
+     */
+    min_lot_size: number | null;
     spec_description?: string;
     is_active: boolean;
     /**
@@ -340,6 +344,8 @@ export interface Trade {
     confirmed_at?: string;
     delivered_at?: string;
     paid_at?: string;
+    is_frozen?: boolean;
+    freeze?: { reason_code: string; set_at: string } | null;
     created_at: string;
     // Denormalized from order product/delivery_point
     product_id?: string;
@@ -836,42 +842,6 @@ export interface ActivityEvent {
     event: string;
     data: Record<string, unknown>;
     timestamp: string;
-}
-
-// ============== RFQ Types ==============
-export type RFQStatus = 'OPEN' | 'QUOTED' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
-export type RFQQuoteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
-
-export interface RFQQuote {
-    id: string;
-    seller_org_id: string;
-    seller_org_name?: string;
-    price_per_mt_usd: number;
-    notes?: string;
-    status: RFQQuoteStatus;
-    last_counter_by?: 'buyer' | 'seller' | null;
-    created_at: string;
-}
-
-export interface RFQ {
-    id: string;
-    reference_number?: string;
-    buyer_org_id: string;
-    buyer_org_name?: string;
-    product_id: string;
-    product_name?: string;
-    delivery_point_id?: string;
-    delivery_point_name?: string;
-    quantity_mt: number;
-    target_price_per_mt?: number;
-    availability_window: string;
-    notes?: string;
-    is_anonymous: boolean;
-    status: RFQStatus;
-    expires_at: string;
-    created_at: string;
-    quote_count: number;
-    quotes: RFQQuote[];
 }
 
 // ============== Trade Tape Types ==============
