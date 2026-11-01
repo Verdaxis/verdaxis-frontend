@@ -15,7 +15,6 @@ import { ADMIN_ABILITY_IDS } from './types/abilities';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
-import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
@@ -43,6 +42,17 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
+
+// Trade alerts (sounds, browser notifications, election between tabs) matter only
+// to a signed-in user, so their code loads after sign-in, not with the public pages.
+const loadTradeNotifier = () => import('./components/TradeNotifier').then((module) => ({ default: module.TradeNotifier }));
+const TradeNotifier = lazyWithRetry(loadTradeNotifier);
+
+const SignedInTradeNotifier: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return null;
+  return <Suspense fallback={null}><TradeNotifier /></Suspense>;
+};
 const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
 
 // react-joyride (and its react-floater / redux peers) is a heavy dependency
@@ -686,7 +696,7 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
                 <AnalyticsProvider>
                 <RouteMetadata />
                 <PublicMarketSync />
-                <TradeNotifier />
+                <SignedInTradeNotifier />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes initialPublicPage={initialPublicPage} />

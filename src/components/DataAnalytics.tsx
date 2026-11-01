@@ -3,6 +3,7 @@ import { Database, TrendingUp, Ship, Factory, Lock, BarChart3 } from 'lucide-rea
 import { producerProjects, fuelTypeColors } from '../data/producerProjects';
 import { api } from '../services/api';
 import { Subscription } from '../types';
+import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
@@ -30,6 +31,7 @@ const formatObservedAt = (value: string): string => {
 
 const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const CANONICAL_TRADED_PRODUCTS = new Set([
+    ...ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.label),
     'Bio Methanol',
     'E-Methanol',
     'e-Methanol',

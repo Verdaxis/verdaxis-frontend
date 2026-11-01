@@ -474,7 +474,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
                         </div>
                     </div>
 
-                <div className="verdaxis-market-watch-strip min-w-0 flex-1 overflow-hidden" tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
+                <div className={`verdaxis-market-watch-strip min-w-0 flex-1 ${shouldAutoScroll ? 'overflow-hidden' : 'overflow-x-auto'}`} tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
                     {!rowsLoading && rows.length === 0 && (
                         <p role="status" className="px-3 text-xs text-slate-500 dark:text-slate-400">
                             {t('marketWatch.noSupportedMarkets')}

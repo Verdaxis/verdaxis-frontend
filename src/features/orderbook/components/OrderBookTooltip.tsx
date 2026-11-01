@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TFunction } from 'i18next';
 import { OrderBookOrder } from '../../../types';
 import { formatMarketProduct } from '../../../utils/marketProduct';
 import { formatAvailabilityWindow } from '../../../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../../../utils/marketActivity';
-import { lngAskSummary } from '../../../components/lng/LngOrderTermsDetails';
+import { lngAskSummary, lngBidSummary } from '../../../components/lng/LngOrderTermsDetails';
+import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
 
 export interface OrderBookHoverTooltip {
     order: OrderBookOrder;
@@ -19,12 +20,33 @@ interface OrderBookTooltipProps {
     marketProduct?: string;
     locale: string;
     t: TFunction<'trading'>;
+    /** Moves the tooltip when its rendered size would leave the viewport. */
+    onReposition: (position: { x: number; y: number }) => void;
 }
 
-export const OrderBookTooltip = ({ hoverTooltip, tooltipId, marketProduct, locale, t }: OrderBookTooltipProps) => (
-    createPortal(
+const VIEWPORT_PADDING_PX = 16;
+
+export const OrderBookTooltip = ({ hoverTooltip, tooltipId, marketProduct, locale, t, onReposition }: OrderBookTooltipProps) => {
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const biofuelProduct = hoverTooltip.order.market_product || marketProduct;
+    const biofuelKey = getBiofuelSpecification(biofuelProduct) ? biofuelProduct?.toLowerCase() : undefined;
+    // An ask shows what it declares, a bid shows what it requires.
+    const lngTerms = hoverTooltip.order.lng_terms;
+    const lngSummary = lngTerms ? lngAskSummary(lngTerms, t) ?? lngBidSummary(lngTerms, t) : null;
+
+    // Supplier specifications vary by fuel and language; clamp the rendered tooltip.
+    useLayoutEffect(() => {
+        if (!tooltipRef.current) return;
+        const { width, height } = tooltipRef.current.getBoundingClientRect();
+        const x = Math.max(VIEWPORT_PADDING_PX, Math.min(hoverTooltip.x, window.innerWidth - width - VIEWPORT_PADDING_PX));
+        const y = Math.max(VIEWPORT_PADDING_PX, Math.min(hoverTooltip.y, window.innerHeight - height - VIEWPORT_PADDING_PX));
+        if (x !== hoverTooltip.x || y !== hoverTooltip.y) onReposition({ x, y });
+    }, [hoverTooltip, onReposition, t]);
+
+    return createPortal(
         <div
             id={tooltipId}
+            ref={tooltipRef}
             role="tooltip"
             className="pointer-events-none fixed z-[140] w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-900/18 dark:border-slate-700 dark:bg-slate-950"
             style={{ left: hoverTooltip.x, top: hoverTooltip.y }}
@@ -37,6 +59,9 @@ export const OrderBookTooltip = ({ hoverTooltip, tooltipId, marketProduct, local
                     {hoverTooltip.order.side}
                 </span>
             </div>
+            {biofuelKey && (
+                <p className="mt-2 text-[11px] leading-4 text-slate-600 dark:text-slate-300">{t(`${biofuelKey}.contract`)}</p>
+            )}
             {isDemoMarketActivity(hoverTooltip.order) && (
                 <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">
                     {t('marketplace.demo.tooltip')}
@@ -56,19 +81,19 @@ export const OrderBookTooltip = ({ hoverTooltip, tooltipId, marketProduct, local
                     <span>{hoverTooltip.order.feedstock || t('common.notSpecified')}</span>
                 </div>
                 <div>
-                    <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('orderBook.ci')}</span>
+                    <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t(biofuelKey ? `${biofuelKey}.wholeBlendCiLabel` : 'orderBook.ci')}</span>
                     <span>{hoverTooltip.order.carbon_intensity_gco2_mj != null ? Math.round(hoverTooltip.order.carbon_intensity_gco2_mj).toString() : t('common.notAvailable')}</span>
                 </div>
             </div>
             <div className="mt-3 border-t border-slate-200 pt-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 {hoverTooltip.order.delivery_point_name || hoverTooltip.order.region} · {formatAvailabilityWindow(hoverTooltip.order.availability_window, locale)}
             </div>
-            {hoverTooltip.order.lng_terms && lngAskSummary(hoverTooltip.order.lng_terms, t) && (
+            {lngSummary && (
                 <div className="mt-2 border-t border-slate-200 pt-2 text-[11px] leading-4 text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                    {lngAskSummary(hoverTooltip.order.lng_terms, t)}
+                    {lngSummary}
                 </div>
             )}
         </div>,
         document.body,
-    )
-);
+    );
+};

@@ -9,6 +9,7 @@ import { BenchmarkPriceBlock } from '../../../components/trading/BenchmarkPriceB
 import { CompliancePriceHint } from '../../../components/trading/CompliancePriceHint';
 import { LngOrderTermsDetails } from '../../../components/lng/LngOrderTermsDetails';
 import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
+import { isDemoMarketActivity } from '../../../utils/marketActivity';
 import { HIT_ORDER_ABILITY, PLACE_ORDER_ABILITY, type AbilityDenial, type AbilityId } from '../../../types/abilities';
 
 
@@ -193,15 +194,15 @@ export function ListingsTable({ marketTab, error, hasLoadedListings, configBase,
                 const isPinned = pinnedOrderIds.has(order.id);
                 // The demo "view" button opens a read-only preview, so it is not an action.
                 // A scalar biofuel BID is answered with a new ASK instead of a hit.
-                const actionDenial = order.is_demo_listing
+                const isDemo = order.is_demo_listing || isDemoMarketActivity(order);
+                const requiresBiofuelAsk = order.side === 'BID' && Boolean(getBiofuelSpecification(order.market_product)) && !isDemo;
+                const actionDenial = isDemo
                     ? null
-                    : getAbilityDenial(order.side === 'BID' && getBiofuelSpecification(order.market_product)
-                        ? PLACE_ORDER_ABILITY.ASK
-                        : HIT_ORDER_ABILITY[order.side]);
+                    : getAbilityDenial(requiresBiofuelAsk ? PLACE_ORDER_ABILITY.ASK : HIT_ORDER_ABILITY[order.side]);
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
-                            {order.is_demo_listing || (isExecutable && !isMarketSupportActive) ? (
+                            {isDemo || (isExecutable && !isMarketSupportActive) ? (
                                 <button
                                     type="button"
                                     data-tour="marketplace-listing-action"
@@ -210,7 +211,7 @@ export function ListingsTable({ marketTab, error, hasLoadedListings, configBase,
                                     title={actionDenial?.message}
                                     className={`px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap${actionDenial ? DENIED_BUTTON_CLASSES : ''}`}
                                 >
-                                    {t(order.is_demo_listing ? 'marketplace.demo.view' : configBase.counterAction.labelKey)}
+                                    {t(isDemo ? 'marketplace.demo.view' : requiresBiofuelAsk ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
                                 </button>
                             ) : (
                                 <span className="text-xs text-slate-400 font-medium">

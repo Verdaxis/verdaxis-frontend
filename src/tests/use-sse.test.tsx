@@ -192,7 +192,7 @@ describe('useSSE', () => {
       });
     });
 
-    expect(onEvent).toHaveBeenCalledWith('price_alert_triggered', { alert_id: 'alert-1', price: '725.5' }, '51');
+    expect(onEvent).toHaveBeenCalledWith('price_alert_triggered', { alert_id: 'alert-1', price: 725.5 }, '51');
     await cachedRead('orderbook:test', 'public', 1_000, load);
     await cachedRead('trades:test', 'public', 1_000, load);
     expect(load).toHaveBeenCalledTimes(2);

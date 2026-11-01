@@ -169,8 +169,8 @@ export function validateLngOrderTerms(terms: LngOrderTerms): string | null {
     if (terms.accepted_schemes.length === 0 || new Set(terms.accepted_schemes).size !== terms.accepted_schemes.length) return 'lngTerms.validation.acceptedSchemes';
     if (terms.accepted_custody.length === 0 || new Set(terms.accepted_custody).size !== terms.accepted_custody.length) return 'lngTerms.validation.acceptedCustody';
     if (terms.accepted_delivery_methods.length === 0 || new Set(terms.accepted_delivery_methods).size !== terms.accepted_delivery_methods.length) return 'lngTerms.validation.acceptedDeliveryMethods';
-    if (outsideRange(terms.min_bio_share_pct, BIO_SHARE_MIN, BIO_SHARE_MAX)) return 'lngTerms.validation.bioShare';
-    if (outsideRange(terms.max_wtt_ghg_gco2e_mj, WTT_MIN, WTT_MAX)) return 'lngTerms.validation.wtt';
+    if (outsideRange(terms.min_bio_share_pct, BIO_SHARE_MIN, BIO_SHARE_MAX) || tooManyDecimals(terms.min_bio_share_pct)) return 'lngTerms.validation.bioShare';
+    if (outsideRange(terms.max_wtt_ghg_gco2e_mj, WTT_MIN, WTT_MAX) || tooManyDecimals(terms.max_wtt_ghg_gco2e_mj)) return 'lngTerms.validation.wtt';
     if (outsideRange(terms.min_methane_number, METHANE_NUMBER_MIN, METHANE_NUMBER_MAX)) return 'lngTerms.validation.methaneNumber';
     return null;
 }
@@ -183,7 +183,8 @@ function LngAskFields({ initial, pending, acknowledgements }: {
     const { t } = useNamespace('trading');
     const [scheme, setScheme] = useState(initial?.sustainability_scheme ?? 'ISCC_EU');
     const [custody, setCustody] = useState(initial?.chain_of_custody ?? 'MASS_BALANCE');
-    const [feedstock, setFeedstock] = useState(initial?.feedstock ?? 'MANURE');
+    // No default: the seller must choose the feedstock they declare.
+    const [feedstock, setFeedstock] = useState<string>(initial?.feedstock ?? '');
     const [deliveryMethod, setDeliveryMethod] = useState(initial?.delivery_method ?? 'SHIP_TO_SHIP');
     const [posTiming, setPosTiming] = useState(initial?.pos_timing ?? 'WITH_DELIVERY');
     const [physicalSupplier, setPhysicalSupplier] = useState(initial?.seller_is_physical_supplier ?? true);
@@ -202,7 +203,7 @@ function LngAskFields({ initial, pending, acknowledgements }: {
                 <TextField name="lng_min_methane" label={t('lngTerms.field.methaneNumber')} type="number" min={METHANE_NUMBER_MIN} max={METHANE_NUMBER_MAX} step="any" defaultValue={initial?.min_methane_number ?? ''} />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('lngTerms.ask.standardNotice', { standard: LNG_SPECIFICATION_STANDARD })}</p>
-            <CheckField name="lng_union_database" defaultChecked={initial?.union_database_registered} disabled={pending}>{t('lngTerms.ask.unionDatabase')}</CheckField>
+            <CheckField name="lng_union_database" defaultChecked={initial?.union_database_registered ?? true} disabled={pending}>{t('lngTerms.ask.unionDatabase')}</CheckField>
         </FormSection>
         <FormSection title={t('lngTerms.ask.logistics')}>
             <div className={gridClass}>

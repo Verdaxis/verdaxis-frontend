@@ -805,6 +805,16 @@ describe('OrderPlaceModal', () => {
     });
   });
 
+  it.each([['B30', 'en'], ['B30', 'zh'], ['B100', 'en'], ['B100', 'zh']] as const)('shows the fixed %s contract on a basic %s BID without supplier fields', async (product, language) => {
+    await i18n.changeLanguage(language);
+    productsMock.mockResolvedValue([{ id: `prod-${product.toLowerCase()}`, name: product, market_product: product, fuel_type: 'Biofuel', fuel_grade: product, unit: 'MT', min_lot_size: 200, is_active: true }]);
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct={product} />);
+    const contract = i18n.t(`${product.toLowerCase()}.contract`, { ns: 'trading' });
+    expect(await screen.findByText(contract)).toBeTruthy();
+    expect(screen.queryByLabelText('Carbon intensity method / basis')).toBeNull();
+    await i18n.changeLanguage('en');
+  });
+
   it('closes on cancel without submitting the form', async () => {
     const onClose = vi.fn();
 

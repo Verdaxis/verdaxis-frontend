@@ -166,7 +166,8 @@ describe('TradeNotifier', () => {
     const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: unknown, eventId?: string) => void;
     const data = {
       alert_id: 'alert-1', direction: 'above', product_name: 'Bio-Methanol',
-      price: '725.5', threshold_usd: '700.00',
+      // The stream boundary converts the wire decimals before the handler runs.
+      price: 725.5, threshold_usd: 700,
     };
 
     act(() => handler('price_alert_triggered', data, '51'));

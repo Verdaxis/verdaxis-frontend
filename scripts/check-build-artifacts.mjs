@@ -78,17 +78,36 @@ const LOCAL_API_PATTERNS = [
 // 318,590 staging and 318,597 production). No other route ceiling moves, and
 // the way chunks are counted is unchanged. Task 10 looks for savings to win the
 // growth back. See docs/refactor/step8-marketplace-budget.md.
+//
+// Production features merged into staging (server abilities, cross-tab session
+// sync, stream status, trade alerts, the customizable home grid). Measured on
+// the same lockfile, staging before -> after, first-load gzip bytes:
+//
+//   landing          339,028 -> 346,411   ceiling 349,400   unchanged
+//   marketplace      296,861 -> 308,593   ceiling 325,000   unchanged
+//   intelligence-map 785,322 -> 794,503   ceiling 807,100   unchanged
+//   command-center   240,881 -> 257,315   ceiling 248,100 -> 262,500
+//   compliance       226,618 -> 234,015   ceiling 233,500 -> 238,700
+//
+// Every route pays for the part of the new code that cannot load later: the
+// ability gating used by the sidebar, order window and tables, stream status,
+// cross-tab sync and the strings of the shared `common` namespace. The trade
+// alert code (sounds, browser notifications, election between tabs, the
+// permission card) loads after sign-in, so public pages do not pay for it. The
+// home grid and its strings add to the command center, and compliance moves
+// above its old ceiling by the shell growth alone. The two raised ceilings are
+// the measured value plus 2 %, rounded up to the next 100 bytes.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
-  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 356900 },
+  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
   // authenticated marketplace workspace
   { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 325000 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
   { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
   // authenticated command center (includes the customizable home grid and its strings)
-  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 265300 },
-  // compliance workspace (the authenticated shell grew with abilities, alerts and stream status)
-  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 242200 },
+  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 262500 },
+  // compliance workspace (the shared shell grew with abilities and stream status)
+  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 238700 },
 ];
 
 const GZIP_OPTIONS = { level: zlibConstants.Z_BEST_COMPRESSION };

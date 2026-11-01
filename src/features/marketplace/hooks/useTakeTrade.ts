@@ -10,6 +10,7 @@ import { getAuthGeneration } from '../../../services/authToken';
 import { getMarketSupportContextId } from '../../../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../../../utils/idempotencyKey';
 import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
+import { isDemoMarketActivity } from '../../../utils/marketActivity';
 import { isOrderbookMarketProduct } from '../../../utils/marketProduct';
 import { readFameOrderTerms, readFameOrderAcknowledgements, validateFameOrderTerms } from '../../../components/fame/FameOrderFields';
 import { initialLngTakerTerms, readLngOrderTerms, readLngOrderAcknowledgements, validateLngOrderTerms } from '../../../components/lng/LngOrderFields';
@@ -139,7 +140,9 @@ export function useTakeTrade({
     }, [tradeState, closeTradeModal]);
 
     const openTradeModal = (order: OrderBookOrder) => {
-        if (!isOrderbookMarketProduct(order.market_product) || (isMarketSupportActive && !order.is_demo_listing)) return;
+        // A row marked as demo by its provenance fields is a preview, like a demo listing.
+        const isDemo = order.is_demo_listing || isDemoMarketActivity(order);
+        if (!isOrderbookMarketProduct(order.market_product) || (isMarketSupportActive && !isDemo)) return;
         if (order.market_product === 'UCOME_B100' && !b100TradingEnabled) return;
         if (order.market_product === 'BIO_LNG' && !bioLngTradingEnabled) return;
         if (order.market_product && order.delivery_point_id && order.availability_window) {
@@ -148,10 +151,10 @@ export function useTakeTrade({
                 delivery_point: order.delivery_point_id,
                 window: order.availability_window,
                 side: order.side,
-                demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
+                demo_status: isDemo ? 'DEMO' : 'LIVE',
             });
         }
-        if (order.side === 'BID' && getBiofuelSpecification(order.market_product) && !order.is_demo_listing) {
+        if (order.side === 'BID' && getBiofuelSpecification(order.market_product) && !isDemo) {
             // A scalar biofuel supplier must declare an ASK. This does not target the BID.
             prefillAskOrder(order);
             return;
@@ -160,7 +163,7 @@ export function useTakeTrade({
         setTradeLngInput(null);
         setTradeNeedsRefresh(false);
         setTradeResult(null);
-        setSelectedOrder(order);
+        setSelectedOrder(isDemo ? { ...order, is_demo_listing: true } : order);
         // The order boundary already converted `remaining_quantity_mt` to a number.
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');

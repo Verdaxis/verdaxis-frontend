@@ -52,6 +52,17 @@ describe('SupplierDemandFeed', () => {
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
   });
 
+  it.each(['B30', 'B100'])('shows %s without a redundant Other grade badge', async (product) => {
+    listBidsMock.mockResolvedValue({ items: [{
+      id: 'biofuel-bid', side: 'BID', market_product: product, fuel_type: 'Biofuel', fuel_grade: product,
+      region: 'Singapore', quantity_mt: 2500, price_per_mt_usd: 1105,
+      availability_window: 'SPOT', status: 'OPEN', created_at: '2026-09-25T00:00:00Z',
+    }], total: 1, skip: 0, limit: 5 });
+    renderWithProviders(<SupplierDemandFeed onNavigate={vi.fn()} />);
+    expect(await screen.findByText(product)).toBeTruthy();
+    expect(screen.queryByText('Other grade')).toBeNull();
+  });
+
   it('shows the empty buyer demand state when no open bids are visible', async () => {
     listBidsMock.mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 5 });
 

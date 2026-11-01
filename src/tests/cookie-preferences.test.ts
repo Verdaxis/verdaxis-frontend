@@ -25,12 +25,19 @@ describe('cookie preferences storage', () => {
 
   it('treats malformed, unknown, and unavailable storage as no consent', () => {
     expect(readCookiePreferences({ getItem: () => '{bad json' })).toBeNull();
-    expect(readCookiePreferences({ getItem: () => JSON.stringify({ version: 2, optionalAnalytics: true }) })).toBeNull();
+    expect(readCookiePreferences({ getItem: () => JSON.stringify({ version: 3, optionalAnalytics: true }) })).toBeNull();
     expect(readCookiePreferences({ getItem: () => { throw new Error('blocked'); } })).toBeNull();
     expect(writeCookiePreferences(true, {
       storage: { setItem: () => { throw new Error('blocked'); } },
       window,
     })).toBe(false);
+  });
+
+  it.each([1, 2])('preserves accepted and rejected version-%s choices', (version) => {
+    for (const optionalAnalytics of [true, false]) {
+      const storage = { getItem: () => JSON.stringify({ version, optionalAnalytics }) };
+      expect(readCookiePreferences(storage)).toEqual({ version: 1, optionalAnalytics });
+    }
   });
 
   it('notifies subscribers after same-tab and cross-tab changes', () => {

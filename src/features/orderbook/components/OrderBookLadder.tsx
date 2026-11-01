@@ -248,6 +248,17 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                                                     {t('orderBook.ci')} {Math.round(ask.carbon_intensity_gco2_mj)}
                                                 </span>
                                             )}
+                                            {ask.lng_terms?.side === 'ASK' && Number.isFinite(ask.lng_terms.wtt_ghg_gco2e_mj) && (
+                                                <span className="ml-1.5 inline-flex flex-col items-start">
+                                                    <span className="inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">
+                                                        {t('lngTerms.summary.wtt', { value: ask.lng_terms.wtt_ghg_gco2e_mj.toLocaleString(locale, { maximumFractionDigits: 2 }) })}
+                                                    </span>
+                                                    {/* The caveat qualifies the value, so it is read, not hovered. */}
+                                                    <span className="text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                                        {t('lngTerms.wttNote')}
+                                                    </span>
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="relative z-10 text-sm tabular-nums font-mono text-slate-500 dark:text-slate-400 text-right">
                                             {formatQty(ask.remaining_quantity_mt, locale)}
@@ -269,7 +280,10 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                     })
                 )}
 
-                {hoverTooltip && <OrderBookTooltip hoverTooltip={hoverTooltip} tooltipId={tooltipId} marketProduct={marketProduct} locale={locale} t={t} />}
+                {hoverTooltip && <OrderBookTooltip
+                    hoverTooltip={hoverTooltip} tooltipId={tooltipId} marketProduct={marketProduct} locale={locale} t={t}
+                    onReposition={({ x, y }) => setHoverTooltip({ ...hoverTooltip, x, y })}
+                />}
             </div>
 
             {/* Only live prices define the spread; demo liquidity and API cross metadata do not. */}

@@ -1115,7 +1115,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                                 {(biofuelSpecification || selectedProduct.spec_description) && (
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
-                                        {locale.startsWith('zh')
+                                        {biofuelSpecification ? t(`${biofuelKey}.contract`) : locale.startsWith('zh')
                                             ? t('orderPlaceModal.productSpecifications.generic')
                                             : selectedProduct.spec_description}
                                     </p>
@@ -1273,7 +1273,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>}
 
-                                    {biofuelSpecification && <p className="text-sm text-slate-600 dark:text-slate-300">{t(`${biofuelKey}.contract`)}</p>}
                                     {!isFameOrder && !isLngOrder && side === 'ASK' && (
                                         <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">

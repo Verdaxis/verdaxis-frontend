@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -42,6 +42,13 @@ function Probe() {
   );
 }
 
+function EarlyCredentialScrubber() {
+  useLayoutEffect(() => {
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+  return null;
+}
+
 describe('AuthProvider token bootstrap', () => {
   const originalFetch = global.fetch;
 
@@ -69,6 +76,7 @@ describe('AuthProvider token bootstrap', () => {
   it('exits loading and authenticates when bootstrapped from a token in the URL', async () => {
     render(
       <AuthProvider>
+        <EarlyCredentialScrubber />
         <Probe />
       </AuthProvider>,
     );

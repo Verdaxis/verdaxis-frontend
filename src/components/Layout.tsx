@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ViewMode, Page } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -10,8 +10,12 @@ import { KycDeadlineBanner } from './layout/KycDeadlineBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ServerStatusBanner } from './layout/ServerStatusBanner';
 import { FeedbackButton } from './FeedbackButton';
-import { TradeAlertPrompt } from './notifications/TradeAlertPrompt';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { useTranslation } from 'react-i18next';
+
+// The notification card needs the alert code, which loads after the shell.
+const TradeAlertPrompt = lazyWithRetry(() => import('./notifications/TradeAlertPrompt')
+    .then((module) => ({ default: module.TradeAlertPrompt })));
 // Copilot removed per Gavin feedback
 
 interface LayoutProps {
@@ -97,7 +101,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
                 {/* Copilot removed per Gavin feedback */}
                 <FeedbackButton />
-                <TradeAlertPrompt />
+                <Suspense fallback={null}><TradeAlertPrompt /></Suspense>
             </div>
         </div>
     );

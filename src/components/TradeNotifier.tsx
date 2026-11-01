@@ -13,12 +13,6 @@ import { PAGE_SLUGS } from '../types';
 import { announcePriceAlertTriggered } from '../services/priceAlertEvents';
 import { announceOwnOrdersChanged, eventChangesOwnOrders } from '../services/orderStreamEvents';
 
-/** Two decimals for a price text from the server; any other value is shown as sent. */
-const formatAmount = (value: unknown): string => {
-    const amount = Number(value);
-    return value !== null && value !== '' && Number.isFinite(amount) ? amount.toFixed(2) : String(value ?? '');
-};
-
 /**
  * Invisible component that listens to SSE trade events
  * and shows toast notifications + adds to notification panel.
@@ -97,8 +91,8 @@ export const TradeNotifier: React.FC = () => {
                 title = t('tradeNotifier.priceAlert.title');
                 message = t(`tradeNotifier.priceAlert.message.${data.direction === 'below' ? 'below' : 'above'}`, {
                     product: data.product_name || t('tradeNotifier.priceAlert.anyProduct'),
-                    price: formatAmount(data.price),
-                    threshold: formatAmount(data.threshold_usd),
+                    price: formatUsd(data.price),
+                    threshold: formatUsd(data.threshold_usd),
                 });
                 toastType = 'trade';
                 break;

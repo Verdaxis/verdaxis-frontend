@@ -38,8 +38,13 @@ function fill(label: string, value: string) {
 function setPrice(value: string) {
   fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value } });
 }
+function chooseFeedstock() {
+  fireEvent.click(screen.getByRole('combobox', { name: text('lngTerms.field.feedstock') }));
+  fireEvent.click(screen.getByRole('option', { name: text('lngTerms.feedstock.MANURE') }));
+}
 /** Every required ASK field except the MSDS acknowledgement. */
 function fillValidAskFields() {
+  chooseFeedstock();
   fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
   fill(text('lngTerms.field.productionCountry'), 'NL');
   fill(text('lngTerms.field.bioShare'), '95');
@@ -88,12 +93,14 @@ describe('OrderPlaceModal BIO_LNG terms', () => {
     // Bio-LNG is lane-restricted: Singapore is not offered for this product.
     expect(screen.getByRole('combobox', { name: text('orderPlaceModal.aria.deliveryPoint') }).textContent).toContain('Rotterdam');
     setPrice('820');
+    chooseFeedstock();
     fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
     fill(text('lngTerms.field.productionCountry'), 'nl');
     fill(text('lngTerms.field.bioShare'), '95');
     fill(text('lngTerms.field.wtt'), '-120.5');
     fill(text('lngTerms.field.supplierName'), 'Supplier A');
-    fireEvent.click(screen.getByLabelText(text('lngTerms.ask.unionDatabase')));
+    // The Union Database box starts ticked.
+    expect((screen.getByLabelText(text('lngTerms.ask.unionDatabase')) as HTMLInputElement).checked).toBe(true);
     // MSDS stays a required ASK declaration for BIO_LNG, as for every product.
     fireEvent.click(screen.getByLabelText(text('lngTerms.ask.msdsAvailable')));
     await reviewAndConfirm('Ask');
@@ -137,6 +144,7 @@ describe('OrderPlaceModal BIO_LNG terms', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     setPrice('820');
+    chooseFeedstock();
     fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
     fill(text('lngTerms.field.productionCountry'), 'NL');
     // Two decimals are reachable through the numeric input but rejected by the contract.
