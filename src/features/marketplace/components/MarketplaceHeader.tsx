@@ -7,12 +7,9 @@ import type { TFunction } from 'i18next';
 import type { MarketplaceRolePresentation } from './Marketplace';
 
 interface MarketplaceHeaderProps {
-    isHistorySelected: boolean;
     t: TFunction;
     configBase: MarketplaceRolePresentation;
     setOrderModalSide: (side: 'ASK' | 'BID') => void;
-    marketProduct: 'All' | MarketProduct;
-    setMarketTab: (tab: 'history_offers') => void;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     loadCatalogProducts: (force?: boolean) => Promise<void>;
     fetchProductCounts: (force?: boolean) => Promise<void>;
@@ -26,17 +23,17 @@ interface MarketplaceHeaderProps {
     children: React.ReactNode;
 }
 
-export function MarketplaceHeader({ isHistorySelected, t, configBase, setOrderModalSide, marketProduct, setMarketTab, marketTab, loadCatalogProducts, fetchProductCounts, fetchListings, currentSkip, refreshing, isMarketSupportActive, currentSliceTarget, toggleSlice, isCurrentSliceTracked, children }: MarketplaceHeaderProps) {
+export function MarketplaceHeader({ t, configBase, setOrderModalSide, marketTab, loadCatalogProducts, fetchProductCounts, fetchListings, currentSkip, refreshing, isMarketSupportActive, currentSliceTarget, toggleSlice, isCurrentSliceTracked, children }: MarketplaceHeaderProps) {
     return <>
             {/* Header */}
-            <div className={`flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] ${isHistorySelected ? '' : 'max-h-[50%] overflow-y-auto overscroll-contain'}`}>
+            <div className="flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] max-h-[50%] overflow-y-auto overscroll-contain">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
-                            <p className="text-slate-500 mt-1 text-sm">{t(isHistorySelected ? 'marketplace.b100.historyDescription' : configBase.subtitleKey)}</p>
+                            <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
                         </div>
-                        {!isHistorySelected && <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
@@ -46,7 +43,6 @@ export function MarketplaceHeader({ isHistorySelected, t, configBase, setOrderMo
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
                             </button>
-                            {marketProduct === 'UCOME_B100' && <button type="button" onClick={() => setMarketTab('history_offers')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 dark:border-slate-600 dark:text-slate-300">{t('marketplace.b100.history')}</button>}
                             {marketTab !== 'orderbook' && <button
                                 type="button"
                                 onClick={() => {
@@ -72,7 +68,7 @@ export function MarketplaceHeader({ isHistorySelected, t, configBase, setOrderMo
                                 <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
                                 <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
                             </button>}
-                        </div>}
+                        </div>
                     </div>
                     {children}
 

@@ -9,7 +9,6 @@ import { FameOrderTermsDetails } from '../../../components/fame/FameOrderTermsDe
 import type { TFunction } from 'i18next';
 
 interface MyListingsPanelProps {
-    isHistorySelected: boolean;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     myOrdersError: string | null;
     myOrdersLoading: boolean;
@@ -27,10 +26,10 @@ interface MyListingsPanelProps {
     fetchMyOrders: (force?: boolean) => Promise<void>;
 }
 
-export function MyListingsPanel({ isHistorySelected, marketTab, myOrdersError, myOrdersLoading, outstandingMyOrders, filteredMyOrders, role, setOrderModalSide, sliceSummary, hasActiveSliceFilters, clearMarketFilters, locale, t, isMarketSupportActive, handleCancelOrder, fetchMyOrders }: MyListingsPanelProps) {
+export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, outstandingMyOrders, filteredMyOrders, role, setOrderModalSide, sliceSummary, hasActiveSliceFilters, clearMarketFilters, locale, t, isMarketSupportActive, handleCancelOrder, fetchMyOrders }: MyListingsPanelProps) {
     return <>
             {/* My Listings tab: user's outstanding orders */}
-            {!isHistorySelected && marketTab === 'my_orders' && (
+            {marketTab === 'my_orders' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
                         {myOrdersError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}

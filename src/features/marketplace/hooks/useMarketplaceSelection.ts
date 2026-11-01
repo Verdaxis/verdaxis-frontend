@@ -44,11 +44,8 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
         search.delete('product');
         navigate({ pathname: location.pathname, search: search.toString() }, { replace: true });
     }, [isExactSliceRoute, location.pathname, location.search, navigate]);
-    const historyView = new URLSearchParams(location.search).get('view');
-    const requestedView = historyView;
+    const requestedView = new URLSearchParams(location.search).get('view');
     const marketTab: 'market' | 'orderbook' | 'my_orders' = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
-    const isHistorySelected = requestedProduct === 'UCOME_B100'
-        && ['history_offers', 'history_my_offers', 'history_rfqs', 'requests'].includes(historyView ?? '');
     const role: ViewMode = userRole === 'ADMIN'
         ? (viewMode ?? 'BUYER')
         : userRole === 'SUPPLIER'
@@ -109,17 +106,11 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     const pageScope = JSON.stringify([role, resolvedPort, resolvedDeliveryPointId, marketProduct, availability, sortBy]);
     const currentSkip = page.scope === pageScope ? page.skip : 0;
     const setCurrentSkip = useCallback((skip: number) => setPage({ scope: pageScope, skip }), [pageScope]);
-    const fameTab: 'history_offers' | 'history_my_offers' | 'history_rfqs' = requestedView === 'history_rfqs' || requestedView === 'requests' ? 'history_rfqs' : requestedView === 'history_my_offers' ? 'history_my_offers' : 'history_offers';
-    const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'history_offers' | 'history_my_offers' | 'history_rfqs') => {
+    const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders') => {
         const next = new URLSearchParams(location.search);
         if (tab === 'market') next.delete('view');
         else next.set('view', tab);
         next.delete('preview');
-        if (tab.startsWith('history_')) {
-            next.set('product', 'UCOME_B100');
-            navigate({ pathname: '/app/marketplace', search: next.toString() });
-            return;
-        }
         navigate({ pathname: location.pathname, search: next.toString() });
     }, [location.pathname, location.search, navigate]);
     useEffect(() => {
@@ -144,7 +135,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     // the catalog answers, move a product/port pair the lanes do not clear to
     // the product's first allowed port, or fail closed to the marketplace root.
     useEffect(() => {
-        if (!ready || isHistorySelected) return;
+        if (!ready) return;
         if (marketProduct === ALL_MARKET_PRODUCTS || laneAllowedPortNames === null) return;
         if (!resolvedPort || isSlicePortAllowed(resolvedPort, laneAllowedPortNames)) return;
         const fallbackPort = laneAllowedPortNames[0];
@@ -157,7 +148,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
         setMarketProduct(ALL_MARKET_PRODUCTS);
         setPortInput('');
         setStoredDeliveryPointId('');
-    }, [isHistorySelected, laneAllowedPortNames, marketProduct, ready, resolvedPort]);
+    }, [laneAllowedPortNames, marketProduct, ready, resolvedPort]);
 
     // State → URL: on a slice URL, keep the address bar truthful as the
     // user changes product/port/window in-page (replace, not push). The
@@ -166,7 +157,6 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     // with stale state mid slice→slice navigation and bounce the URL back.
     useEffect(() => {
         if (!location.pathname.startsWith('/app/m/')) return;
-        if (isHistorySelected) return;
         const isFullSlice = marketProduct !== ALL_MARKET_PRODUCTS && Boolean(resolvedPort) && Boolean(availability) && isApprovedTradingPortName(resolvedPort);
         const nextPath = isFullSlice
             ? sliceToPath({ product: marketProduct as MarketProduct, port: resolvedPort, window: availability })
@@ -175,7 +165,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
             navigate({ pathname: nextPath, search: location.search }, { replace: true });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [availability, marketProduct, resolvedPort, isHistorySelected]);
+    }, [availability, marketProduct, resolvedPort]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
@@ -201,7 +191,6 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     useEffect(() => {
         if (
             !ready
-            || isHistorySelected
             || (initialSlice && availability !== initialSlice.window)
         ) return;
 
@@ -213,7 +202,7 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
         } else {
             localStorage.removeItem(MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow);
         }
-    }, [availability, initialSlice?.window, isHistorySelected, ready]);
+    }, [availability, initialSlice?.window, ready]);
 
     const portOptions = useMemo(() => {
         const visiblePorts = laneAllowedPortNames === null
@@ -270,7 +259,6 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
         if (requestedProduct) {
             const next = new URLSearchParams(location.search);
             next.delete('product');
-            if (isHistorySelected) next.delete('view');
             navigate({ pathname: '/app/marketplace', search: next.toString() });
         }
     };
@@ -281,13 +269,13 @@ export function useMarketplaceSelection({ initialPort, initialSlice, viewMode, u
     }, []);
 
     useEffect(() => {
-        if (isHistorySelected || marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
+        if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
         analytics.track('market_slice_selected', {
             product: marketProduct,
             delivery_point: resolvedDeliveryPointId,
             window: availability,
         });
-    }, [availability, marketProduct, resolvedDeliveryPointId, isHistorySelected]);
+    }, [availability, marketProduct, resolvedDeliveryPointId]);
 
-    return { role, requestedProduct, marketTab, isHistorySelected, fameTab, setMarketTab, portInput, storedDeliveryPointId, resolvedPort, resolvedDeliveryPointId, laneAllowedPortNames, marketProduct, availability, availabilityOptions, filtersExpanded, setFiltersExpanded, currentSkip, setCurrentSkip, sortBy, setSortBy, setAvailability, portOptions, sliceSummary, clearMarketFilters, handlePortChange, handleProductChipClick, handleSortChange };
+    return { role, requestedProduct, marketTab, setMarketTab, portInput, storedDeliveryPointId, resolvedPort, resolvedDeliveryPointId, laneAllowedPortNames, marketProduct, availability, availabilityOptions, filtersExpanded, setFiltersExpanded, currentSkip, setCurrentSkip, sortBy, setSortBy, setAvailability, portOptions, sliceSummary, clearMarketFilters, handlePortChange, handleProductChipClick, handleSortChange };
 }

@@ -156,7 +156,7 @@ describe('Marketplace take execution', () => {
         const client = createQueryClient();
         const t = ((key: string) => key) as TFunction;
         const hook = renderHook(() => useTakeTrade({ userId: 'user-a', organizationId: 'org-a',
-            isMarketSupportActive: false, isHistorySelected: false, marketTab: 'market',
+            isMarketSupportActive: false, marketTab: 'market',
             b100TradingEnabled: false, bioLngTradingEnabled: false, t, tRfq: t,
             fetchProductCounts: vi.fn(), fetchListings: vi.fn(), currentSkip: 0, prefillAskOrder: vi.fn(),
         }), { wrapper: ({ children }) => <QueryProvider client={client}>{children}</QueryProvider> });
@@ -179,7 +179,7 @@ describe('Marketplace take execution', () => {
         const client = createQueryClient();
         const t = ((key: string) => key) as TFunction;
         const hook = renderHook(() => useTakeTrade({ userId: 'user-a', organizationId: 'org-a',
-            isMarketSupportActive: mocks.support.active, isHistorySelected: false, marketTab: 'market',
+            isMarketSupportActive: mocks.support.active, marketTab: 'market',
             b100TradingEnabled: false, bioLngTradingEnabled: false, t, tRfq: t,
             fetchProductCounts: vi.fn(), fetchListings: vi.fn(), currentSkip: 0, prefillAskOrder: vi.fn(),
         }), { wrapper: ({ children }) => <QueryProvider client={client}>{children}</QueryProvider> });

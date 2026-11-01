@@ -7,7 +7,6 @@ import { TradeTape } from '../../../components/TradeTape';
 import type { TFunction } from 'i18next';
 
 interface MarketDepthPanelProps {
-    isHistorySelected: boolean;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     t: TFunction;
     orderbookRequiresExactSlice: boolean;
@@ -24,9 +23,9 @@ interface MarketDepthPanelProps {
     handleOrderbookLevelClick: (order: OrderBookOrder) => void;
 }
 
-export function MarketDepthPanel({ isHistorySelected, marketTab, t, orderbookRequiresExactSlice, marketScopeReadyCopyKey, orderbookSliceRequirements, isCatalogScopeResolving, marketProduct, resolvedDeliveryPointId, availability, resolvedPort, role, b100Product, bioLngProduct, handleOrderbookLevelClick }: MarketDepthPanelProps) {
+export function MarketDepthPanel({ marketTab, t, orderbookRequiresExactSlice, marketScopeReadyCopyKey, orderbookSliceRequirements, isCatalogScopeResolving, marketProduct, resolvedDeliveryPointId, availability, resolvedPort, role, b100Product, bioLngProduct, handleOrderbookLevelClick }: MarketDepthPanelProps) {
     return <>
-            {!isHistorySelected && marketTab === 'orderbook' && (
+            {marketTab === 'orderbook' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
                         <div

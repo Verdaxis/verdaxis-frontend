@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNamespace } from '../../hooks/useNamespace';
-import type { FameContractTerms, FameOfferTerms } from '../../types/fameRfq';
+import type { FameOfferTerms } from '../../types/fameRfq';
 import type { SupplierOfferFuelTerms, SupplierOfferPublicFuelTerms } from '../../types/fameSupplierOffer';
 import { ChoiceField, FormSection, TextAreaField, TextField, fieldText, gridClass, optionalNumber, singaporeDate } from './FameFormFields';
 
@@ -110,24 +110,23 @@ export function validateFameDeclaration(terms: Declaration, deliveryEnd: string,
 
 interface FameDeclarationFieldsProps {
     /**
-     * Declaration data to prefill: a contract offer declaration, a supplier offer
-     * declaration, or the public projection of one (which keeps the private
+     * Declaration data to prefill: an offer declaration, a supplier declaration,
+     * or the public projection of one (which keeps the private
      * identity-bearing fields present but nullable).
      */
     initial?: Partial<SupplierOfferFuelTerms> | SupplierOfferPublicFuelTerms | FameOfferTerms | null;
-    contract?: FameContractTerms;
     deliveryEnd?: string;
     certificateValidityHint?: string;
-    evidenceDue?: FameContractTerms['evidence_due'];
+    evidenceDue?: 'BEFORE_LOADING' | 'BEFORE_DELIVERY';
     listing?: boolean;
     pending?: boolean;
 }
 
-export function FameDeclarationFields({ initial, contract, deliveryEnd = '', certificateValidityHint, evidenceDue, listing = false, pending = false }: FameDeclarationFieldsProps) {
+export function FameDeclarationFields({ initial, deliveryEnd = '', certificateValidityHint, evidenceDue, listing = false, pending = false }: FameDeclarationFieldsProps) {
     const { t } = useNamespace('rfq');
-    const [standard, setStandard] = useState(contract?.standard ?? initial?.standard ?? 'EN_14214');
-    const [scheme, setScheme] = useState(contract?.sustainability_scheme ?? initial?.sustainability_scheme ?? 'ISCC_EU');
-    const [grade, setGrade] = useState(contract?.astm_grade ?? initial?.astm_grade ?? '');
+    const [standard, setStandard] = useState(initial?.standard ?? 'EN_14214');
+    const [scheme, setScheme] = useState(initial?.sustainability_scheme ?? 'ISCC_EU');
+    const [grade, setGrade] = useState(initial?.astm_grade ?? '');
     const [nomination, setNomination] = useState(listing && initial && 'nomination_status' in initial ? initial.nomination_status ?? 'PENDING' : listing ? 'PENDING' : 'IDENTIFIED');
     const [ciProvided, setCiProvided] = useState(initial?.ci_gco2e_mj != null);
     const [ciBasis, setCiBasis] = useState(initial?.ci_basis ?? '');
@@ -135,24 +134,24 @@ export function FameDeclarationFields({ initial, contract, deliveryEnd = '', cer
     const [qualityStatus, setQualityStatus] = useState(initial?.quality_evidence?.status ?? '');
     const [sustainabilityStatus, setSustainabilityStatus] = useState(initial?.sustainability_evidence?.status ?? '');
     const [documentType, setDocumentType] = useState(initial?.sustainability_evidence?.document_type ?? 'POS');
-    const [documentDue, setDocumentDue] = useState(initial?.sustainability_evidence?.due ?? contract?.evidence_due ?? 'BEFORE_LOADING');
+    const [documentDue, setDocumentDue] = useState(initial?.sustainability_evidence?.due ?? 'BEFORE_LOADING');
     const [results, setResults] = useState<Array<QualityResult & { rowId: number; value: number }>>(() => (initial?.quality_evidence?.results ?? []).map((result, index) => ({ ...result, rowId: index })));
     const [nextRowId, setNextRowId] = useState(results.length);
     const identified = !listing || nomination === 'IDENTIFIED';
-    const effectiveDocumentDue = contract?.evidence_due ?? evidenceDue ?? documentDue;
+    const effectiveDocumentDue = evidenceDue ?? documentDue;
     const evidenceOptions = ['', 'PENDING', 'AVAILABLE'].map(value => ({ value, label: value ? t(`form.evidenceStatusOptions.${value}`) : t('notSupplied') }));
 
     return <div className="space-y-5">
         <FormSection title={t('form.specification')}>
             <p className="text-xs text-slate-500 dark:text-slate-400">{t('declaration.composition')}</p>
             <div className={gridClass}>
-                <ChoiceField name="standard" label={t('form.standard')} value={standard} onChange={value => { setStandard(value as typeof standard); setGrade(''); }} disabled={pending || Boolean(contract)} options={['EN_14214', 'ASTM_D6751'].map(value => ({ value, label: t(`form.standardOptions.${value}`) }))} />
-                <TextField name="standard_edition" label={t('form.standardEdition')} defaultValue={contract?.standard_edition ?? initial?.standard_edition ?? ''} readOnly={Boolean(contract)} maxLength={200} required />
-                {standard === 'ASTM_D6751' ? <ChoiceField name="astm_grade" label={t('declaration.astmGrade')} value={grade} onChange={setGrade} disabled={pending || Boolean(contract?.astm_grade)} options={[{ value: '', label: t('declaration.selectGrade') }, ...ASTM_GRADES.map(value => ({ value, label: value }))]} /> : <TextField name="en_climate_class" label={t('declaration.enClimateClass')} defaultValue={contract?.en_climate_class ?? initial?.en_climate_class ?? ''} readOnly={Boolean(contract?.en_climate_class)} maxLength={200} />}
-                <TextField name="cfpp" label={t('form.cfpp')} type="number" min={-80} max={contract?.max_cfpp_c ?? 50} step="any" defaultValue={initial?.cfpp_c ?? ''} required={contract?.max_cfpp_c != null} />
+                <ChoiceField name="standard" label={t('form.standard')} value={standard} onChange={value => { setStandard(value as typeof standard); setGrade(''); }} disabled={pending} options={['EN_14214', 'ASTM_D6751'].map(value => ({ value, label: t(`form.standardOptions.${value}`) }))} />
+                <TextField name="standard_edition" label={t('form.standardEdition')} defaultValue={initial?.standard_edition ?? ''} maxLength={200} required />
+                {standard === 'ASTM_D6751' ? <ChoiceField name="astm_grade" label={t('declaration.astmGrade')} value={grade} onChange={setGrade} disabled={pending} options={[{ value: '', label: t('declaration.selectGrade') }, ...ASTM_GRADES.map(value => ({ value, label: value }))]} /> : <TextField name="en_climate_class" label={t('declaration.enClimateClass')} defaultValue={initial?.en_climate_class ?? ''} maxLength={200} />}
+                <TextField name="cfpp" label={t('form.cfpp')} type="number" min={-80} max={50} step="any" defaultValue={initial?.cfpp_c ?? ''} />
                 <TextField name="cloud_point" label={t('declaration.cloudPoint')} type="number" min={-80} max={80} step="any" defaultValue={initial?.cloud_point_c ?? ''} />
-                <TextField name="ci" label={t('form.ci')} type="number" min={0} max={contract?.max_ci_gco2e_mj ?? 200} step="any" defaultValue={initial?.ci_gco2e_mj ?? ''} required={contract?.max_ci_gco2e_mj != null} onChange={event => setCiProvided(event.target.value !== '')} />
-                <TextField name="ci_methodology" label={t('form.ciMethodology')} defaultValue={initial?.ci_methodology ?? ''} maxLength={200} required={ciProvided || contract?.max_ci_gco2e_mj != null} hint={t('form.ciMethodologyHint')} />
+                <TextField name="ci" label={t('form.ci')} type="number" min={0} max={200} step="any" defaultValue={initial?.ci_gco2e_mj ?? ''} onChange={event => setCiProvided(event.target.value !== '')} />
+                <TextField name="ci_methodology" label={t('form.ciMethodology')} defaultValue={initial?.ci_methodology ?? ''} maxLength={200} required={ciProvided} hint={t('form.ciMethodologyHint')} />
                 <ChoiceField name="ci_basis" label={t('declaration.ciBasis')} value={ciBasis} onChange={setCiBasis} disabled={pending} options={['', 'ACTUAL', 'DEFAULT'].map(value => ({ value, label: value ? t(`declaration.ciBasisOptions.${value}`) : t('notSupplied') }))} />
                 <TextField name="ci_boundary" label={t('declaration.ciBoundary')} defaultValue={initial?.ci_boundary ?? ''} maxLength={200} required={listing && ciProvided} />
                 <TextField name="lhv" label={t('form.lhv')} type="number" min="0.01" max={50} step="any" defaultValue={initial?.lhv_mj_kg ?? ''} />
@@ -171,7 +170,7 @@ export function FameDeclarationFields({ initial, contract, deliveryEnd = '', cer
         </FormSection>
         <FormSection title={t('declaration.operatorCertificate')}>
             <div className={gridClass}>
-                <ChoiceField name="scheme" label={t('form.scheme')} value={scheme} onChange={value => setScheme(value as typeof scheme)} disabled={pending || Boolean(contract)} options={['ISCC_EU', 'REDCERT_EU'].map(value => ({ value, label: t(`form.schemeOptions.${value}`) }))} />
+                <ChoiceField name="scheme" label={t('form.scheme')} value={scheme} onChange={value => setScheme(value as typeof scheme)} disabled={pending} options={['ISCC_EU', 'REDCERT_EU'].map(value => ({ value, label: t(`form.schemeOptions.${value}`) }))} />
                 <TextField name="certificate_reference" label={t('form.certificateReference')} defaultValue={initial?.certificate_reference ?? ''} maxLength={200} required />
                 <TextField name="certificate_holder" label={t('form.certificateHolder')} defaultValue={initial?.certificate_holder ?? ''} maxLength={200} required />
                 <TextField name="certificate_scope" label={t('declaration.certificateScope')} defaultValue={initial?.certificate_scope ?? ''} maxLength={200} />
@@ -221,7 +220,7 @@ export function FameDeclarationFields({ initial, contract, deliveryEnd = '', cer
                     <TextField name="sustainability_issuer" label={t('declaration.issuer')} defaultValue={initial?.sustainability_evidence?.issuer ?? ''} maxLength={200} />
                     <TextField name="sustainability_quantity" label={t('declaration.documentQuantity')} type="number" min="0.01" max={100_000} step="0.01" defaultValue={initial?.sustainability_evidence?.quantity_mt ?? ''} />
                     <TextField name="sustainability_date" label={t('declaration.supplyDate')} type="date" defaultValue={initial?.sustainability_evidence?.supply_date ?? ''} />
-                    <ChoiceField name="sustainability_due" label={t('form.evidenceDue')} value={effectiveDocumentDue} onChange={value => setDocumentDue(value as typeof documentDue)} disabled={pending || Boolean(contract || evidenceDue)} options={['BEFORE_LOADING', 'BEFORE_DELIVERY'].map(value => ({ value, label: t(`form.evidenceDueOptions.${value}`) }))} />
+                    <ChoiceField name="sustainability_due" label={t('form.evidenceDue')} value={effectiveDocumentDue} onChange={value => setDocumentDue(value as typeof documentDue)} disabled={pending || Boolean(evidenceDue)} options={['BEFORE_LOADING', 'BEFORE_DELIVERY'].map(value => ({ value, label: t(`form.evidenceDueOptions.${value}`) }))} />
                 </fieldset>
             </div>
         </details>

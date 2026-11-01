@@ -16,7 +16,6 @@ const PAGE_SIZE = 8;
 type ColumnId = MarketplaceColumnId;
 
 interface ListingsTableProps {
-    isHistorySelected: boolean;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     error: string | null;
     hasLoadedListings: boolean;
@@ -41,7 +40,7 @@ interface ListingsTableProps {
     handlePageChange: (skip: number) => void;
 }
 
-export function ListingsTable({ isHistorySelected, marketTab, error, hasLoadedListings, configBase, loading, filteredListings, highlightedOrderId, t, role, locale, complianceOverlays, overlayAssumptions, b100TradingEnabled, bioLngTradingEnabled, pinnedOrderIds, isMarketSupportActive, openTradeModal, catalogError, togglePin, totalCount, currentSkip, handlePageChange }: ListingsTableProps) {
+export function ListingsTable({ marketTab, error, hasLoadedListings, configBase, loading, filteredListings, highlightedOrderId, t, role, locale, complianceOverlays, overlayAssumptions, b100TradingEnabled, bioLngTradingEnabled, pinnedOrderIds, isMarketSupportActive, openTradeModal, catalogError, togglePin, totalCount, currentSkip, handlePageChange }: ListingsTableProps) {
     // ─── Column header labels (inside component to access t()) ────
     const COLUMN_HEADERS: Record<ColumnId, string> = {
         fuel: t('marketplace.col.fuel'),
@@ -248,7 +247,7 @@ export function ListingsTable({ isHistorySelected, marketTab, error, hasLoadedLi
 
     return <>
             {/* Market tab: listings table */}
-            {!isHistorySelected && marketTab === 'market' && (!error || hasLoadedListings) && (
+            {marketTab === 'market' && (!error || hasLoadedListings) && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto">
                         <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">

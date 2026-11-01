@@ -28,7 +28,6 @@ interface UseCancelOrderOptions {
     marketSupportContextId?: string | null;
     scope: QueryScope;
     isMarketSupportActive: boolean;
-    isHistorySelected: boolean;
     readError: unknown;
     t: TFunction;
     fetchMyOrders: (force?: boolean) => Promise<void>;
@@ -36,7 +35,7 @@ interface UseCancelOrderOptions {
 
 export function useCancelOrder({
     userId, organizationId, marketSupportContextId, scope, isMarketSupportActive,
-    isHistorySelected, readError, t, fetchMyOrders,
+    readError, t, fetchMyOrders,
 }: UseCancelOrderOptions) {
     const client = useQueryClient();
     const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
@@ -79,11 +78,6 @@ export function useCancelOrder({
         setPendingCancellation(null);
         setMyOrdersError(null);
     }, [userId, organizationId, marketSupportContextId]);
-
-    useEffect(() => {
-        if (!isHistorySelected) return;
-        setPendingCancellation(null);
-    }, [isHistorySelected]);
 
     const handleCancelOrder = async (order: OrderBookOrder) => {
         cancellationRequestRef.current = null;
