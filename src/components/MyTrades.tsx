@@ -13,7 +13,7 @@ import {
     ChevronDown,
     EyeOff,
 } from 'lucide-react';
-import { ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
+import { ApiError, ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import { Trade } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
@@ -201,6 +201,10 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
             });
             return;
         }
+        if (!retainedRequest && trades.some(trade => trade.id === tradeId && trade.is_frozen)) {
+            addToast({ type: 'warning', title: t('myTrades.freeze.title'), message: t('myTrades.freeze.refusal') });
+            return;
+        }
         const request = retainedRequest ?? {
             operation,
             tradeId,
@@ -254,6 +258,13 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     title: t('myTrades.toast.outcomeUnknown.title'),
                     message: t('myTrades.toast.outcomeUnknown.message'),
                 });
+                return;
+            }
+            if (err instanceof ApiError && err.status === 409 && err.code === 'TRADE_FROZEN') {
+                setRetryRequest(null);
+                setTrades(current => current.map(trade => trade.id === tradeId ? { ...trade, is_frozen: true } : trade));
+                addToast({ type: 'warning', title: t('myTrades.freeze.title'), message: t('myTrades.freeze.refusal') });
+                void fetchTrades(true, true);
                 return;
             }
             if (isKycRequiredError(err)) {
@@ -325,6 +336,29 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
             || (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
     };
 
+    const freezeReasons: Record<string, string> = {
+        PAYMENT_DISPUTE: t('myTrades.freeze.reason.paymentDispute'),
+        DELIVERY_DISPUTE: t('myTrades.freeze.reason.deliveryDispute'),
+        TERMS_DISPUTE: t('myTrades.freeze.reason.termsDispute'),
+        COMPLIANCE_REVIEW: t('myTrades.freeze.reason.complianceReview'),
+        FRAUD_REVIEW: t('myTrades.freeze.reason.fraudReview'),
+        COURT_ORDER: t('myTrades.freeze.reason.courtOrder'),
+        OTHER: t('myTrades.freeze.reason.other'),
+    };
+
+    const renderFreeze = (trade: Trade) => {
+        if (!trade.is_frozen) return null;
+        const setAt = trade.freeze?.set_at;
+        const hasValidTime = setAt && Number.isFinite(new Date(setAt).getTime());
+        return (
+            <div className="mt-2 min-w-44 space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                <p className="flex items-center gap-1 font-bold"><AlertTriangle size={14} />{t('myTrades.freeze.title')}</p>
+                <p>{freezeReasons[trade.freeze?.reason_code ?? ''] ?? t('myTrades.freeze.reason.unavailable')}</p>
+                {hasValidTime && <p>{t('myTrades.freeze.setAt')} <time dateTime={setAt}>{new Date(setAt).toLocaleString(locale)}</time></p>}
+            </div>
+        );
+    };
+
     const renderActions = (trade: Trade) => {
         const isLoadingThis = actionLoadingId === trade.id;
         const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
@@ -344,29 +378,37 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
             }
 
             return (
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => handleConfirm(trade.id)}
-                        disabled={actionLoadingId !== null || confirmTradeDenial !== null}
-                        title={confirmTradeDenial?.message}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                    >
-                        {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                        {t('myTrades.btn.confirm')}
-                    </button>
-                    <button
-                        onClick={() => handleDecline(trade.id)}
-                        disabled={actionLoadingId !== null}
-                        className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                    >
-                        {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
-                        {t('myTrades.btn.decline')}
-                    </button>
+                <div className="space-y-2">
+                    {trade.is_frozen && <p id={`trade-freeze-${trade.id}`} className="max-w-64 text-xs text-amber-700 dark:text-amber-300">{t('myTrades.freeze.blocked')}</p>}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleConfirm(trade.id)}
+                            aria-describedby={trade.is_frozen ? `trade-freeze-${trade.id}` : undefined}
+                            disabled={Boolean(trade.is_frozen) || actionLoadingId !== null || confirmTradeDenial !== null}
+                            title={confirmTradeDenial?.message}
+                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                        >
+                            {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                            {t('myTrades.btn.confirm')}
+                        </button>
+                        <button
+                            onClick={() => handleDecline(trade.id)}
+                            aria-describedby={trade.is_frozen ? `trade-freeze-${trade.id}` : undefined}
+                            disabled={Boolean(trade.is_frozen) || actionLoadingId !== null}
+                            className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                        >
+                            {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                            {t('myTrades.btn.decline')}
+                        </button>
+                    </div>
                 </div>
             );
         }
 
         if (isConfirmedLikeTrade(trade.status)) {
+            if (trade.is_frozen) {
+                return <span className="text-xs text-amber-700 dark:text-amber-300">{t(trade.status === 'DELIVERED' ? 'myTrades.freeze.paymentBlocked' : 'myTrades.freeze.settlementBlocked')}</span>;
+            }
             return (
                 <span className="text-xs text-slate-500 dark:text-slate-400">
                     {t('myTrades.note.offPlatform')}
@@ -602,6 +644,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusCfg.tone}`}>
                                                     {statusCfg.label}
                                                 </span>
+                                                {renderFreeze(trade)}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
                                                 {renderActions(trade)}
