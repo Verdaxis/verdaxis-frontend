@@ -1,6 +1,7 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { Trade, TradeCreateInput } from '../types';
 import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot } from '../types';
+import { parseWireDecimal } from '../utils/wireDecimal';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -48,6 +49,21 @@ export const mapPortResponse = (p: any): Port => ({
         lastDone: p.details?.lastDone ?? undefined,
     }
 });
+
+/**
+ * The catalog API sends `min_lot_size` as a decimal string ("200.00"). Read it
+ * here, where the catalog enters the app. A minimum must be a positive amount;
+ * any other value becomes `null`, so the order window shows "catalog minimum
+ * unavailable" and refuses the order.
+ */
+const mapCatalogProduct = (raw: Record<string, unknown>): Product => {
+    const minimum = parseWireDecimal(raw.min_lot_size);
+    return { ...raw, min_lot_size: minimum !== null && minimum > 0 ? minimum : null } as Product;
+};
+
+const mapCatalogProducts = (raw: unknown): Product[] => (
+    Array.isArray(raw) ? raw.map(mapCatalogProduct) : []
+);
 
 const getHeaders = () => {
     const token = getAccessToken();
@@ -870,7 +886,8 @@ export const api = {
 
     catalog: {
         products: async (cacheOptions?: ReadCacheOptions): Promise<Product[]> => {
-            return readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+            const raw = await readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+            return mapCatalogProducts(raw);
         },
         deliveryPoints: async (cacheOptions?: ReadCacheOptions): Promise<DeliveryPoint[]> => {
             return readApi('catalog:delivery-points', '/catalog/delivery-points', 'reference', 'private', { headers: getHeaders() }, cacheOptions);

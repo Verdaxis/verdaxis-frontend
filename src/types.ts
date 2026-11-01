@@ -158,7 +158,11 @@ export interface Product {
     fuel_type: string;
     fuel_grade: string;
     unit: string;
-    min_lot_size: number;
+    /**
+     * Smallest order quantity in MT. The API sends a decimal string; the catalog
+     * read converts it. `null` means the catalog value was missing or unusable.
+     */
+    min_lot_size: number | null;
     spec_description?: string;
     is_active: boolean;
     /**
