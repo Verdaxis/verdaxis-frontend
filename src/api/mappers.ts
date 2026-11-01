@@ -354,6 +354,7 @@ const TRADE_STREAM_DECIMALS: Record<string, readonly string[]> = {
     trade_paid: ['quantity', 'price'],
     trade_auto_matched: ['quantity', 'price'],
     trade_delivered: ['final_quantity', 'final_price', 'final_total'],
+    price_alert_triggered: ['price', 'threshold_usd'],
 };
 
 /** Convert the decimals of one trade stream payload; other keys pass through. */

@@ -55,8 +55,8 @@ describe('OrderBook pre-move DOM contract', () => {
     ['error', '8262a1bf9549fb9d5f0d80e56a5d2ff6ae589ceb04ba54ebd510ad38f71b0a62'],
     ['fame', '767fe3e9c2c5966eb7c7e4a288b6ccd7c87b0d6d9f91e34bbf3f7f1936f2a64c'],
     ['lng', '35410fe1da5c9b7c261edc5f5f7a102345d17a03d2b5c0c090a4e18e663c8825'],
-    ['demo-tooltip', '12573c40be27d5a2a70e13e27c8c489e8832eb3fab0b8f5fe87610fe51e2a23d'],
-    ['lng-tooltip', '03aaf6922163f12aa920d9be0257a8cfddb501e40c1933f677ce18b12497689d'],
+    ['demo-tooltip', '0f4df652d44d83e296777094ac77b1da53ff81857317f18109bb74657756f12b'],
+    ['lng-tooltip', 'b49f7865a4026f7aa964b69834b26b664c5a10f15db99678a1a2051c4d0ee332'],
   ])('preserves the complete %s tree', async (state, expected) => {
     const props = { ...MARKET, actionableSide: 'ASK' as const, onLevelClick: vi.fn(), onInstantTrade: vi.fn() };
     if (state === 'loading') snapshot.mockReturnValue(new Promise(() => {}));
@@ -88,7 +88,8 @@ describe('OrderBook pre-move DOM contract', () => {
       const tooltip = screen.getByRole('tooltip');
       expect(tooltip.parentElement).toBe(document.body);
       expect(document.querySelector('[aria-describedby]')?.getAttribute('aria-describedby')).toBe(tooltip.id);
-      expect(tooltip.style.left).toBe('14px');
+      // The tooltip is kept 16px inside the viewport edge.
+      expect(tooltip.style.left).toBe('16px');
       expect(tooltip.style.top).toBe('16px');
     }
     expect(domDigest()).toBe(expected);

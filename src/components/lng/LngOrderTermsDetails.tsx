@@ -78,8 +78,36 @@ export function lngAskSummary(terms: LngOrderTermsView, t: (key: string, options
         t('lngTerms.summary.bioShare', { value: (terms.bio_share_pct ?? 0).toLocaleString(i18n.resolvedLanguage || 'en', { maximumFractionDigits: 2 }) }),
         // The methane-slip exclusion travels with the WTT value wherever it appears.
         `${t('lngTerms.summary.wtt', { value: (terms.wtt_ghg_gco2e_mj ?? 0).toLocaleString(i18n.resolvedLanguage || 'en', { maximumFractionDigits: 2 }) })} · ${t('lngTerms.wttNote')}`,
-        t(`lngTerms.feedstock.${terms.feedstock}`),
+        terms.feedstock_detail
+            ? `${t(`lngTerms.feedstock.${terms.feedstock}`)} (${terms.feedstock_detail})`
+            : t(`lngTerms.feedstock.${terms.feedstock}`),
+        ...(terms.min_methane_number == null ? [] : [
+            `${t('lngTerms.field.methaneNumber')} ${terms.min_methane_number.toLocaleString(i18n.resolvedLanguage || 'en', { maximumFractionDigits: 2 })}`,
+        ]),
         t(`lngTerms.deliveryMethod.${terms.delivery_method}`),
         reseller ? t('lngTerms.reseller.yes') : t('lngTerms.reseller.no'),
+    ].join(' · ');
+}
+
+/**
+ * One-line summary of what a bid requires, for the order book tooltip: the
+ * accepted schemes, custody and delivery methods, and each limit the buyer set.
+ */
+export function lngBidSummary(terms: LngOrderTermsView, t: (key: string, options?: Record<string, unknown>) => string): string | null {
+    if (terms.side !== 'BID') return null;
+    const locale = i18n.resolvedLanguage || 'en';
+    // Labels already carry their unit.
+    const limit = (labelKey: string, value: number | null | undefined) => value == null || !Number.isFinite(value)
+        ? []
+        : [`${t(labelKey)} ${value.toLocaleString(locale, { maximumFractionDigits: 2 })}`];
+    return [
+        terms.accepted_schemes.map(scheme => t(`lngTerms.scheme.${scheme}`)).join(', '),
+        terms.accepted_custody.map(value => t(`lngTerms.custody.${value}`)).join(', '),
+        terms.accepted_delivery_methods.map(value => t(`lngTerms.deliveryMethod.${value}`)).join(', '),
+        `${t('lngTerms.field.unionDatabase')} ${t(terms.require_union_database ? 'lngTerms.unionDatabase.required' : 'lngTerms.unionDatabase.optional')}`,
+        ...limit('lngTerms.field.minBioShare', terms.min_bio_share_pct),
+        ...limit('lngTerms.field.maxWtt', terms.max_wtt_ghg_gco2e_mj),
+        ...limit('lngTerms.field.methaneNumber', terms.min_methane_number),
+        t(terms.accept_resellers ? 'lngTerms.resellersAccepted' : 'lngTerms.physicalSuppliersOnly'),
     ].join(' · ');
 }

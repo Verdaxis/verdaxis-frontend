@@ -28,6 +28,8 @@ import { useNamespace } from '../../hooks/useNamespace';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
 import { MarketSupportEntryDialog } from './market-support/MarketSupportEntryDialog';
 import { useMarketSupport } from '../../context/MarketSupportContext';
+import { useAbilityGate } from '../../hooks/useAbilityDenial';
+import type { AbilityId } from '../../types/abilities';
 import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization } from '../../types/marketSupport';
 import { defaultMarketSupportView } from '../../types/marketSupport';
 import { ConfirmModal } from '../ui/ConfirmModal';
@@ -333,6 +335,7 @@ const UsersTab: React.FC = () => {
   const [inviteCopied, setInviteCopied] = useState(false);
   const navigate = useNavigate();
   const { start, resume } = useMarketSupport();
+  const enterOrganizationDenial = useAbilityGate()('market_support_assisted_orders');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -712,8 +715,9 @@ const UsersTab: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleEnterOrganization(u)}
-                          disabled={entryLoading}
-                          className="text-left font-semibold text-verdaxis underline decoration-verdaxis/40 underline-offset-4 transition-colors hover:decoration-verdaxis disabled:opacity-50"
+                          disabled={entryLoading || enterOrganizationDenial !== null}
+                          title={enterOrganizationDenial?.message}
+                          className="text-left font-semibold text-verdaxis underline decoration-verdaxis/40 underline-offset-4 transition-colors hover:decoration-verdaxis disabled:cursor-not-allowed disabled:opacity-50"
                           aria-label={t('users.enterOrganization', { organization: u.org_name })}
                         >
                           {u.org_name}
@@ -1103,9 +1107,17 @@ const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   feedback: '/app/admin/feedback',
 };
 
+// The server ability that gates each tab's data.
+const ADMIN_TAB_ABILITIES: Record<AdminTab, AbilityId> = {
+  analytics: 'view_admin_analytics',
+  users: 'manage_accounts',
+  feedback: 'view_feedback',
+};
+
 export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
   const location = useLocation();
+  const getAbilityDenial = useAbilityGate();
   const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users')
       ? 'users'
       : location.pathname.startsWith('/app/admin/feedback')
@@ -1137,19 +1149,34 @@ export const AdminDashboard: React.FC = () => {
           { key: 'analytics', label: t('tabs.analytics'), icon: <BarChart3 size={15} /> },
           { key: 'users',     label: t('tabs.users'),     icon: <Users size={15} />    },
           { key: 'feedback',  label: t('tabs.feedback'),  icon: <MessageSquareText size={15} /> },
-        ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
-          <Link
-            key={key}
-            to={ADMIN_TAB_PATHS[key]}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === key
-                ? 'border-verdaxis text-verdaxis'
-                : 'border-transparent text-verdaxis-text-muted hover:text-verdaxis-text'
-            }`}
-          >
-            {icon}{label}
-          </Link>
-        ))}
+        ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => {
+          const denial = getAbilityDenial(ADMIN_TAB_ABILITIES[key]);
+          if (denial) {
+            return (
+              <span
+                key={key}
+                aria-disabled="true"
+                title={denial.message}
+                className="flex cursor-not-allowed items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-sm font-semibold text-verdaxis-text-muted opacity-50"
+              >
+                {icon}{label}
+              </span>
+            );
+          }
+          return (
+            <Link
+              key={key}
+              to={ADMIN_TAB_PATHS[key]}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === key
+                  ? 'border-verdaxis text-verdaxis'
+                  : 'border-transparent text-verdaxis-text-muted hover:text-verdaxis-text'
+              }`}
+            >
+              {icon}{label}
+            </Link>
+          );
+        })}
       </div>
 
       {/* Users tab */}

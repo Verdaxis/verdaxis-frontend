@@ -62,8 +62,9 @@ describe('shared SSE transport', () => {
         const b = render(<Subscriber channel="orderbook" handler={handler} />);
         expect(Source.all).toHaveLength(1);
         expect(fetch).not.toHaveBeenCalled();
-        act(() => Source.all[0].emit('order_created', { id: 'one' }));
-        expect(handler).toHaveBeenCalledWith('order_created', { id: 'one' });
+        act(() => Source.all[0].emit('market_invalidated', { id: 'one' }));
+        // The fake source stamps every frame with the id '42'; the id is handed through.
+        expect(handler).toHaveBeenCalledWith('market_invalidated', { id: 'one' }, '42');
         a.unmount(); b.unmount();
     });
 
@@ -106,7 +107,7 @@ describe('shared SSE transport', () => {
             const recoveredPublic = Source.all.filter(source => source.url.includes('/orderbook')).at(-1)!;
             act(() => recoveredPublic.onopen?.());
             await act(async () => { await vi.advanceTimersByTimeAsync(100); });
-            act(() => recoveredPublic.emit('order_created', { id: 'fixture-order' }));
+            act(() => recoveredPublic.emit('market_invalidated', { id: 'fixture-order' }));
             await act(async () => { await vi.advanceTimersByTimeAsync(500); });
             reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
 
@@ -122,7 +123,7 @@ describe('shared SSE transport', () => {
             await act(async () => { await vi.advanceTimersByTimeAsync(500); });
             reads.forEach(read => expect(read).toHaveBeenCalledTimes(1));
             expect(invalidations.mock.calls.filter(([event]) => event.prefixes.includes('orderbook:'))).toHaveLength(0);
-            act(() => recoveredPublic.emit('order_created', { id: 'next-order' }));
+            act(() => recoveredPublic.emit('market_invalidated', { id: 'next-order' }));
             await act(async () => { await vi.advanceTimersByTimeAsync(500); });
             reads.forEach(read => expect(read).toHaveBeenCalledTimes(2));
         } finally {

@@ -1,5 +1,5 @@
 import type { Query, QueryClient } from '@tanstack/react-query';
-import { subscribeReadInvalidations } from '../../services/readCache';
+import { OWN_ORDERS_CACHE_PREFIX, subscribeReadInvalidations } from '../../services/readCache';
 import { subscribePublicMarketBatch } from '../../services/publicMarketSync';
 import { createRefreshCoordinator } from './refreshCoordinator';
 import { registeredRefresh } from './refreshRegistry';
@@ -21,6 +21,9 @@ const isFeatureQuery = (query: Query) => !isPricingOverlayQuery(query) && (
     (query.queryKey[0] === 'public' && query.queryKey[1] === 'orderbook')
     || (query.queryKey[0] === 'private' && ['orderbook', 'compliance'].includes(String(query.queryKey[2])))
 );
+
+const isOwnOrdersQuery = (query: Query) => query.queryKey[0] === 'private'
+    && query.queryKey[2] === 'orderbook' && query.queryKey[3] === 'my';
 
 export function attachQueryInvalidation(client: QueryClient, initiallyVisible = true) {
     const coordinator = createRefreshCoordinator(initiallyVisible);
@@ -55,7 +58,15 @@ export function attachQueryInvalidation(client: QueryClient, initiallyVisible = 
     const detachInvalidation = subscribeReadInvalidations(({ prefixes, cause }) => {
         if (cause === 'scope-clear') { clearPrivateQueries(client); return; }
         if (!prefixes.some(prefix => prefix.startsWith('orderbook:'))) return;
+        // A private order event changes only the organization's own orders. Mark
+        // that read stale and leave every public read alone; the My Listings view
+        // reloads it in place after a short debounce (`subscribeToOwnOrderChanges`).
+        const ownOrdersOnly = prefixes.every(prefix => prefix === OWN_ORDERS_CACHE_PREFIX);
         for (const query of client.getQueryCache().getAll().filter(isFeatureQuery)) {
+            if (ownOrdersOnly) {
+                if (isOwnOrdersQuery(query)) void client.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: 'none' });
+                continue;
+            }
             registeredRefresh(client, query.queryHash)?.invalidate();
             void client.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: 'none' });
             if (cause === 'event') {

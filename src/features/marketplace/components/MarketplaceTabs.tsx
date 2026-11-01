@@ -3,15 +3,21 @@ import { ViewMode } from '../../../types';
 
 
 import type { TFunction } from 'i18next';
+import { AbilityDenialNote } from '../../../components/ui/AbilityDenialNote';
+import type { AbilityDenial } from '../../../types/abilities';
 
 interface MarketplaceTabsProps {
     t: TFunction;
     setMarketTab: (tab: 'market' | 'orderbook' | 'my_orders') => void;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     role: ViewMode;
+    /** Why hitting a listing is denied for this account, or null. */
+    hitListingDenial: AbilityDenial | null;
+    /** Why the primary action is denied; its note is already on the page header. */
+    primaryActionDenial: AbilityDenial | null;
 }
 
-export function MarketplaceTabs({ t, setMarketTab, marketTab, role }: MarketplaceTabsProps) {
+export function MarketplaceTabs({ t, setMarketTab, marketTab, role, hitListingDenial, primaryActionDenial }: MarketplaceTabsProps) {
     return <>
                     {/* Tab Switcher: Market | Orderbook | My Listings */}
                     <><div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
@@ -73,7 +79,10 @@ export function MarketplaceTabs({ t, setMarketTab, marketTab, role }: Marketplac
                             : marketTab === 'orderbook'
                                 ? t('marketplace.viewHint.orderbook')
                                 : t('marketplace.viewHint.myOrders')}
-                    </p></>
+                    </p>
+                    {marketTab === 'market' && hitListingDenial && hitListingDenial.message !== primaryActionDenial?.message && (
+                        <AbilityDenialNote denial={hitListingDenial} className="mb-3" />
+                    )}</>
 
     </>;
 }

@@ -51,15 +51,29 @@ function getTokenSubject(token: string): string | null {
   }
 }
 
-function invalidateChangedIdentity(): void {
+function resetSessionForChangedIdentity(): void {
   accessToken = null;
   authGeneration += 1;
   inFlight = null;
   identityRestoreRequired = true;
   purgeLegacyStoredTokens();
+}
+
+function invalidateChangedIdentity(): void {
+  resetSessionForChangedIdentity();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(AUTH_IDENTITY_CHANGED_EVENT));
   }
+}
+
+/**
+ * Applies an identity change that another tab detected. It blocks silent
+ * cookie restore like a local detection does, but does not dispatch
+ * AUTH_IDENTITY_CHANGED_EVENT: that event makes the tab announce the change
+ * to its peers, and a peer-applied change must not be announced again.
+ */
+export function applyPeerIdentityChange(): void {
+  resetSessionForChangedIdentity();
 }
 
 purgeLegacyStoredTokens();

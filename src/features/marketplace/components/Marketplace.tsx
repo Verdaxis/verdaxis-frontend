@@ -24,6 +24,8 @@ import { useWatchlist } from '../../../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../../../utils/watchlist';
 import i18n from '../../../i18n';
 import { useMarketSupport } from '../../../context/MarketSupportContext';
+import { useAbilityGate } from '../../../hooks/useAbilityDenial';
+import { HIT_ORDER_ABILITY, PLACE_ORDER_ABILITY } from '../../../types/abilities';
 
 // ─── Role Config ──────────────────────────────────────────────────
 export type MarketplaceColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -92,6 +94,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     });
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
+    // Server rules for the action buttons. `null` means no denial is known, so a
+    // button keeps its existing behavior (including while the abilities load or fail).
+    const getAbilityDenial = useAbilityGate();
+    const primaryActionDenial = getAbilityDenial(PLACE_ORDER_ABILITY[configBase.primaryAction.side]);
+    const cancelOrderDenial = getAbilityDenial('cancel_order');
+    // The listings table shows the orders of the opposite side; the user hits those.
+    const hitListingDenial = getAbilityDenial(HIT_ORDER_ABILITY[configBase.primaryAction.side === 'BID' ? 'ASK' : 'BID']);
     const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
     // Scope is rebuilt on every render, as before: the auth generation is read
     // from the token store, not from React state, so memoizing it would keep a
@@ -276,6 +285,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 t={t}
                 configBase={configBase}
                 setOrderModalSide={setOrderModalSide}
+                primaryActionDenial={primaryActionDenial}
                 marketTab={marketTab}
                 loadCatalogProducts={loadCatalogProducts}
                 fetchProductCounts={fetchProductCounts}
@@ -311,6 +321,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 setMarketTab={setMarketTab}
                 marketTab={marketTab}
                 role={role}
+                hitListingDenial={hitListingDenial}
+                primaryActionDenial={primaryActionDenial}
             />
 
             </MarketplaceHeader>
@@ -369,6 +381,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 filteredMyOrders={filteredMyOrders}
                 role={role}
                 setOrderModalSide={setOrderModalSide}
+                primaryActionDenial={primaryActionDenial}
+                cancelOrderDenial={cancelOrderDenial}
                 sliceSummary={sliceSummary}
                 hasActiveSliceFilters={hasActiveSliceFilters}
                 clearMarketFilters={clearMarketFilters}
@@ -397,6 +411,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 pinnedOrderIds={pinnedOrderIds}
                 isMarketSupportActive={isMarketSupportActive}
                 openTradeModal={openTradeModal}
+                getAbilityDenial={getAbilityDenial}
                 catalogError={catalogError}
                 togglePin={togglePin}
                 totalCount={totalCount}

@@ -10,6 +10,97 @@
       "queueScope": "Showing up to {{limit}} actions · Your trades",
       "viewAll": "View all trades",
       "loadError": "Trade actions are unavailable right now. Retry to load them."
+    },
+    "customize": {
+      "button": "Customize",
+      "toolbarLabel": "Customize home",
+      "addWidget": "Add widget",
+      "addNamed": "Add {{widget}}",
+      "addWidgetNone": "Every available widget is already on your home.",
+      "pickerLabel": "Available widgets",
+      "reset": "Reset to default",
+      "cancel": "Cancel",
+      "save": "Save layout",
+      "saving": "Saving...",
+      "hint": "Use the buttons on each widget to move, resize or remove it. Nothing changes until you save.",
+      "emptyTitle": "Your home has no widgets",
+      "emptyBody": "Choose Customize to add widgets.",
+      "emptyEditBody": "Choose Add widget to place one.",
+      "controlsLabel": "{{widget}} controls",
+      "move": {
+        "left": "Move {{widget}} left",
+        "right": "Move {{widget}} right",
+        "up": "Move {{widget}} up",
+        "down": "Move {{widget}} down"
+      },
+      "resize": {
+        "wider": "Make {{widget}} wider",
+        "narrower": "Make {{widget}} narrower",
+        "taller": "Make {{widget}} taller",
+        "shorter": "Make {{widget}} shorter"
+      },
+      "resizeShort": {
+        "wider": "Wider",
+        "narrower": "Narrower",
+        "taller": "Taller",
+        "shorter": "Shorter"
+      },
+      "remove": "Remove {{widget}}",
+      "announce": {
+        "position": "{{widget}} is in column {{column}}, position {{position}} of {{count}}.",
+        "resized": "{{widget}} is now {{width}} columns wide and {{height}} rows tall.",
+        "removed": "{{widget}} removed.",
+        "added": "{{widget}} added.",
+        "reset": "Layout reset to the default.",
+        "saved": "Layout saved.",
+        "memoryOnly": "Layout applied, but it could not be saved."
+      },
+      "notice": {
+        "readFailed": "Your saved layout could not be loaded, so the default layout is shown. Changes you make last until you leave this page.",
+        "saveFailed": "Your layout could not be saved. It stays as it is until you leave this page.",
+        "dismiss": "Dismiss this message"
+      },
+      "widgetLoading": "Loading widget...",
+      "noSlice": "Open a market slice in Marketplace and it will appear here.",
+      "openMarketplace": "Open Marketplace",
+      "widgets": {
+        "quick_actions": {
+          "title": "Quick actions",
+          "description": "Post an order, browse the market and open your trades."
+        },
+        "trade_summary": {
+          "title": "Trade summary",
+          "description": "Trades awaiting you, awaiting the counterparty, and confirmed."
+        },
+        "needs_attention": {
+          "title": "Needs attention",
+          "description": "Trades that wait for your confirmation."
+        },
+        "market_radar": {
+          "title": "Market radar",
+          "description": "Your watchlist slices and their latest market events."
+        },
+        "supplier_demand": {
+          "title": "Buyer demand",
+          "description": "Buyer demand that matches your supply."
+        },
+        "forward_curve": {
+          "title": "Forward curve",
+          "description": "Forward prices by product, port and period."
+        },
+        "order_book": {
+          "title": "Order book",
+          "description": "Bids and asks of the slice you last opened in Marketplace."
+        },
+        "trade_tape": {
+          "title": "Trade tape",
+          "description": "Recent trades of the slice you last opened in Marketplace."
+        },
+        "my_trades": {
+          "title": "My trades",
+          "description": "Your trades and their next steps."
+        }
+      }
     }
   },
   "buyerDashboard": {

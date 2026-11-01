@@ -36,6 +36,9 @@ import {
     readLngOrderAcknowledgements, type LngOrderAcknowledgements,
 } from './lng/LngOrderFields';
 import { LngOrderTermsDetails } from './lng/LngOrderTermsDetails';
+import { useAbilityDenial } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
+import { PLACE_ORDER_ABILITY } from '../types/abilities';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -178,6 +181,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const b100Requested = prefillMarketProduct === 'UCOME_B100'
         || /^(FAME|UCOME(?:[ _-]B100)?)$/i.test(prefillFuelType?.trim() ?? '');
     const { context: marketSupportContext } = useMarketSupport();
+    // Server rule for placing this side. Null when unknown, allowed, or while acting
+    // for a customer in an assisted context (the server then judges that organization).
+    const placeDenial = useAbilityDenial(PLACE_ORDER_ABILITY[side]);
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -708,7 +714,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!isOrderValid) return;
+        if (!isOrderValid || placeDenial) return;
         if (isFameOrder) {
             const data = new FormData(e.currentTarget);
             const terms = readFameOrderTerms(data, side);
@@ -1010,7 +1016,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 type="button"
                                 data-tour="order-final-confirm-button"
                                 onClick={() => { void confirmReviewedOrder(); }}
-                                disabled={modalState === 'submitting'}
+                                disabled={modalState === 'submitting' || placeDenial !== null}
+                                title={placeDenial?.message}
                                 className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 text-white disabled:cursor-not-allowed disabled:opacity-60 ${
                                     side === 'BID' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
                                 }`}
@@ -1108,7 +1115,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                                 {(biofuelSpecification || selectedProduct.spec_description) && (
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
-                                        {locale.startsWith('zh')
+                                        {biofuelSpecification ? t(`${biofuelKey}.contract`) : locale.startsWith('zh')
                                             ? t('orderPlaceModal.productSpecifications.generic')
                                             : selectedProduct.spec_description}
                                     </p>
@@ -1266,7 +1273,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>}
 
-                                    {biofuelSpecification && <p className="text-sm text-slate-600 dark:text-slate-300">{t(`${biofuelKey}.contract`)}</p>}
                                     {!isFameOrder && !isLngOrder && side === 'ASK' && (
                                         <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
@@ -1451,6 +1457,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 {side === 'BID' ? t('orderPlaceModal.info.bid') : t('orderPlaceModal.info.ask')}
                             </p>
                         </div>
+
+                        {placeDenial && (
+                            <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-900/20">
+                                <AbilityDenialNote denial={placeDenial} id="order-place-denial" />
+                            </div>
+                        )}
                     </div>
 
                     <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
@@ -1466,9 +1478,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <button
                             type="submit"
                             data-tour="order-modal-submit-boundary"
-                            disabled={!isValid || modalState === 'submitting'}
+                            disabled={!isValid || modalState === 'submitting' || placeDenial !== null}
+                            title={placeDenial?.message}
+                            aria-describedby={placeDenial ? 'order-place-denial' : undefined}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                isValid && modalState !== 'submitting'
+                                isValid && modalState !== 'submitting' && !placeDenial
                                     ? side === 'BID'
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                                         : 'bg-[#5DADE2] hover:bg-[#4A9BD9] text-white'
