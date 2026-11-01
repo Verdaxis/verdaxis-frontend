@@ -10,6 +10,97 @@
       "queueScope": "显示最多 {{limit}} 项操作 · 您的交易",
       "viewAll": "查看全部交易",
       "loadError": "交易操作暂时无法加载，请重试。"
+    },
+    "customize": {
+      "button": "自定义",
+      "toolbarLabel": "自定义首页",
+      "addWidget": "添加小组件",
+      "addNamed": "添加{{widget}}",
+      "addWidgetNone": "所有可用的小组件都已在首页上。",
+      "pickerLabel": "可用的小组件",
+      "reset": "恢复默认",
+      "cancel": "取消",
+      "save": "保存布局",
+      "saving": "正在保存…",
+      "hint": "使用每个小组件上的按钮来移动、调整大小或移除。保存之前不会有任何更改。",
+      "emptyTitle": "您的首页没有小组件",
+      "emptyBody": "选择“自定义”来添加小组件。",
+      "emptyEditBody": "选择“添加小组件”来放置一个。",
+      "controlsLabel": "{{widget}}控件",
+      "move": {
+        "left": "将{{widget}}左移",
+        "right": "将{{widget}}右移",
+        "up": "将{{widget}}上移",
+        "down": "将{{widget}}下移"
+      },
+      "resize": {
+        "wider": "加宽{{widget}}",
+        "narrower": "收窄{{widget}}",
+        "taller": "加高{{widget}}",
+        "shorter": "降低{{widget}}"
+      },
+      "resizeShort": {
+        "wider": "加宽",
+        "narrower": "收窄",
+        "taller": "加高",
+        "shorter": "降低"
+      },
+      "remove": "移除{{widget}}",
+      "announce": {
+        "position": "{{widget}}位于第{{column}}列，第{{position}}个，共{{count}}个。",
+        "resized": "{{widget}}现为{{width}}列宽、{{height}}行高。",
+        "removed": "已移除{{widget}}。",
+        "added": "已添加{{widget}}。",
+        "reset": "布局已恢复为默认。",
+        "saved": "布局已保存。",
+        "memoryOnly": "布局已应用，但未能保存。"
+      },
+      "notice": {
+        "readFailed": "无法加载您保存的布局，因此显示默认布局。您所做的更改在离开此页面前有效。",
+        "saveFailed": "无法保存您的布局。在您离开此页面前，布局保持不变。",
+        "dismiss": "关闭此消息"
+      },
+      "widgetLoading": "正在加载小组件…",
+      "noSlice": "在交易市场中打开一个市场切片后，它会显示在这里。",
+      "openMarketplace": "打开交易市场",
+      "widgets": {
+        "quick_actions": {
+          "title": "快捷操作",
+          "description": "发布订单、浏览市场并打开您的交易。"
+        },
+        "trade_summary": {
+          "title": "交易概览",
+          "description": "等待您确认、等待对手方确认和已确认的交易。"
+        },
+        "needs_attention": {
+          "title": "待处理事项",
+          "description": "等待您确认的交易。"
+        },
+        "market_radar": {
+          "title": "市场雷达",
+          "description": "您的关注列表切片及其最新市场事件。"
+        },
+        "supplier_demand": {
+          "title": "买方需求",
+          "description": "与您的供应相匹配的买方需求。"
+        },
+        "forward_curve": {
+          "title": "远期曲线",
+          "description": "按产品、港口和期限显示的远期价格。"
+        },
+        "order_book": {
+          "title": "订单簿",
+          "description": "您上次在交易市场中打开的切片的买单和卖单。"
+        },
+        "trade_tape": {
+          "title": "成交记录",
+          "description": "您上次在交易市场中打开的切片的近期成交。"
+        },
+        "my_trades": {
+          "title": "我的交易",
+          "description": "您的交易及其后续步骤。"
+        }
+      }
     }
   },
   "buyerDashboard": {

@@ -1,4 +1,4 @@
-import type { MarketProduct } from '../types';
+import { MARKET_PRODUCTS, type MarketProduct } from '../types';
 
 export const MARKETPLACE_SELECTION_STORAGE_KEYS = {
     port: 'verdaxis_marketplace_port',
@@ -33,5 +33,29 @@ export function writeMarketplaceSlice(selection: MarketplaceSliceSelection): voi
         );
     } else {
         window.localStorage.removeItem(MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId);
+    }
+}
+
+/** The slice last opened in Marketplace. Only the product is required. */
+export interface StoredMarketplaceSlice {
+    marketProduct: MarketProduct;
+    portName: string | null;
+    deliveryPointId: string | null;
+    availabilityWindow: string | null;
+}
+
+export function readMarketplaceSlice(): StoredMarketplaceSlice | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const product = window.localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.product);
+        if (!product || !(MARKET_PRODUCTS as readonly string[]).includes(product)) return null;
+        return {
+            marketProduct: product as MarketProduct,
+            portName: window.localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.port) || null,
+            deliveryPointId: window.localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId) || null,
+            availabilityWindow: window.localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow) || null,
+        };
+    } catch {
+        return null;
     }
 }

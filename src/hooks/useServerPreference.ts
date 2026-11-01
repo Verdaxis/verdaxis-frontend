@@ -59,7 +59,8 @@ const writeLocalPreference = (localStorageKey: string, value: unknown) => {
   }
 };
 
-const loadAllPreferences = (userId: string): Promise<Record<string, unknown>> => {
+/** Shared one-per-session read of every preference namespace. */
+export const loadAllPreferences = (userId: string): Promise<Record<string, unknown>> => {
   if (cachedPreferences.userId !== userId) {
     cachedPreferences = { userId, value: null, promise: null };
   }
@@ -83,7 +84,8 @@ const loadAllPreferences = (userId: string): Promise<Record<string, unknown>> =>
   return cachedPreferences.promise;
 };
 
-const updateCachedPreference = (userId: string, namespace: string, value: unknown) => {
+/** Keeps the shared read current after a successful write. */
+export const updateCachedPreference = (userId: string, namespace: string, value: unknown) => {
   if (cachedPreferences.userId !== userId || !cachedPreferences.value) return;
   cachedPreferences = {
     ...cachedPreferences,

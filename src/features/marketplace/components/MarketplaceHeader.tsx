@@ -5,11 +5,18 @@ import { MarketProduct } from '../../../types';
 
 import type { TFunction } from 'i18next';
 import type { MarketplaceRolePresentation } from './Marketplace';
+import { AbilityDenialNote } from '../../../components/ui/AbilityDenialNote';
+import type { AbilityDenial } from '../../../types/abilities';
+
+// Added only while the server denies the action, so an allowed button keeps its markup.
+const DENIED_BUTTON_CLASSES = ' disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-500 disabled:hover:shadow-sm';
 
 interface MarketplaceHeaderProps {
     t: TFunction;
     configBase: MarketplaceRolePresentation;
     setOrderModalSide: (side: 'ASK' | 'BID') => void;
+    /** Why the primary action is denied for this account, or null. */
+    primaryActionDenial: AbilityDenial | null;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     loadCatalogProducts: (force?: boolean) => Promise<void>;
     fetchProductCounts: (force?: boolean) => Promise<void>;
@@ -23,7 +30,7 @@ interface MarketplaceHeaderProps {
     children: React.ReactNode;
 }
 
-export function MarketplaceHeader({ t, configBase, setOrderModalSide, marketTab, loadCatalogProducts, fetchProductCounts, fetchListings, currentSkip, refreshing, isMarketSupportActive, currentSliceTarget, toggleSlice, isCurrentSliceTracked, children }: MarketplaceHeaderProps) {
+export function MarketplaceHeader({ t, configBase, setOrderModalSide, primaryActionDenial, marketTab, loadCatalogProducts, fetchProductCounts, fetchListings, currentSkip, refreshing, isMarketSupportActive, currentSliceTarget, toggleSlice, isCurrentSliceTracked, children }: MarketplaceHeaderProps) {
     return <>
             {/* Header */}
             <div className="flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] max-h-[50%] overflow-y-auto overscroll-contain">
@@ -32,13 +39,19 @@ export function MarketplaceHeader({ t, configBase, setOrderModalSide, marketTab,
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
+                            {primaryActionDenial && (
+                                <AbilityDenialNote denial={primaryActionDenial} id="marketplace-primary-action-denial" className="mt-1" />
+                            )}
                         </div>
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
+                                disabled={primaryActionDenial !== null}
+                                title={primaryActionDenial?.message}
+                                aria-describedby={primaryActionDenial ? 'marketplace-primary-action-denial' : undefined}
+                                className={`flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow${primaryActionDenial ? DENIED_BUTTON_CLASSES : ''}`}
                             >
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>

@@ -6,6 +6,7 @@ import type { QueryScope } from '../../../lib/query/keys';
 import { useVisibleDocument } from '../../../lib/query/useVisibleDocument';
 import { isOrderbookMarketProduct } from '../../../utils/marketProduct';
 import type { OrderBookOrder } from '../../../types';
+import { subscribeToOwnOrderChanges } from '../../../services/orderStreamEvents';
 
 const EMPTY_ORDERS: OrderBookOrder[] = [];
 const EMPTY_COUNTS: Record<string, number> = {};
@@ -88,13 +89,26 @@ export function useMarketplaceQueries({ ready, marketTab, isCatalogScopeResolvin
         if (ready && hasUser) await myQuery.refetch({ cancelRefetch: false });
     }, [ready, hasUser, myQuery.refetch]);
 
+    // A teammate or a match changed one of the organization's orders (private
+    // trade stream). Only the My Listings tab shows this data. The reload keeps
+    // the visible list in place: no spinner, and a failed read keeps the list.
+    const backgroundReload = useRef(false);
+    const refetchMyQuery = myQuery.refetch;
+    useEffect(() => {
+        if (!ready || !hasUser || marketTab !== 'my_orders') return undefined;
+        return subscribeToOwnOrderChanges(() => {
+            backgroundReload.current = true;
+            void refetchMyQuery({ cancelRefetch: false }).finally(() => { backgroundReload.current = false; });
+        });
+    }, [ready, hasUser, marketTab, refetchMyQuery]);
+
     return { listings, totalCount: hasLoadedListings ? listingsQuery.data!.total : 0,
         acceptedSkip: hasLoadedListings ? listingsQuery.data!.skip : selection.skip ?? 0,
         loading: !entryReadCompleted.current || (listingsQuery.isFetching && !hasLoadedListings),
         refreshing: listingsQuery.isFetching && hasLoadedListings, hasLoadedListings,
         error: listingsQuery.isFetchedAfterMount && listingsQuery.isError ? (listingsQuery.error instanceof Error ? listingsQuery.error.message : '') : null,
         marketProductCounts: countsQuery.data?.counts ?? EMPTY_COUNTS,
-        myOrders: myQuery.data ?? EMPTY_ORDERS, myOrdersLoading: myQuery.isFetching,
+        myOrders: myQuery.data ?? EMPTY_ORDERS, myOrdersLoading: myQuery.isFetching && !backgroundReload.current,
         myOrdersReadError: myQuery.isError ? myQuery.error : null,
         complianceOverlays: overlay.isError ? {} : overlay.data?.overlays ?? {},
         overlayAssumptions: overlay.isError ? null : overlay.data?.assumptions ?? null,

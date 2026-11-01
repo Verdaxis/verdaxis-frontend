@@ -3,18 +3,37 @@ import { getAccessToken, getAuthGeneration, refreshAccessToken } from '../../ser
 import { invalidateReadCache, invalidateReadCacheWithCause, invalidateReadsForEvent } from '../../services/readCache';
 import { toTradeStreamPayload } from '../../api/mappers';
 import { queuePublicMarketRefresh } from '../../services/publicMarketSync';
+import { PRIVATE_ORDER_EVENTS } from '../../services/orderStreamEvents';
+import { parseHeartbeat, registerStream, type Heartbeat } from '../../services/streamHealth';
 
 export type SSEChannel = 'prices' | 'orderbook' | 'trades';
-export type SSEHandler = (event: string, data: unknown) => void;
-interface Subscriber { onEvent: SSEHandler; onStatus: (connected: boolean) => void }
+// `eventId` is the durable SSE `id:` of a private trade event. Public streams,
+// control events and the synthetic `reconnect` event carry none.
+export type SSEHandler = (event: string, data: unknown, eventId?: string) => void;
+interface Subscriber {
+    onEvent: SSEHandler;
+    onStatus: (connected: boolean) => void;
+    /** Latest server heartbeat of the stream; null until one arrives. */
+    onHeartbeat?: (heartbeat: Heartbeat | null) => void;
+}
 
+// The public `prices` and `orderbook` streams carry only the coalesced,
+// id-less `market_invalidated` refetch signal. Individual order events go to
+// the private `trades:{org}` stream only (backend docs/market-event-dispatch.md).
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
-    prices: ['price_update'],
-    orderbook: ['order_created', 'order_cancelled', 'orders_matched', 'market_invalidated'],
-    trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
+    prices: ['market_invalidated'],
+    orderbook: ['market_invalidated'],
+    trades: [
+        'trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched',
+        'price_alert_triggered',
+        ...PRIVATE_ORDER_EVENTS,
+    ],
 };
 
 const CONTROL_EVENTS = ['auth_expired', 'auth_revoked', 'reconnect', 'reset'];
+// Server status heartbeat. It is neither a data event nor a control event: it
+// never reaches the consumer handler, the replay cursor, or the read cache.
+const HEARTBEAT_EVENT = 'heartbeat';
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
@@ -68,7 +87,12 @@ async function requestStreamToken(parentSignal: AbortSignal): Promise<string | n
     }
 }
 
-const channels = new Map<string, { subscribers: Set<Subscriber>; stop: () => void; connected: boolean }>();
+const channels = new Map<string, {
+    subscribers: Set<Subscriber>;
+    stop: () => void;
+    connected: boolean;
+    heartbeat: Heartbeat | null;
+}>();
 
 export function subscribeStream(channel: SSEChannel, scope: string, subscriber: Subscriber): () => void {
     const key = channel === 'trades' ? `${channel}:${scope}` : channel;
@@ -82,21 +106,36 @@ export function subscribeStream(channel: SSEChannel, scope: string, subscriber: 
     }
     let entry = channels.get(key);
     if (!entry) {
-        entry = { subscribers: new Set(), stop: () => {}, connected: false };
+        entry = { subscribers: new Set(), stop: () => {}, connected: false, heartbeat: null };
         channels.set(key, entry);
     }
     entry.subscribers.add(subscriber);
     subscriber.onStatus(entry.connected);
+    subscriber.onHeartbeat?.(entry.heartbeat);
     if (entry.subscribers.size === 1) {
         const current = entry;
-        const notify: SSEHandler = (event, data) => {
+        const notify: SSEHandler = (event, data, eventId) => {
             for (const listener of [...current.subscribers]) {
-                try { listener.onEvent(event, data); } catch { /* A consumer must not stop transport recovery. */ }
+                try {
+                    if (eventId) {
+                        listener.onEvent(event, data, eventId);
+                    } else {
+                        listener.onEvent(event, data);
+                    }
+                } catch { /* A consumer must not stop transport recovery. */ }
             }
         };
+        // Every open stream reports into the app-wide health store, once per
+        // shared stream however many components subscribe to it.
+        const health = registerStream();
         const setIsConnected = (connected: boolean) => {
             current.connected = connected;
+            health.setConnected(connected);
             for (const listener of current.subscribers) listener.onStatus(connected);
+        };
+        const setHeartbeat = (heartbeat: Heartbeat | null) => {
+            current.heartbeat = heartbeat;
+            for (const listener of current.subscribers) listener.onHeartbeat?.(heartbeat);
         };
         const sourceRef = { current: null as EventSource | null };
         const reconnectTimeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
@@ -234,9 +273,16 @@ export function subscribeStream(channel: SSEChannel, scope: string, subscriber: 
                     // consumer below sees a wire string (DRIFT-1).
                     const data = channel === 'trades' ? toTradeStreamPayload(type, decoded) : decoded;
                     invalidateReadsForEvent(channel, type);
-                    notify(type, data);
+                    notify(type, data, event.lastEventId || undefined);
                 };
 
+                source.addEventListener(HEARTBEAT_EVENT, ((event: MessageEvent<string>) => {
+                    if (sourceRef.current !== source || !isActive()) return;
+                    const parsed = parseHeartbeat(decodeEventData(event.data), Date.now());
+                    if (!parsed) return; // Malformed: ignore; the connection itself is unaffected.
+                    health.recordHeartbeat(parsed);
+                    setHeartbeat(parsed);
+                }) as EventListener);
                 for (const type of EVENT_TYPES[channel]) {
                     source.addEventListener(type, handleMessage.bind(null, type) as EventListener);
                 }
@@ -263,6 +309,8 @@ export function subscribeStream(channel: SSEChannel, scope: string, subscriber: 
                 source?.close();
                 lastEventIdRef.current = null;
                 setIsConnected(false);
+                setHeartbeat(null);
+                health.unregister();
             };
 
         })();

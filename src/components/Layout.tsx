@@ -8,7 +8,9 @@ import { Header } from './layout/Header';
 import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
 import { KycDeadlineBanner } from './layout/KycDeadlineBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { ServerStatusBanner } from './layout/ServerStatusBanner';
 import { FeedbackButton } from './FeedbackButton';
+import { TradeAlertPrompt } from './notifications/TradeAlertPrompt';
 import { useTranslation } from 'react-i18next';
 // Copilot removed per Gavin feedback
 
@@ -71,6 +73,8 @@ export const Layout: React.FC<LayoutProps> = ({
                     isMarketSupportActive={Boolean(context)}
                 />
 
+                <ServerStatusBanner />
+
                 {context && <ActingOrganizationBanner context={context} onExit={() => {
                     setExitError(null);
                     void exit().then(() => navigate('/app/admin/users')).catch((error) => {
@@ -93,6 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
                 {/* Copilot removed per Gavin feedback */}
                 <FeedbackButton />
+                <TradeAlertPrompt />
             </div>
         </div>
     );

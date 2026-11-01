@@ -41,7 +41,7 @@ import {
     getMarketSupportContextId,
     MARKET_SUPPORT_CONTEXT_HEADER,
 } from './marketSupportContextStore';
-import { cachedRead, invalidateReadCacheWithCause, READ_CACHE_TTL_MS, type ReadInvalidationCause } from './readCache';
+import { cachedRead, invalidateReadCacheWithCause, OWN_ORDERS_CACHE_PREFIX, READ_CACHE_TTL_MS, type ReadInvalidationCause } from './readCache';
 import type {
     MarketSupportCapability,
     MarketSupportEntry,
@@ -684,6 +684,11 @@ export interface AdminInvitationResponse {
 }
 
 export const api = {
+    abilities: {
+        // What the signed-in user may do, and why not (UI hints only). Bypasses the
+        // read cache: the answer changes with account, organization, and KYC state.
+        mine: async (): Promise<unknown> => fetchApi('/auth/me/abilities', { headers: getHeaders() }),
+    },
     auth: {
         submitSurvey: async (answer: { use_case: string; referral_source?: string }): Promise<void> => {
             const res = await fetchWithTimeout(`${API_URL}/auth/survey`, {
@@ -1003,7 +1008,7 @@ export const api = {
             );
         },
         myOrders: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').OwnedOrderBookOrder[]> => {
-            const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
+            const response: any = await readApi(OWN_ORDERS_CACHE_PREFIX, '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
             return toOrderBookOrders(mapOrderbookTermsResponse(response.items ?? response)) as import('../types').OwnedOrderBookOrder[];
         },
         create: async (data: OrderCreateInput) => {

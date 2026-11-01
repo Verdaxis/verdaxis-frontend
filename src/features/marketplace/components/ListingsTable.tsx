@@ -8,12 +8,17 @@ import { getOrderDisplayName } from '../../../utils/marketProduct';
 import { BenchmarkPriceBlock } from '../../../components/trading/BenchmarkPriceBlock';
 import { CompliancePriceHint } from '../../../components/trading/CompliancePriceHint';
 import { LngOrderTermsDetails } from '../../../components/lng/LngOrderTermsDetails';
+import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
+import { HIT_ORDER_ABILITY, PLACE_ORDER_ABILITY, type AbilityDenial, type AbilityId } from '../../../types/abilities';
 
 
 import type { TFunction } from 'i18next';
 import type { MarketplaceColumnId, MarketplaceRolePresentation } from './Marketplace';
 const PAGE_SIZE = 8;
 type ColumnId = MarketplaceColumnId;
+
+// Added only while the server denies the action, so an allowed button keeps its markup.
+const DENIED_BUTTON_CLASSES = ' disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#334155] disabled:hover:shadow-sm';
 
 interface ListingsTableProps {
     marketTab: 'market' | 'orderbook' | 'my_orders';
@@ -33,6 +38,8 @@ interface ListingsTableProps {
     pinnedOrderIds: Set<string>;
     isMarketSupportActive: boolean;
     openTradeModal: (order: OrderBookOrder) => void;
+    /** Why an action is denied for this account, or null (see `useAbilityGate`). */
+    getAbilityDenial: (action: AbilityId | null) => AbilityDenial | null;
     catalogError: boolean;
     togglePin: (id: string) => Promise<unknown>;
     totalCount: number;
@@ -40,7 +47,7 @@ interface ListingsTableProps {
     handlePageChange: (skip: number) => void;
 }
 
-export function ListingsTable({ marketTab, error, hasLoadedListings, configBase, loading, filteredListings, highlightedOrderId, t, role, locale, complianceOverlays, overlayAssumptions, b100TradingEnabled, bioLngTradingEnabled, pinnedOrderIds, isMarketSupportActive, openTradeModal, catalogError, togglePin, totalCount, currentSkip, handlePageChange }: ListingsTableProps) {
+export function ListingsTable({ marketTab, error, hasLoadedListings, configBase, loading, filteredListings, highlightedOrderId, t, role, locale, complianceOverlays, overlayAssumptions, b100TradingEnabled, bioLngTradingEnabled, pinnedOrderIds, isMarketSupportActive, openTradeModal, getAbilityDenial, catalogError, togglePin, totalCount, currentSkip, handlePageChange }: ListingsTableProps) {
     // ─── Column header labels (inside component to access t()) ────
     const COLUMN_HEADERS: Record<ColumnId, string> = {
         fuel: t('marketplace.col.fuel'),
@@ -184,6 +191,13 @@ export function ListingsTable({ marketTab, error, hasLoadedListings, configBase,
                 const isExecutable = catalogAllowsExecution && (order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED');
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
+                // The demo "view" button opens a read-only preview, so it is not an action.
+                // A scalar biofuel BID is answered with a new ASK instead of a hit.
+                const actionDenial = order.is_demo_listing
+                    ? null
+                    : getAbilityDenial(order.side === 'BID' && getBiofuelSpecification(order.market_product)
+                        ? PLACE_ORDER_ABILITY.ASK
+                        : HIT_ORDER_ABILITY[order.side]);
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
@@ -192,7 +206,9 @@ export function ListingsTable({ marketTab, error, hasLoadedListings, configBase,
                                     type="button"
                                     data-tour="marketplace-listing-action"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
-                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
+                                    disabled={actionDenial !== null}
+                                    title={actionDenial?.message}
+                                    className={`px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap${actionDenial ? DENIED_BUTTON_CLASSES : ''}`}
                                 >
                                     {t(order.is_demo_listing ? 'marketplace.demo.view' : configBase.counterAction.labelKey)}
                                 </button>

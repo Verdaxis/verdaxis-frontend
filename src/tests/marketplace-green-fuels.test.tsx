@@ -7,8 +7,12 @@ import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
+import { OWN_ORDERS_REFRESH_DEBOUNCE_MS, announceOwnOrdersChanged } from '../services/orderStreamEvents';
+import { AbilitiesProvider } from '../context/AbilitiesContext';
+import { abilitiesPayload } from './abilities-fixtures';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, products, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+const { abilitiesMine, userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, products, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+  abilitiesMine: vi.fn(),
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
@@ -82,6 +86,7 @@ vi.mock('../services/api', () => ({
   ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
   isKycRequiredError: (error: unknown) => error instanceof TestApiError && error.code === 'KYC_REQUIRED',
   api: {
+    abilities: { mine: abilitiesMine },
     catalog: {
       products,
       deliveryPoints,
@@ -936,6 +941,71 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => expect(myOrders).toHaveBeenCalledWith(expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) })));
   });
 
+  describe('live private order changes', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reloads My Listings in place after an order event, without a loading flash', async () => {
+      myOrders.mockResolvedValue([
+        { ...listingsResponse.items[0], id: 'mine-1', side: 'BID', price_per_mt_usd: 7771, status: 'OPEN' },
+      ]);
+      renderWithProviders(<Marketplace />);
+      fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+      expect(await screen.findByText('$7,771')).toBeTruthy();
+      myOrders.mockClear();
+      let finishReload!: (orders: unknown[]) => void;
+      myOrders.mockReturnValueOnce(new Promise((resolve) => { finishReload = resolve; }));
+
+      act(() => announceOwnOrdersChanged());
+      expect(myOrders).not.toHaveBeenCalled(); // debounced
+      await waitFor(() => expect(myOrders).toHaveBeenCalledTimes(1), { timeout: 3000 });
+
+      expect(myOrders).toHaveBeenCalledWith(expect.objectContaining({ signal: expect.any(AbortSignal) }));
+      // The old list stays on screen while the new one loads.
+      expect(screen.queryByText('Loading your listings...')).toBeNull();
+      expect(screen.getByText('$7,771')).toBeTruthy();
+      await act(async () => {
+        finishReload([
+          { ...listingsResponse.items[0], id: 'mine-2', side: 'BID', price_per_mt_usd: 8882, status: 'OPEN' },
+        ]);
+      });
+      expect(await screen.findByText('$8,882')).toBeTruthy();
+      expect(screen.queryByText('$7,771')).toBeNull();
+    });
+
+    it('keeps the visible list when a background reload fails', async () => {
+      myOrders.mockResolvedValue([
+        { ...listingsResponse.items[0], id: 'mine-1', side: 'BID', product_name: 'Bio Methanol', status: 'OPEN' },
+      ]);
+      renderWithProviders(<Marketplace />);
+      fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+      expect(await screen.findByText('Bio Methanol')).toBeTruthy();
+      myOrders.mockRejectedValueOnce(new Error('offline'));
+
+      act(() => announceOwnOrdersChanged());
+
+      expect(await screen.findByRole('alert', {}, { timeout: 2000 })).toBeTruthy();
+      expect(screen.getByText('Bio Methanol')).toBeTruthy();
+    });
+
+    it('does not read My Listings for an order event while another tab of the page is shown', async () => {
+      renderWithProviders(<Marketplace />);
+      await screen.findByRole('button', { name: /my listings/i });
+      await waitFor(() => expect(listAsksPaged).toHaveBeenCalled());
+      myOrders.mockClear();
+      listAsksPaged.mockClear();
+      vi.useFakeTimers();
+
+      act(() => announceOwnOrdersChanged());
+      act(() => { vi.advanceTimersByTime(OWN_ORDERS_REFRESH_DEBOUNCE_MS); });
+
+      expect(myOrders).not.toHaveBeenCalled();
+      // The public listings follow the public refresh signal, not this private one.
+      expect(listAsksPaged).not.toHaveBeenCalled();
+    });
+  });
+
   it('shows a filtered empty state in My Listings when account orders exist outside the active slice', async () => {
     localStorage.setItem('verdaxis_marketplace_product', 'E_METHANOL');
     myOrders.mockResolvedValue([
@@ -1369,6 +1439,84 @@ describe('Marketplace green fuels surface', () => {
     listingRow = screen.getByRole('button', { name: /lift ask/i }).closest('tr') as HTMLElement;
     expect(within(listingRow).getByText('e-Methanol')).toBeTruthy();
     expect(within(listingRow).queryByText('Bio Methanol')).toBeNull();
+  });
+
+  describe('server abilities', () => {
+    // Later top-level describes reuse the shared mocks without resetting them.
+    afterEach(() => {
+      userRole.current = 'BUYER';
+      marketSupportActive.current = false;
+      abilitiesMine.mockReset();
+    });
+    const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    const renderWithAbilities = () => renderWithProviders(<AbilitiesProvider><Marketplace /></AbilitiesProvider>);
+
+    it('disables Place Bid and Lift Ask with the server reason when both are denied', async () => {
+      abilitiesMine.mockResolvedValue(abilitiesPayload({
+        place_bid_order: { code: 'ACCOUNT_NOT_APPROVED' },
+        hit_ask_order: { code: 'ORGANIZATION_PROVENANCE_UNVERIFIED' },
+      }));
+
+      renderWithAbilities();
+
+      const row = await screen.findByRole('row', { name: /Bio Methanol/ });
+      await waitFor(() => expect(screen.getAllByTestId('ability-denial-note').length).toBe(2));
+      const placeBid = screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement;
+      expect(placeBid.disabled).toBe(true);
+      expect(placeBid.getAttribute('title')).toBe('Your account has not been approved yet.');
+      const hit = within(row).getByRole('button', { name: 'Lift Ask' }) as HTMLButtonElement;
+      expect(hit.disabled).toBe(true);
+      expect(hit.getAttribute('title')).toBe('Your organization is not yet verified for live market trading.');
+      fireEvent.click(hit);
+      expect(screen.queryByTestId('trade-modal')).toBeNull();
+      // The denied hit message differs from the place-order message, so both are visible.
+      const notes = screen.getAllByTestId('ability-denial-note').map((note) => note.textContent);
+      expect(notes).toEqual(expect.arrayContaining([
+        expect.stringContaining('Your account has not been approved yet.'),
+        expect.stringContaining('not yet verified for live market trading'),
+      ]));
+    });
+
+    it('renders the normal enabled buttons when the server allows both actions', async () => {
+      abilitiesMine.mockResolvedValue(abilitiesPayload());
+
+      renderWithAbilities();
+
+      const row = await screen.findByRole('row', { name: /Bio Methanol/ });
+      await settle();
+      expect((screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement).disabled).toBe(false);
+      expect((within(row).getByRole('button', { name: 'Lift Ask' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByTestId('ability-denial-note')).toBeNull();
+    });
+
+    it('keeps a supplier on the ask and BID-hit abilities', async () => {
+      userRole.current = 'SUPPLIER';
+      abilitiesMine.mockResolvedValue(abilitiesPayload({
+        place_ask_order: { code: 'SUPPLIER_ROLE_REQUIRED' },
+        hit_bid_order: { code: 'KYC_REJECTED' },
+        place_bid_order: { code: 'BUYER_ROLE_REQUIRED' },
+      }));
+
+      renderWithAbilities();
+
+      await screen.findByRole('row', { name: /Bio Methanol/ });
+      await waitFor(() => expect(screen.getAllByTestId('ability-denial-note').length).toBe(2));
+      const notes = screen.getAllByTestId('ability-denial-note').map((note) => note.getAttribute('data-reason-code'));
+      expect(notes.sort()).toEqual(['KYC_REJECTED', 'SUPPLIER_ROLE_REQUIRED']);
+    });
+
+    it('does not apply the administrator\'s own denial while acting inside a support context', async () => {
+      userRole.current = 'ADMIN';
+      marketSupportActive.current = true;
+      abilitiesMine.mockResolvedValue(abilitiesPayload({ place_bid_order: { code: 'ADMIN_CANNOT_EXECUTE' } }));
+
+      renderWithAbilities();
+
+      await screen.findByText('Marketplace');
+      await settle();
+      expect((screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByTestId('ability-denial-note')).toBeNull();
+    });
   });
 
 });

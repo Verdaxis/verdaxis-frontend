@@ -80,15 +80,15 @@ const LOCAL_API_PATTERNS = [
 // growth back. See docs/refactor/step8-marketplace-budget.md.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
-  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
+  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 356900 },
   // authenticated marketplace workspace
   { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 325000 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
   { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
-  // authenticated command center
-  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 248100 },
-  // compliance workspace
-  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 233500 },
+  // authenticated command center (includes the customizable home grid and its strings)
+  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 265300 },
+  // compliance workspace (the authenticated shell grew with abilities, alerts and stream status)
+  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 242200 },
 ];
 
 const GZIP_OPTIONS = { level: zlibConstants.Z_BEST_COMPRESSION };
