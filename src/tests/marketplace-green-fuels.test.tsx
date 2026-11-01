@@ -8,14 +8,11 @@ import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, products, rfqList, supplierOffersList, supplierOffersMy, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, products, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
   products: vi.fn(),
-  rfqList: vi.fn(),
-  supplierOffersList: vi.fn(),
-  supplierOffersMy: vi.fn(),
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
   listBidsPaged: vi.fn(),
@@ -89,8 +86,6 @@ vi.mock('../services/api', () => ({
       products,
       deliveryPoints,
     },
-    rfq: { list: rfqList },
-    supplierOffers: { list: supplierOffersList, my: supplierOffersMy },
     orderbook: {
       listAsksPaged,
       listBidsPaged,
@@ -230,9 +225,6 @@ describe('Marketplace green fuels surface', () => {
     myOrders.mockResolvedValue([]);
     cancelOrder.mockResolvedValue(undefined);
     products.mockResolvedValue([{ id: 'ucome-product', market_product: 'UCOME_B100', execution_mode: 'ORDERBOOK', is_active: true, available_delivery_point_ids: ['dp-1'] }]);
-    rfqList.mockResolvedValue({ items: [], total: 0 });
-    supplierOffersList.mockResolvedValue({ items: [], total: 0 });
-    supplierOffersMy.mockResolvedValue({ items: [], total: 0 });
     deliveryPoints.mockResolvedValue([
       { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
       { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
@@ -263,8 +255,6 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
       order_id: 'b100-ask', expected_order_version: 3, fame_terms: expect.objectContaining({ side: 'BID', standard: 'EN_14214', standard_edition: '2012+A2:2019', max_ci_gco2e_mj: null }),
     })));
-    expect(supplierOffersList).not.toHaveBeenCalled();
-    expect(rfqList).not.toHaveBeenCalled();
   });
 
   it('uses the same executable Listings and My Listings for B100 as other fuels', async () => {
@@ -275,7 +265,6 @@ describe('Marketplace green fuels surface', () => {
     expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'UCOME B100 RFQ' })).toBeNull();
-    expect(supplierOffersList).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'My Listings' }));
     await waitFor(() => expect(myOrders).toHaveBeenCalled());
   });
@@ -329,7 +318,6 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2026-Q4' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) })));
     expect(screen.getByTestId('current-url').textContent).toBe('/app/m/ucome-b100/singapore/2026-q4');
     expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
-    expect(supplierOffersList).not.toHaveBeenCalled();
   });
 
   it('opens standard Listings from the B100 chip and follows browser history', async () => {
@@ -346,8 +334,6 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: 'UCOME B100' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'More Filters' })).toBeTruthy();
-    expect(supplierOffersList).not.toHaveBeenCalled();
-    expect(rfqList).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
     expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Go forward' }));
@@ -359,32 +345,16 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=orderbook' });
     await waitFor(() => expect(snapshot).toHaveBeenCalledWith({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
-    expect(supplierOffersList).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /Bio Methanol/ }));
     await waitFor(() => expect(snapshot).toHaveBeenLastCalledWith({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
   });
 
-  it('keeps earlier offers and RFQs in history without new creation controls', async () => {
+  it('offers no separate history of earlier offers or requests for quotes', async () => {
     renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
-    fireEvent.click(await screen.findByRole('button', { name: 'History' }));
-    await screen.findByRole('heading', { name: 'No B100 supplier offers yet' });
-    expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Earlier RFQs' }));
-    expect(await screen.findByRole('heading', { name: 'B100 RFQs' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
-    await waitFor(() => expect(rfqList).toHaveBeenCalledWith({ skip: 0, limit: 20 }));
-    fireEvent.click(screen.getByRole('button', { name: 'Back to market' }));
     expect(await screen.findByRole('button', { name: 'Orderbook' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'B100 RFQs' })).toBeNull();
-  });
-
-  it('opens history from an exact B100 slice without losing the standard market entry', async () => {
-    renderWithProviders(<Marketplace initialSlice={{ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' }} />,
-      { route: '/app/m/ucome-b100/singapore/spot' });
-    fireEvent.click(await screen.findByRole('button', { name: 'History' }));
-    expect(await screen.findByRole('button', { name: 'Back to market' })).toBeTruthy();
-    await screen.findByRole('heading', { name: 'No B100 supplier offers yet' });
-    expect(supplierOffersList).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
   });
 
   it('opens the shared ASK modal for B100 and uses standard supplier My Listings', async () => {
@@ -394,20 +364,9 @@ describe('Marketplace green fuels surface', () => {
     expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ isOpen: true, side: 'ASK', prefillMarketProduct: 'UCOME_B100' }));
     fireEvent.click(screen.getByRole('button', { name: 'My Listings' }));
     await waitFor(() => expect(myOrders).toHaveBeenCalled());
-    expect(supplierOffersMy).not.toHaveBeenCalled();
     expect(listBidsPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
   });
 
-  it('preserves the historical RFQ restriction during assisted organization sessions', async () => {
-    marketSupportActive.current = true;
-    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=history_rfqs' });
-    expect(await screen.findByRole('status')).toHaveProperty('textContent', 'B100 offers and requests are unavailable while acting for an organization. Exit the assisted session to use your own account.');
-    expect(rfqList).not.toHaveBeenCalled();
-    expect(supplierOffersList).not.toHaveBeenCalled();
-    expect(supplierOffersMy).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
-    expect(listAsksPaged).not.toHaveBeenCalled();
-  });
 
   it('clears a canonical B100 query when clearing all market filters', async () => {
     myOrders.mockResolvedValue(listingsResponse.items);

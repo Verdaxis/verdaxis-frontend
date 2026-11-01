@@ -77,7 +77,7 @@ index.html
 
 **Canonical products.** B30 (`c4cecebc-3d2d-5840-8021-57a9a11bc673`) and B100 (`74eb9cb5-f0e3-55f1-b82c-fe29b7c45bf5`) retain scalar biofuel contracts, fixed ISO specifications, whole-fuel CI methods and the 200 MT catalog minimum. UCOME_B100 retains its separate UUID, typed terms, 1 MT minimum and Singapore lane. Scalar biofuel suppliers enter through ASK declarations, not an undeclared direct take of a BID.
 
-**Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. Earlier supplier offers and RFQs remain separate, non-executable history in the FAME services and components. This branch does not include the production identified-activity pipeline.
+**Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. The earlier supplier offers, RFQs and negotiations are retired: no screen or service calls their routes, and `src/tests/retired-indicative-routes.test.ts` fails if one reappears. `services/fameRfq.ts` and `types/fameRfq.ts`, `types/fameSupplierOffer.ts` keep only the shared declaration types and measurement mapping. This branch does not include the production identified-activity pipeline.
 
 **Staging Bio-LNG/catalog.** `BIO_LNG` follows the same catalog and contract rules as B100: `ORDERBOOK` execution plus an explicit lane from `available_delivery_point_ids` (Rotterdam only at first), or the market stays closed. Its terms live in `types/lngOrder.ts`, are required on BIO_LNG orders, and carry the `side` discriminator (`LngAskTerms` or `LngBidTerms`). The public ask view withholds the scheme certificate number and the physical supplier name until a trade is confirmed, and exposes only `reseller` and `fueleu_recognition`. The server derives the generic ASK metadata (scheme, specification, feedstock, origin) from `lng_terms`, so the client never sends both. A direct take that fails the terms comparison returns `LNG_TERMS_INCOMPATIBLE`; the fixed names come from the bio-LNG contract addendum. BIO_LNG is exempt from the scalar carbon intensity, has no demo data, and never feeds `ci_pricing`.
 
@@ -95,14 +95,14 @@ src/
   types.ts                          shared UI and API domain types
   types/marketSupport.ts            assisted-workspace contracts
   types/fame{Order,Rfq,SupplierOffer}.ts
-                                    staging UCOME B100 and history contracts
+                                    staging UCOME B100 order and declaration contracts
   types/lngOrder.ts                 staging Bio-LNG ask, public ask, bid, snapshot
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
     layout/KycDeadlineBanner.tsx    KYC grace/required/rejected deadline notice
     kyc/KycRequiredNotice.tsx       localized KYC_REQUIRED notice with /kyc link
-    Marketplace.tsx                market/listings/orderbook and FAME history workspace
+    Marketplace.tsx                market/listings/orderbook workspace
     OrderBook.tsx                   depth and level interaction
     OrderPlaceModal.tsx             shared BID/ASK entry, including catalog-enabled B100 and Bio-LNG
     ForwardCurveWorkspace.tsx       monitoring matrix, chart, selected-period evidence
@@ -110,8 +110,7 @@ src/
     CommandCenter.tsx               buyer/supplier home views
     fame/                           shared UCOME B100 fields and readback
     lng/                            Bio-LNG ask/bid fields and readback
-    rfq/                            earlier FAME request history
-    supplier/                       earlier FAME supplier-offer history
+    rfq/                            shared FAME declaration readback
     admin/                          admin and product analytics workspaces
     admin/market-support/           eligible-organization entry
     market-support/                 acting banner and final order confirmation
@@ -134,8 +133,8 @@ src/
     api.ts                          fetch client and response transforms
     authToken.ts                    in-memory access-token generation
     readCache.ts                    scoped TTL cache and request deduplication
-    fame{Order,Rfq,SupplierOffer}.ts
-                                    staging FAME normalization and events
+    fame{Order,Rfq}.ts
+                                    staging FAME normalization
     lngOrder.ts                     Bio-LNG normalization without restoring redacted identity
     orderTerms.ts                   applies every product terms layer in one pass
     publicMarketSync.ts             shared market invalidation subscriber

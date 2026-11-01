@@ -39,7 +39,7 @@ describe('FameOrderFields', () => {
             require_quality_evidence: false, require_sustainability_evidence: false, evidence_due: 'BEFORE_LOADING',
         });
         expect(validateFameOrderTerms(bid)).toBeNull();
-        expect(screen.queryByLabelText(copy.form.deliveryStart)).toBeNull();
+        expect(screen.queryByLabelText('Delivery start')).toBeNull();
         expect(screen.queryByLabelText(copy.form.certificateReference)).toBeNull();
     });
 

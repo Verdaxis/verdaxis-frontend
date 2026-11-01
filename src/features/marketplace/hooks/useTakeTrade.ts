@@ -33,7 +33,6 @@ interface UseTakeTradeOptions {
     userId?: string | null;
     organizationId?: string | null;
     isMarketSupportActive: boolean;
-    isHistorySelected: boolean;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     b100TradingEnabled: boolean;
     bioLngTradingEnabled: boolean;
@@ -47,7 +46,7 @@ interface UseTakeTradeOptions {
 }
 
 export function useTakeTrade({
-    userId, organizationId, isMarketSupportActive, isHistorySelected, marketTab,
+    userId, organizationId, isMarketSupportActive, marketTab,
     b100TradingEnabled, bioLngTradingEnabled, t, tRfq, fetchProductCounts, fetchListings,
     currentSkip, prefillAskOrder,
 }: UseTakeTradeOptions) {
@@ -130,12 +129,6 @@ export function useTakeTrade({
         setTradeResult(null);
         tradeRequestRef.current = null;
     }, [userId, organizationId, isMarketSupportActive]);
-
-    useEffect(() => {
-        if (!isHistorySelected) return;
-        setSelectedOrder(null);
-        setTradeState('idle');
-    }, [isHistorySelected]);
 
     useEffect(() => {
         if (tradeState !== 'success') return;

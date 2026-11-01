@@ -15,8 +15,6 @@ vi.mock('../hooks/useWatchlist', () => ({ useWatchlist: () => ({ trackedSliceKey
 vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: () => null }));
 vi.mock('../components/OrderBook', () => ({ OrderBook: () => null }));
 vi.mock('../components/TradeTape', () => ({ TradeTape: () => null }));
-vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: () => <p>Legacy requests</p> }));
-vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: () => <p>Legacy offers</p> }));
 vi.mock('../services/analytics', () => ({ analytics: { track: mocks.track } }));
 vi.mock('../services/api', async importOriginal => ({
     ...await importOriginal<typeof import('../services/api')>(),
@@ -95,12 +93,12 @@ describe('Marketplace selection contract', () => {
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/m/ucome-b100/singapore/spot'));
         expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'sg' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     });
-    it('keeps B100 legacy requests in history without market reads', async () => {
-        renderWithProviders(<Workspace />, { route: '/app/marketplace?product=UCOME_B100&view=requests' });
-        await screen.findByText('Legacy requests');
+    it.each(['requests', 'history_rfqs', 'history_offers', 'history_my_offers'])('opens a retired history link (%s) as the normal B100 market', async view => {
+        renderWithProviders(<Workspace />, { route: `/app/marketplace?product=UCOME_B100&view=${view}` });
+        await waitFor(() => expect(mocks.asks).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), expect.anything()));
         expect(root().getAttribute('data-tour-market-product')).toBe('UCOME_B100');
-        expect(mocks.asks).not.toHaveBeenCalled(); expect(mocks.counts).not.toHaveBeenCalled();
-        expect(screen.getByTestId('location').textContent).toContain('view=requests');
+        expect(root().getAttribute('data-tour-tab')).toBe('market');
+        expect(screen.queryByText(/Legacy/)).toBeNull();
     });
     it('resets role sort and page without rewriting generic navigation', async () => {
         const view = renderWithProviders(<Workspace />, { route: '/app/marketplace' });

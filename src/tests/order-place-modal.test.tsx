@@ -7,7 +7,6 @@ import { OrderPlaceModal } from '../components/OrderPlaceModal';
 import i18n, { loadNamespace } from '../i18n';
 import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import type { AvailabilityWindow } from '../types';
-import type { SupplierOffer } from '../types/fameSupplierOffer';
 import { clearAccessToken, setAccessToken } from '../services/authToken';
 import { ApiError } from '../services/api';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
@@ -18,9 +17,6 @@ const createOrderMock = vi.fn();
 const { TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   TestApiOutcomeUnknownError: class extends Error {},
 }));
-const createSupplierOfferMock = vi.fn();
-const updateSupplierOfferMock = vi.fn();
-const validateSupplierOfferMock = vi.fn();
 const marketSupportControl = vi.hoisted(() => ({
   current: {
     context: null as any,
@@ -54,32 +50,12 @@ vi.mock('../services/api', async importOriginal => {
       orderbook: {
         create: (...args: unknown[]) => createOrderMock(...args),
       },
-      supplierOffers: {
-        create: (...args: unknown[]) => createSupplierOfferMock(...args),
-        update: (...args: unknown[]) => updateSupplierOfferMock(...args),
-      },
     },
   };
 });
 
 vi.mock('../context/MarketSupportContext', () => ({
   useMarketSupport: () => marketSupportControl.current,
-}));
-
-// The declaration fields have their own tests. Keep one named field here to
-// verify that the modal includes the child form data in the offer submission.
-vi.mock('../components/supplier/FameSupplierOfferForm', () => ({
-  FameSupplierOfferForm: ({ offer, pending }: { offer?: SupplierOffer; pending: boolean }) => (
-    <label>
-      Supplier batch reference
-      <input name="supplier_batch_reference" defaultValue={offer?.fuelTerms.batch_reference ?? ''} disabled={pending} />
-    </label>
-  ),
-  buildFameSupplierOfferInput: (data: FormData, core: Record<string, unknown>) => ({
-    ...core,
-    fuel_terms: { batch_reference: data.get('supplier_batch_reference') },
-  }),
-  validateFameSupplierOfferInput: (...args: unknown[]) => validateSupplierOfferMock(...args),
 }));
 
 describe('OrderPlaceModal', () => {
@@ -155,9 +131,6 @@ describe('OrderPlaceModal', () => {
     deliveryPointsMock.mockReset();
     createOrderMock.mockReset();
     clearAccessToken();
-    createSupplierOfferMock.mockReset();
-    updateSupplierOfferMock.mockReset();
-    validateSupplierOfferMock.mockReset().mockReturnValue(null);
     sessionStorage.clear();
 
     productsMock.mockResolvedValue([
@@ -511,7 +484,6 @@ describe('OrderPlaceModal', () => {
       idempotency_key: expect.any(String),
       fame_terms: expect.objectContaining({ side, standard: 'EN_14214', standard_edition: '2012+A2:2019', neat_fame: true }),
     }));
-    expect(createSupplierOfferMock).not.toHaveBeenCalled();
   });
 
   it('keeps a settled result when support context expiry races request completion', async () => {
@@ -1147,66 +1119,9 @@ describe('OrderPlaceModal', () => {
       spec_description: 'Supplier-declared UCOME B100',
     };
 
-    function makeOffer(overrides: Partial<SupplierOffer> = {}): SupplierOffer {
-      return {
-        id: 'offer-1',
-        productId: 'prod-ucome',
-        productName: 'UCOME B100',
-        deliveryPointId: 'dp-1',
-        deliveryPointName: 'Singapore',
-        quantityMt: 750,
-        minFillMt: 500,
-        pricePerMtUsd: 1095,
-        availabilityWindow: 'SPOT',
-        deliveryBasis: 'EX_TANK',
-        namedLocation: 'Singapore terminal',
-        deliveryStart: '2099-01-01',
-        deliveryEnd: '2099-01-31',
-        quantityTolerancePct: 5,
-        paymentTerms: 'Payment before loading',
-        inspectionTerms: 'Independent inspection at loading',
-        titleRiskTerms: 'Transfer at loading',
-        claimsTerms: 'Report claims within 30 days',
-        evidenceDue: 'BEFORE_LOADING',
-        expiresAt: '2098-12-31T16:00:00.000Z',
-        notes: null,
-        fuelTerms: {
-          schema_version: 1,
-          neat_fame: true,
-          nomination_status: 'IDENTIFIED',
-          batch_reference: 'BATCH-EXISTING',
-          producing_site: 'Site A',
-          production_origin: 'Malaysia',
-          feedstock_origin: 'Malaysia',
-          shipping_location: 'Singapore',
-          uco_mass_pct: 100,
-          standard: 'EN_14214',
-          standard_edition: '2012+A2:2019',
-          sustainability_scheme: 'ISCC_EU',
-          certificate_reference: 'CERT-1',
-          certificate_holder: 'Supplier A',
-          certificate_valid_until: '2099-12-31',
-          evidence_status: 'DECLARED',
-          document_references: [],
-        },
-        status: 'OPEN',
-        revision: 3,
-        createdAt: '2098-11-01T00:00:00.000Z',
-        updatedAt: '2098-11-02T00:00:00.000Z',
-        executionEnabled: false,
-        listingKind: 'SUPPLIER_OFFER',
-        canEdit: true,
-        canWithdraw: true,
-        canRequestQuote: false,
-        ...overrides,
-      };
-    }
-
     beforeEach(async () => {
       const alcoholProducts = await productsMock();
       productsMock.mockResolvedValue([...alcoholProducts, b100Product]);
-      createSupplierOfferMock.mockResolvedValue(makeOffer());
-      updateSupplierOfferMock.mockResolvedValue(makeOffer({ revision: 4 }));
     });
 
     function enableAssistedSession() {
@@ -1280,7 +1195,6 @@ describe('OrderPlaceModal', () => {
       expect(await screen.findByRole('heading', { name: 'B100 orders are not available' })).toBeTruthy();
       expect(screen.queryByLabelText('Standard edition')).toBeNull();
       expect(createOrderMock).not.toHaveBeenCalled();
-      expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
 
     it.each(['prefill', 'product switch'] as const)('uses an allowed Singapore port after an unsupported %s', async (entry) => {
@@ -1304,7 +1218,6 @@ describe('OrderPlaceModal', () => {
       fireEvent.click(ports[0]);
       await reviewAndConfirm('Ask');
       await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({ product_id: 'prod-ucome', delivery_point_id: 'dp-1' })));
-      expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
 
     it.each(['BID', 'ASK'] as const)('preserves B100 %s fields through assisted confirmation and Back', async (side) => {
@@ -1330,7 +1243,6 @@ describe('OrderPlaceModal', () => {
         fame_terms: expect.objectContaining({ side, standard_edition: '2012+A2:2019' }),
         support_confirmation: expect.objectContaining({ acknowledge_exact_terms: true, acknowledge_executable_standing_order: true }),
       }));
-      expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
 
     it('retries an uncertain B100 submission with the same declaration and idempotency key', async () => {
@@ -1350,7 +1262,6 @@ describe('OrderPlaceModal', () => {
       await fillOrder('BID');
       await reviewAndConfirm('Bid');
       expect(await screen.findByRole('heading', { name: i18n.t('orderPlaceModal.autoMatched.title', { ns: 'trading' }) })).toBeTruthy();
-      expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
 
     it('keeps invalid CI requirements editable and does not send an order', async () => {
@@ -1360,70 +1271,6 @@ describe('OrderPlaceModal', () => {
       fireEvent.submit(screen.getByRole('button', { name: 'Review Bid' }).closest('form')!);
       expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('validation.ciContext', { ns: 'rfq' }));
       expect(screen.getByLabelText('Maximum CI (gCO₂e/MJ, optional)')).toHaveProperty('value', '0');
-      expect(createOrderMock).not.toHaveBeenCalled();
-    });
-
-    it('prefills every core value when editing and submits its revision through the offer endpoint', async () => {
-      const nextQuarter = getAvailabilityWindowOptions({ timeZone: 'Asia/Singapore' })
-        .find((option) => option.kind === 'quarter')!;
-      deliveryPointsMock.mockResolvedValue([
-        { id: 'dp-1', name: 'Singapore', region: 'Asia', timezone: 'Asia/Singapore', is_active: true },
-        { id: 'dp-edit', name: 'Singapore', region: 'Asia', timezone: 'Asia/Singapore', is_active: true },
-      ]);
-      productsMock.mockResolvedValue((await productsMock()).map((product: { id: string }) => product.id === 'prod-ucome'
-        ? { ...product, available_delivery_point_ids: ['dp-1', 'dp-edit'] }
-        : product));
-      const offer = makeOffer({ deliveryPointId: 'dp-edit', availabilityWindow: nextQuarter.value });
-      const onOfferSaved = vi.fn();
-      renderWithProviders(
-        <OrderPlaceModal isOpen onClose={() => undefined} side="ASK" editSupplierOffer={offer} onOfferSaved={onOfferSaved} />
-      );
-
-      await screen.findByRole('heading', { name: 'Edit B100 offer' });
-      const product = await screen.findByRole('combobox', { name: 'Order product' });
-      expect(product.textContent).toContain('UCOME B100');
-      expect(product).toHaveProperty('disabled', true);
-      expect(screen.getByRole('combobox', { name: 'Order delivery point' }).textContent).toContain('Singapore');
-      expect(screen.getByRole('combobox', { name: 'Order delivery point' })).toHaveProperty('disabled', true);
-      expect(screen.getByRole('spinbutton', { name: 'Quantity (MT)' })).toHaveProperty('value', '750');
-      expect(screen.getByRole('spinbutton', { name: 'Price ($/MT)' })).toHaveProperty('value', '1095');
-      expect(screen.getByRole('combobox', { name: 'Order availability window' }).textContent).toContain(nextQuarter.label);
-      expect(screen.getByLabelText('Supplier batch reference')).toHaveProperty('value', 'BATCH-EXISTING');
-
-      fireEvent.change(screen.getByRole('spinbutton', { name: 'Price ($/MT)' }), { target: { value: '1100' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-
-      await waitFor(() => expect(updateSupplierOfferMock).toHaveBeenCalledWith('offer-1', expect.objectContaining({
-        product_id: 'prod-ucome',
-        delivery_point_id: 'dp-edit',
-        quantity_mt: 750,
-        price_per_mt_usd: 1100,
-        availability_window: nextQuarter.value,
-        expected_revision: 3,
-        fuel_terms: { batch_reference: 'BATCH-EXISTING' },
-      })));
-      expect(createSupplierOfferMock).not.toHaveBeenCalled();
-      expect(createOrderMock).not.toHaveBeenCalled();
-      expect(onOfferSaved).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole('heading', { name: 'Offer updated' })).toBeTruthy();
-    });
-
-    it('keeps an unavailable edit product separate from the available alcohol catalog', async () => {
-      productsMock.mockResolvedValue((await productsMock()).filter((product: { id: string }) => product.id !== 'prod-ucome'));
-      renderWithProviders(
-        <OrderPlaceModal isOpen onClose={() => undefined} side="ASK" editSupplierOffer={makeOffer()} />
-      );
-
-      const product = await screen.findByRole('combobox', { name: 'Order product' });
-      expect(product.textContent).not.toContain('Bio Methanol');
-      expect(product).toHaveProperty('disabled', true);
-      expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('offerModal.catalogUnavailable', { ns: 'rfq' }));
-      const save = screen.getByRole('button', { name: 'Save changes' });
-      expect(save).toHaveProperty('disabled', true);
-      fireEvent.submit(save.closest('form')!);
-
-      expect(updateSupplierOfferMock).not.toHaveBeenCalled();
-      expect(createSupplierOfferMock).not.toHaveBeenCalled();
       expect(createOrderMock).not.toHaveBeenCalled();
     });
 

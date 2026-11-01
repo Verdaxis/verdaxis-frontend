@@ -17,7 +17,6 @@ import type { TFunction } from 'i18next';
 import type { MarketplaceRolePresentation } from './Marketplace';
 
 interface TakeTradeDialogProps {
-    isHistorySelected: boolean;
     selectedOrder: OrderBookOrder | null;
     tradeState: 'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error';
     tradeResult: Trade | null;
@@ -43,10 +42,10 @@ interface TakeTradeDialogProps {
     setTradeState: (state: 'confirming') => void;
 }
 
-export function TakeTradeDialog({ isHistorySelected, selectedOrder, tradeState, tradeResult, t, locale, role, tradeError, confirmTrade, closeTradeModal, tradeKycBlocked, tradeNeedsRefresh, refreshReview, configBase, tradeQuantity, setTradeQuantity, tradeTermsForm, tradeLngTermsForm, reviewTrade, initialBuyerTerms, initialLngTaker, tradeFameInput, tradeLngInput, setTradeState }: TakeTradeDialogProps) {
+export function TakeTradeDialog({ selectedOrder, tradeState, tradeResult, t, locale, role, tradeError, confirmTrade, closeTradeModal, tradeKycBlocked, tradeNeedsRefresh, refreshReview, configBase, tradeQuantity, setTradeQuantity, tradeTermsForm, tradeLngTermsForm, reviewTrade, initialBuyerTerms, initialLngTaker, tradeFameInput, tradeLngInput, setTradeState }: TakeTradeDialogProps) {
     return <>
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
-            {!isHistorySelected && selectedOrder && tradeState !== 'idle' && (
+            {selectedOrder && tradeState !== 'idle' && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' || selectedOrder.market_product === 'BIO_LNG' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
                         {tradeState === 'success' ? (

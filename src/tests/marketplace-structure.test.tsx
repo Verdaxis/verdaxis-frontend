@@ -16,8 +16,6 @@ vi.mock('../hooks/useWatchlist', () => ({ useWatchlist: () => ({ trackedSliceKey
 vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: () => null }));
 vi.mock('../components/OrderBook', () => ({ OrderBook: () => <div data-testid="depth-child" /> }));
 vi.mock('../components/TradeTape', () => ({ TradeTape: () => <div data-testid="tape-child" /> }));
-vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: () => <div data-testid="rfq-history" /> }));
-vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: () => <div data-testid="offer-history" /> }));
 vi.mock('../services/api', async importOriginal => {
     const original = await importOriginal<typeof import('../services/api')>();
     return { ...original, api: {
@@ -59,9 +57,6 @@ const contracts: Record<string, string> = {
     'depth-gate': '1608af8d1789f99066fa56d648bbcf65e0dc585a717f352a4cd7d47bc2d0cf5b',
     'my-orders': '15d8d2576de9b342553dda6cd4a34cbd015474d59d1614053c4d56bbe2303daa',
     'cancellation': 'f956f743fc6db9bbf728f75e4242295472b179cdae00596c7d71a95881b69a7f',
-    'history_offers': 'b9d19889ec341e94683a2a911fa90bf5f51dd394b6df332189fa245e708f1357',
-    'history_rfqs': '893188a04920cc62bc7ffd286015cddb524d8d0e81d5d7e29a7300b7e00bb2b3',
-    'history_my_offers': 'dfd475adde25fabc2ad29347ca8afa7f2ab1eae59c3aef47405decedc67b1fdf',
     'lng-paired-rows': '124617c3f798ccb0505e1c341ba2f3066efe88c69647c69f772a68210126e15a',
     'refresh-warning': '93cd23b426ff3a87cc71b47d4be0f6fb621d6e9ee1890d77ce43d633f33f27cc',
     'take-confirming': '02cd9d82a8fb3296f7b18f525bbad895580b3645425e2711aaa2cb4bc8fcaa3c',
@@ -156,12 +151,6 @@ describe('Marketplace DOM contract before presentation extraction', () => {
         await screen.findByRole('dialog');
         expect(document.activeElement).toBe(screen.getByRole('textbox'));
         expectTree('cancellation');
-    });
-    it.each(['history_offers', 'history_rfqs', 'history_my_offers'])('preserves %s history', async view => {
-        mocks.role = 'SUPPLIER';
-        renderWithProviders(<Marketplace />, { route: `/app/marketplace?product=UCOME_B100&view=${view}` });
-        await screen.findByTestId(view === 'history_rfqs' ? 'rfq-history' : 'offer-history');
-        expectTree(view);
     });
     it('preserves Bio-LNG paired rows and disclosed terms', async () => {
         mocks.asks.mockResolvedValue({ items: [{ ...ask, market_product: 'BIO_LNG', fuel_type: 'LNG', lng_terms: {

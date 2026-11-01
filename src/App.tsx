@@ -21,7 +21,7 @@ import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, PAGE_SLUGS, Port, AvailabilityWindow } from './types';
-import { MarketSlice, parseSlicePath, sliceToPath, UCOME_MARKETPLACE_PATH } from './utils/sliceUrl';
+import { MarketSlice, parseSlicePath, sliceToPath } from './utils/sliceUrl';
 import { isOrderbookMarketProduct } from './utils/marketProduct';
 import {
   cancelDashboardNavigation,
@@ -227,7 +227,6 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 const DASHBOARD_PAGES = new Set<Page>([
   'MAP',
   'MARKETPLACE',
-  'RFQS',
   'COMPLIANCE',
   'TRAINING',
   'SETTINGS',
@@ -277,7 +276,6 @@ const pathToPage = (pathname: string): Page => {
     case 'home': return 'DASHBOARD';
     case 'map': return 'MAP';
     case 'marketplace': return 'MARKETPLACE';
-    case 'rfqs': return 'MARKETPLACE';
     case 'curve': return 'FORWARD_CURVE';
     case 'watchlist': return 'WATCHLISTS';
     case 'analytics': return 'DATA_ANALYTICS';
@@ -668,7 +666,6 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
                         <Route path="home" element={<HomeRoute />} />
                         <Route path="map" element={<></>} />
                         <Route path="marketplace" element={<MarketplaceRoute />} />
-                        <Route path="rfqs" element={<Navigate to={`${UCOME_MARKETPLACE_PATH}&view=history_rfqs`} replace />} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
                         <Route path="watchlist" element={<SupportRestrictedRoute><WatchlistPage /></SupportRestrictedRoute>} />
