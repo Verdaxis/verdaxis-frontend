@@ -49,6 +49,7 @@ import { AdminDashboard } from '../components/admin/AdminDashboard';
 import { ApiError, ApiOutcomeUnknownError } from '../services/api';
 import { OFFBOARDING_ERROR_CODES } from '../components/admin/adminErrors';
 import { clearAccessToken } from '../services/authToken';
+import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 import i18n, { loadNamespace } from '../i18n';
 
 const member = {
@@ -942,6 +943,116 @@ describe('admin member offboarding', () => {
       await waitFor(() => expect(mocks.offboardingTrades).toHaveBeenCalledTimes(2));
       expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
     });
+
+    it('a_rate_limited_reassignment_keeps_the_form_shows_the_wait_and_sends_nothing_again', async () => {
+      // The served routes answer 429 RATE_LIMITED with Retry-After before the handler runs.
+      mocks.reassignResponsible.mockRejectedValueOnce(
+        new ApiError('Rate limit exceeded', 429, 'RATE_LIMITED', undefined, 60),
+      );
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/Too many administrator requests. Nothing was changed. Wait 60 seconds/)).toBeTruthy();
+      expect((screen.getByLabelText(/I verified the company's request/) as HTMLInputElement).checked).toBe(true);
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+      expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
+      expect(mocks.offboardingTrades).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('composed route outcomes', () => {
+    it('a_rate_limited_command_keeps_the_form_shows_the_wait_and_sends_nothing_again', async () => {
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('Rate limit exceeded', 429, 'RATE_LIMITED', undefined, 60));
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      expect(await screen.findByText(/Too many administrator requests. Nothing was changed. Wait 60 seconds/)).toBeTruthy();
+      // The limiter refused before the handler: the form and the confirmation stay, nothing repeats.
+      expect((screen.getByLabelText(/I understand that access ends/) as HTMLInputElement).checked).toBe(true);
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+      expect(mocks.offboardingPreview).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_rate_limit_without_a_wait_still_says_nothing_was_changed', async () => {
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('Rate limit exceeded', 429, 'RATE_LIMITED'));
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      expect(await screen.findByText(/Too many administrator requests. Nothing was changed. Wait a minute/)).toBeTruthy();
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_rate_limited_preview_explains_the_wait_and_blocks_the_command', async () => {
+      mocks.offboardingPreview.mockRejectedValueOnce(new ApiError('Rate limit exceeded', 429, 'RATE_LIMITED', undefined, 60));
+      renderUsers();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Offboard member mei@northstar.example' }));
+      expect(await screen.findByText(/Wait 60 seconds/)).toBeTruthy();
+      expect(confirmButton().disabled).toBe(true);
+    });
+
+    it('a_busy_market_then_a_manual_repeat_commits_once', async () => {
+      // MARKET_BUSY rolled everything back; only the administrator's own second click sends again.
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('busy', 409, 'MARKET_BUSY'));
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+      expect(await screen.findByText(/busy right now. Nothing was changed/)).toBeTruthy();
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(confirmButton());
+      expect(await screen.findByText('Access ended')).toBeTruthy();
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(2);
+      expect(mocks.offboardUser.mock.calls[1]).toEqual(mocks.offboardUser.mock.calls[0]);
+    });
+
+    it('an_unknown_outcome_without_a_commit_needs_a_fresh_confirmation_before_one_more_send', async () => {
+      // A session that ends at COMMIT answers 503 COMMIT_OUTCOME_UNKNOWN; the user read decides.
+      mocks.offboardUser
+        .mockRejectedValueOnce(new ApiOutcomeUnknownError(new ApiError('unknown', 503, 'COMMIT_OUTCOME_UNKNOWN')))
+        .mockResolvedValueOnce(offboardResult);
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      const record = await screen.findByTestId('offboard-reread');
+      expect(await within(record).findByText(/Not offboarded yet/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Start over with fresh details' }));
+      await screen.findByText('Advisory counts');
+      expect(confirmButton().disabled).toBe(true);
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+      expect(await screen.findByText('Access ended')).toBeTruthy();
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(2);
+    });
+
+    it('the_order_count_names_open_orders_and_orders_linked_to_pending_trades', async () => {
+      renderUsers();
+
+      await openOffboardDialog();
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByText('Orders to withdraw (open, or linked to a pending trade)')).toBeTruthy();
+      expect(within(dialog).queryByText('Open orders owned')).toBeNull();
+    });
   });
 
   describe('localized errors', () => {
@@ -1024,6 +1135,8 @@ describe('admin member offboarding', () => {
         'COMMIT_OUTCOME_UNKNOWN', 'DATABASE_ERROR', 'EXECUTION_NOT_AVAILABLE',
         'AUTH_CREDENTIALS_INVALID', 'INVALID_CREDENTIALS', 'AUTH_SESSION_REVOKED', 'AUTH_PASSWORD_CHANGED',
         'ACCOUNT_PENDING', 'ACCOUNT_REJECTED', 'PASSWORD_CHANGE_REQUIRED',
+        // the shared administrator quota in front of all four routes
+        'RATE_LIMITED',
         // refused by this client before a request is sent
         'MARKET_SUPPORT_MUTATION_BLOCKED',
       ]) {
@@ -1321,6 +1434,159 @@ describe('offboarding api contract', () => {
       const refusal = await api.admin.reassignResponsible('trade-1', input).catch((cause: unknown) => cause);
       expect(refusal).toBeInstanceOf(ApiError);
       expect((refusal as ApiError).code).toBe('REASSIGNMENT_CURRENT_STILL_MEMBER');
+    });
+  });
+
+  describe('composed routes', () => {
+    const input = {
+      reason_code: 'COMPANY_REQUEST' as const,
+      evidence_case_ref: 'CASE-4',
+      urgent: false,
+      expected_organization_id: 'org-1',
+    };
+    const reassignInput = {
+      side: 'BUYER' as const,
+      replacement_user_id: 'user-7',
+      evidence_case_ref: 'CASE-5',
+      expected_current_user_id: 'user-1',
+    };
+    const calls = (): Array<[string, () => Promise<unknown>]> => [
+      ['preview', () => api.admin.offboardingPreview('8d3c0d1e-6c0b-4c4e-9a43-1a2b3c4d5e6f')],
+      ['offboard', () => api.admin.offboardUser('8d3c0d1e-6c0b-4c4e-9a43-1a2b3c4d5e6f', input)],
+      ['trades', () => api.admin.offboardingTrades('8d3c0d1e-6c0b-4c4e-9a43-1a2b3c4d5e6f')],
+      ['reassign', () => api.admin.reassignResponsible('5f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d', reassignInput)],
+    ];
+
+    // The two matchers of deploy/caddy/rust-offboarding.caddy in the backend.
+    const CADDY_GET = /^\/api\/auth\/admin\/users\/[^/]+\/(offboarding-preview|offboarding-trades)$/;
+    const CADDY_POST = /^\/api\/auth\/admin\/(users\/[^/]+\/offboard|trades\/[^/]+\/reassign-responsible)$/;
+
+    afterEach(() => {
+      clearMarketSupportContextId();
+    });
+
+    it('every_call_matches_exactly_one_caddy_matcher_with_its_method_and_no_query', async () => {
+      const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(json({}, 418)));
+      vi.stubGlobal('fetch', fetchMock);
+      for (const [, call] of calls()) await call().catch(() => undefined);
+
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      for (const [url, init] of fetchMock.mock.calls) {
+        const parsed = new URL(String(url), 'http://frontend.test');
+        expect(parsed.search, String(url)).toBe('');
+        const method = (init?.method ?? 'GET').toUpperCase();
+        const path = parsed.pathname.replace(/^.*?(\/api\/)/, '/api/');
+        const matcher = method === 'GET' ? CADDY_GET : CADDY_POST;
+        expect(method === 'GET' || method === 'POST', `${method} ${path}`).toBe(true);
+        expect(matcher.test(path), `${method} ${path}`).toBe(true);
+        // The other method's matcher never owns the path: Python keeps it.
+        expect((method === 'GET' ? CADDY_POST : CADDY_GET).test(path), `${method} ${path}`).toBe(false);
+      }
+    });
+
+    it('the_reads_carry_no_assisted_context_and_the_writes_are_blocked_inside_one', async () => {
+      const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(json({}, 418)));
+      vi.stubGlobal('fetch', fetchMock);
+      setMarketSupportContextId('context-1');
+
+      await api.admin.offboardingPreview('user-1').catch(() => undefined);
+      await api.admin.offboardingTrades('user-1').catch(() => undefined);
+      for (const [, init] of fetchMock.mock.calls) {
+        expect(new Headers(init?.headers).has('X-Verdaxis-Market-Support-Context')).toBe(false);
+      }
+      const command = await api.admin.offboardUser('user-1', input).catch((cause: unknown) => cause);
+      const reassign = await api.admin.reassignResponsible('trade-1', reassignInput).catch((cause: unknown) => cause);
+      expect((command as ApiError).code).toBe('MARKET_SUPPORT_MUTATION_BLOCKED');
+      expect((reassign as ApiError).code).toBe('MARKET_SUPPORT_MUTATION_BLOCKED');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('a_dormant_route_is_a_definite_refusal_on_every_call', async () => {
+      // Rust with the switch off (404, empty body), Python behind Caddy without the
+      // import (404 with a string detail), and a method the enabled router lacks (405).
+      for (const response of [
+        () => new Response('', { status: 404 }),
+        () => json({ detail: 'Not Found' }, 404),
+        () => new Response('', { status: 405 }),
+      ]) {
+        const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(response()));
+        vi.stubGlobal('fetch', fetchMock);
+        for (const [name, call] of calls()) {
+          const failure = await call().catch((cause: unknown) => cause);
+          expect(failure, name).toBeInstanceOf(ApiError);
+          expect(failure, name).not.toBeInstanceOf(ApiOutcomeUnknownError);
+          expect([404, 405], name).toContain((failure as ApiError).status);
+          expect((failure as ApiError).code, name).toBeNull();
+        }
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+      }
+    });
+
+    it('a_rate_limit_is_a_definite_refusal_with_its_wait_on_every_call', async () => {
+      const limited = () => new Response(
+        JSON.stringify({ detail: { code: 'RATE_LIMITED', message: 'Rate limit exceeded' } }),
+        { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } },
+      );
+      const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(limited()));
+      vi.stubGlobal('fetch', fetchMock);
+      const waits: unknown[] = [];
+      const listener = (event: Event) => waits.push((event as CustomEvent).detail.retryAfter);
+      window.addEventListener('verdaxis:rate-limited', listener);
+      try {
+        for (const [name, call] of calls()) {
+          const failure = await call().catch((cause: unknown) => cause);
+          expect(failure, name).toBeInstanceOf(ApiError);
+          expect(failure, name).not.toBeInstanceOf(ApiOutcomeUnknownError);
+          expect((failure as ApiError).status, name).toBe(429);
+          expect((failure as ApiError).code, name).toBe('RATE_LIMITED');
+          expect((failure as ApiError).retryAfterSeconds, name).toBe(60);
+        }
+      } finally {
+        window.removeEventListener('verdaxis:rate-limited', listener);
+      }
+      expect(waits).toEqual(['60', '60', '60', '60']);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('reads_only_whole_seconds_from_retry_after', async () => {
+      for (const [header, expected] of [['1', 1], ['0', 0], ['Wed, 21 Oct 2026 07:28:00 GMT', null], ['soon', null], ['-5', null], [null, null]] as const) {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (header !== null) headers['Retry-After'] = header;
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+          JSON.stringify({ detail: { code: 'RATE_LIMITED', message: 'x' } }), { status: 429, headers },
+        )));
+        const failure = await api.admin.offboardingPreview('user-1').catch((cause: unknown) => cause);
+        expect((failure as ApiError).retryAfterSeconds, String(header)).toBe(expected);
+      }
+    });
+
+    it('a_write_that_ends_in_a_server_failure_is_an_unknown_outcome_and_is_sent_once', async () => {
+      // 503 COMMIT_OUTCOME_UNKNOWN has no Retry-After; 503 TRANSACTION_RETRY_EXHAUSTED has one;
+      // 500 DATABASE_ERROR comes from a session ended before COMMIT. None is ever resent.
+      for (const [response, waitMs] of [
+        [() => json({ detail: { code: 'COMMIT_OUTCOME_UNKNOWN', message: 'x' } }, 503), 50],
+        [() => new Response(JSON.stringify({ detail: { code: 'TRANSACTION_RETRY_EXHAUSTED', message: 'x' } }), {
+          status: 503, headers: { 'Content-Type': 'application/json', 'Retry-After': '1' },
+        }), 1100],
+        [() => json({ detail: { code: 'DATABASE_ERROR', message: 'x' } }, 500), 50],
+      ] as const) {
+        const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(response()));
+        vi.stubGlobal('fetch', fetchMock);
+        await expect(api.admin.offboardUser('user-1', input)).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
+        await expect(api.admin.reassignResponsible('trade-1', reassignInput)).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
+        // Past the Retry-After wait, nothing was sent again.
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      }
+    });
+
+    it('a_busy_market_is_a_definite_refusal_without_a_wait', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: { code: 'MARKET_BUSY', message: 'x' } }, 409)));
+      const failure = await api.admin.offboardUser('user-1', input).catch((cause: unknown) => cause);
+      expect(failure).toBeInstanceOf(ApiError);
+      expect(failure).not.toBeInstanceOf(ApiOutcomeUnknownError);
+      expect((failure as ApiError).code).toBe('MARKET_BUSY');
+      expect((failure as ApiError).retryAfterSeconds).toBeNull();
     });
   });
 });
