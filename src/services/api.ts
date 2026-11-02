@@ -688,22 +688,35 @@ export interface AdminInvitationResponse {
 }
 
 /**
- * Member offboarding contracts. The reason codes and the case-reference
- * grammar are shared with the backend; change them here and nowhere else.
+ * Member offboarding contracts, as the Rust routes send them
+ * (`business::offboarding`, `order_write::reassignment`, `case_reference`).
+ * The reason codes and the case-reference grammar are shared with the backend;
+ * change them here and nowhere else.
  */
 export const OFFBOARD_REASON_CODES = [
     'EMPLOYMENT_ENDED',
     'COMPANY_REQUEST',
-    'SECURITY_REPORT',
-    'OTHER',
+    'SECURITY_CONCERN',
+    'ACCOUNT_HOLDER_REQUEST',
 ] as const;
 export type OffboardReasonCode = typeof OFFBOARD_REASON_CODES[number];
 
-/** Opaque reference to a verified request: 1 to 64 safe characters, no spaces. */
-export const EVIDENCE_CASE_REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+/** The longest case reference the backend stores. */
+export const CASE_REFERENCE_MAX_LENGTH = 64;
 
-/** Error code the backend sends when an assisted trade needs manual resolution. */
-export const REASSIGN_MANUAL_RESOLUTION_CODE = 'REASSIGN_MANUAL_RESOLUTION_REQUIRED';
+/**
+ * Opaque reference to a verified request, written as a ticket identifier:
+ * `CASE`, `REQ`, `SEC` or `TICKET`, a dash, then one to three groups of 1 to 12
+ * digits separated by `-` or `/` (for example `CASE-2026/0042`). Only digits
+ * follow the prefix, so the field cannot carry a name or an email address.
+ */
+export const EVIDENCE_CASE_REF_PATTERN = /^(?:CASE|REQ|SEC|TICKET)-[0-9]{1,12}(?:[-/][0-9]{1,12}){0,2}$/;
+
+export const isValidCaseReference = (value: string): boolean =>
+    value.length <= CASE_REFERENCE_MAX_LENGTH && EVIDENCE_CASE_REF_PATTERN.test(value);
+
+/** The sides of a trade whose responsible person can change. */
+export type TradeSide = 'BUYER' | 'SELLER';
 
 export interface AdminOffboardInput {
     reason_code: OffboardReasonCode;
@@ -713,46 +726,71 @@ export interface AdminOffboardInput {
     expected_organization_id: string | null;
 }
 
+/** The committed result. The time is the database clock at the moment of the change. */
 export interface AdminOffboardResult {
     operation_id: string | null;
+    user_id: string | null;
     former_organization_id: string | null;
-    state: string | null;
+    status: string | null;
+    offboarded_at: string | null;
 }
 
-/** Advisory counts read before the locked final check; never a final count. */
+/**
+ * Advisory counts read before the locked final check; never a final count.
+ * `frozen_pending_trades` is a blocker: the command refuses while a pending
+ * trade of the person is frozen. A confirmed or delivered count stops at 100,
+ * and `informational_counts_capped` says when it did.
+ */
 export interface AdminOffboardPreview {
     user_id: string;
     email: string;
+    status: string;
     organization_id: string | null;
     organization_name: string | null;
-    open_order_count: number;
-    pending_trade_count: number;
-    confirmed_trade_count: number;
-    delivered_trade_count: number;
+    /** Set once the person is offboarded. */
+    offboarded_at: string | null;
+    open_owned_orders: number;
+    pending_trades: number;
+    frozen_pending_trades: number;
+    confirmed_trades: number;
+    delivered_trades: number;
+    informational_counts_capped: boolean;
 }
 
 export interface OffboardingTradeItem {
     trade_id: string;
-    side: string;
+    side: TradeSide;
     status: string;
-    organization_id: string | null;
-    organization_name: string | null;
+    /** The organization recorded on the side. The list carries no name. */
+    recorded_organization_id: string;
     responsible_user_id: string;
-    responsible_user_email: string | null;
     frozen: boolean;
     manual_resolution_required: boolean;
 }
 
 export interface OffboardingTradesResponse {
+    user_id: string;
     items: OffboardingTradeItem[];
+    total: number;
+    /** True when the person has more sides than this page holds. */
     truncated: boolean;
 }
 
 export interface AdminReassignInput {
-    side: string;
+    side: TradeSide;
     replacement_user_id: string;
     evidence_case_ref: string;
     expected_current_user_id: string;
+}
+
+export interface AdminReassignResult {
+    trade_id: string | null;
+    side: string | null;
+    status: string | null;
+    recorded_organization_id: string | null;
+    previous_responsible_user_id: string | null;
+    responsible_user_id: string | null;
+    reassigned_at: string | null;
 }
 
 const malformedOffboardingResponse = (what: string) =>
@@ -763,69 +801,99 @@ const optionalString = (value: unknown): string | null => typeof value === 'stri
 const isWholeCount = (value: unknown): value is number =>
     typeof value === 'number' && Number.isInteger(value) && value >= 0;
 
-// An absent organization key is refused: it must never be read as "no company".
+const isNullableString = (value: unknown): value is string | null =>
+    value === null || typeof value === 'string';
+
+// An absent key is refused, never read as a default: a missing organization
+// must not mean "no company", and a missing blocker count must not mean zero.
 const mapOffboardPreview = (raw: any): AdminOffboardPreview => {
     if (
         !raw
         || typeof raw.user_id !== 'string'
         || typeof raw.email !== 'string'
+        || typeof raw.status !== 'string'
         || !('organization_id' in raw)
-        || (raw.organization_id !== null && typeof raw.organization_id !== 'string')
-        || !isWholeCount(raw.open_order_count)
-        || !isWholeCount(raw.pending_trade_count)
-        || !isWholeCount(raw.confirmed_trade_count)
-        || !isWholeCount(raw.delivered_trade_count)
+        || !isNullableString(raw.organization_id)
+        || !('offboarded_at' in raw)
+        || !isNullableString(raw.offboarded_at)
+        || !isWholeCount(raw.open_owned_orders)
+        || !isWholeCount(raw.pending_trades)
+        || !isWholeCount(raw.frozen_pending_trades)
+        || !isWholeCount(raw.confirmed_trades)
+        || !isWholeCount(raw.delivered_trades)
     ) {
         throw malformedOffboardingResponse('offboarding preview');
     }
     return {
         user_id: raw.user_id,
         email: raw.email,
+        status: raw.status,
         organization_id: raw.organization_id,
         organization_name: optionalString(raw.organization_name),
-        open_order_count: raw.open_order_count,
-        pending_trade_count: raw.pending_trade_count,
-        confirmed_trade_count: raw.confirmed_trade_count,
-        delivered_trade_count: raw.delivered_trade_count,
+        offboarded_at: raw.offboarded_at,
+        open_owned_orders: raw.open_owned_orders,
+        pending_trades: raw.pending_trades,
+        frozen_pending_trades: raw.frozen_pending_trades,
+        confirmed_trades: raw.confirmed_trades,
+        delivered_trades: raw.delivered_trades,
+        informational_counts_capped: raw.informational_counts_capped === true,
     };
 };
 
 const mapOffboardResult = (raw: any): AdminOffboardResult => ({
     operation_id: optionalString(raw?.operation_id),
+    user_id: optionalString(raw?.user_id),
     former_organization_id: optionalString(raw?.former_organization_id),
-    state: optionalString(raw?.state),
+    status: optionalString(raw?.status),
+    offboarded_at: optionalString(raw?.offboarded_at),
 });
 
-// A missing or non-boolean freeze indicator counts as frozen, so the unsafe
-// reading never enables a reassignment.
+// A missing freeze or manual-resolution indicator counts as set, so the unsafe
+// reading never enables a reassignment. The side is sent back unchanged, so
+// only the two values the backend accepts are read.
 const mapOffboardingTrades = (raw: any): OffboardingTradesResponse => {
-    if (!raw || !Array.isArray(raw.items)) throw malformedOffboardingResponse('offboarding trades');
+    if (!raw || typeof raw.user_id !== 'string' || !Array.isArray(raw.items) || !isWholeCount(raw.total)) {
+        throw malformedOffboardingResponse('offboarding trades');
+    }
+    const skip = isWholeCount(raw.skip) ? raw.skip : 0;
+    const items = raw.items.map((item: any): OffboardingTradeItem => {
+        if (
+            !item
+            || typeof item.trade_id !== 'string'
+            || (item.side !== 'BUYER' && item.side !== 'SELLER')
+            || typeof item.status !== 'string'
+            || typeof item.recorded_organization_id !== 'string'
+            || typeof item.responsible_user_id !== 'string'
+        ) {
+            throw malformedOffboardingResponse('offboarding trades');
+        }
+        return {
+            trade_id: item.trade_id,
+            side: item.side,
+            status: item.status,
+            recorded_organization_id: item.recorded_organization_id,
+            responsible_user_id: item.responsible_user_id,
+            frozen: item.frozen !== false,
+            manual_resolution_required: item.manual_resolution_required !== false,
+        };
+    });
     return {
-        truncated: raw.truncated === true,
-        items: raw.items.map((item: any): OffboardingTradeItem => {
-            if (
-                !item
-                || typeof item.trade_id !== 'string'
-                || typeof item.side !== 'string'
-                || typeof item.status !== 'string'
-                || typeof item.responsible_user_id !== 'string'
-            ) {
-                throw malformedOffboardingResponse('offboarding trades');
-            }
-            return {
-                trade_id: item.trade_id,
-                side: item.side,
-                status: item.status,
-                organization_id: optionalString(item.organization_id),
-                organization_name: optionalString(item.organization_name),
-                responsible_user_id: item.responsible_user_id,
-                responsible_user_email: optionalString(item.responsible_user_email),
-                frozen: item.frozen !== false,
-                manual_resolution_required: item.manual_resolution_required === true,
-            };
-        }),
+        user_id: raw.user_id,
+        items,
+        total: raw.total,
+        truncated: raw.total > skip + items.length,
     };
 };
+
+const mapReassignResult = (raw: any): AdminReassignResult => ({
+    trade_id: optionalString(raw?.trade_id),
+    side: optionalString(raw?.side),
+    status: optionalString(raw?.status),
+    recorded_organization_id: optionalString(raw?.recorded_organization_id),
+    previous_responsible_user_id: optionalString(raw?.previous_responsible_user_id),
+    responsible_user_id: optionalString(raw?.responsible_user_id),
+    reassigned_at: optionalString(raw?.reassigned_at),
+});
 
 export const api = {
     auth: {
@@ -1428,8 +1496,8 @@ export const api = {
                 { headers: getHeaders() },
             ));
         },
-        reassignResponsible: async (tradeId: string, input: AdminReassignInput): Promise<void> => {
-            await mutateApi(invalidateTradeReads, `/auth/admin/trades/${encodeURIComponent(tradeId)}/reassign-responsible`, {
+        reassignResponsible: async (tradeId: string, input: AdminReassignInput): Promise<AdminReassignResult> => {
+            return mapReassignResult(await mutateApi(invalidateTradeReads, `/auth/admin/trades/${encodeURIComponent(tradeId)}/reassign-responsible`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({
@@ -1438,7 +1506,7 @@ export const api = {
                     evidence_case_ref: input.evidence_case_ref,
                     expected_current_user_id: input.expected_current_user_id,
                 }),
-            });
+            }));
         },
         daily: async (days: number = 30) => {
             return fetchApi(`/admin/analytics/daily?days=${days}`, { headers: getHeaders() });

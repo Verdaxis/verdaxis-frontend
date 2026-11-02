@@ -144,7 +144,13 @@ const ordinaryTrade = {
   frozen: false,
   manual_resolution_required: false,
 };
-const tradePage = (items: unknown[], extra: Record<string, unknown> = {}) => ({
+// What the real client returns after it maps the wire shape (component tests
+// replace the admin calls) and the wire shape itself (contract tests).
+const tradePage = (items: unknown[], extra: { total?: number; user_id?: string } = {}) => {
+  const total = extra.total ?? items.length;
+  return { user_id: extra.user_id ?? 'user-1', items, total, truncated: total > items.length };
+};
+const rawTradePage = (items: unknown[], extra: Record<string, unknown> = {}) => ({
   user_id: 'user-1',
   items,
   total: items.length,
@@ -617,7 +623,8 @@ describe('admin member offboarding', () => {
       await screen.findByTestId('offboard-reread');
 
       fireEvent.click(screen.getByRole('button', { name: 'Start over with fresh details' }));
-      await waitFor(() => expect(mocks.offboardingPreview).toHaveBeenCalledTimes(2));
+      // Opening, the read after the unknown result, and the fresh start.
+      await waitFor(() => expect(mocks.offboardingPreview).toHaveBeenCalledTimes(3));
       await screen.findByText('Advisory counts');
       expect((screen.getByLabelText(/I understand that access ends/) as HTMLInputElement).checked).toBe(false);
       expect(confirmButton().disabled).toBe(true);
@@ -1064,6 +1071,21 @@ describe('offboarding api contract', () => {
     vi.unstubAllGlobals();
   });
 
+  describe('release switch', () => {
+    it('is_off_unless_the_build_sets_it_to_true', async () => {
+      const { isOffboardingEnabled } = await import('../components/admin/offboardingAccess');
+      vi.stubEnv('VITE_OFFBOARDING_ENABLED', undefined as unknown as string);
+      expect(isOffboardingEnabled()).toBe(false);
+      for (const value of ['', 'false', '0', '1', 'yes', 'TRUE']) {
+        vi.stubEnv('VITE_OFFBOARDING_ENABLED', value);
+        expect(isOffboardingEnabled(), value).toBe(false);
+      }
+      vi.stubEnv('VITE_OFFBOARDING_ENABLED', 'true');
+      expect(isOffboardingEnabled()).toBe(true);
+      vi.unstubAllEnvs();
+    });
+  });
+
   describe('reason codes and case reference', () => {
     it('offers_exactly_the_four_reason_codes_the_backend_accepts', () => {
       expect([...apiModule.OFFBOARD_REASON_CODES]).toEqual([
@@ -1221,7 +1243,7 @@ describe('offboarding api contract', () => {
 
   describe('obligation list', () => {
     it('reads_the_list_with_total_skip_and_limit', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(json(tradePage([ordinaryTrade, sellerTrade, frozenTrade], { total: 3 })));
+      const fetchMock = vi.fn().mockResolvedValue(json(rawTradePage([ordinaryTrade, sellerTrade, frozenTrade], { total: 3 })));
       vi.stubGlobal('fetch', fetchMock);
 
       const list = await api.admin.offboardingTrades('user-1');
@@ -1238,13 +1260,13 @@ describe('offboarding api contract', () => {
     });
 
     it('is_truncated_when_the_total_is_above_the_page', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(tradePage([ordinaryTrade], { total: 101 }))));
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(rawTradePage([ordinaryTrade], { total: 101 }))));
       expect((await api.admin.offboardingTrades('user-1')).truncated).toBe(true);
     });
 
     it('treats_a_missing_freeze_or_manual_resolution_indicator_as_blocking', async () => {
       const { frozen: _frozen, manual_resolution_required: _manual, ...bare } = ordinaryTrade;
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(tradePage([bare]))));
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(rawTradePage([bare]))));
 
       const list = await api.admin.offboardingTrades('user-1');
       expect(list.items[0].frozen).toBe(true);
@@ -1253,8 +1275,8 @@ describe('offboarding api contract', () => {
 
     it('refuses_a_side_or_a_recorded_organization_it_cannot_echo_back', async () => {
       vi.stubGlobal('fetch', vi.fn()
-        .mockResolvedValueOnce(json(tradePage([{ ...ordinaryTrade, side: 'buyer' }])))
-        .mockResolvedValueOnce(json(tradePage([{ ...ordinaryTrade, recorded_organization_id: undefined }]))));
+        .mockResolvedValueOnce(json(rawTradePage([{ ...ordinaryTrade, side: 'buyer' }])))
+        .mockResolvedValueOnce(json(rawTradePage([{ ...ordinaryTrade, recorded_organization_id: undefined }]))));
       await expect(api.admin.offboardingTrades('user-1')).rejects.toBeInstanceOf(ApiError);
       await expect(api.admin.offboardingTrades('user-1')).rejects.toBeInstanceOf(ApiError);
     });

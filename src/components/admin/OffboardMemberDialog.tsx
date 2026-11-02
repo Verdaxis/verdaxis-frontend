@@ -4,9 +4,9 @@ import { ArrowRightLeft, Loader2, RefreshCw, UserMinus } from 'lucide-react';
 import {
   ApiError,
   ApiOutcomeUnknownError,
-  EVIDENCE_CASE_REF_PATTERN,
   OFFBOARD_REASON_CODES,
   api,
+  isValidCaseReference,
 } from '../../services/api';
 import type { AdminOffboardPreview, AdminOffboardResult, OffboardReasonCode } from '../../services/api';
 import { ConfirmModal } from '../ui/ConfirmModal';
@@ -38,18 +38,33 @@ type Stage = 'form' | 'submitting' | 'done' | 'already' | 'unknown';
 type PreviewState = 'loading' | 'ready' | 'error';
 type RereadState =
   | { state: 'loading' }
-  | { state: 'found'; record: OffboardUserRecord }
-  | { state: 'absent' }
+  | { state: 'found'; preview: AdminOffboardPreview }
   | { state: 'failed' };
 
 const ALREADY_COMPLETED_CODE = 'OFFBOARD_ALREADY_COMPLETED';
 
+// Refusals that rolled everything back and say nothing about the account
+// itself: the form stays as it is and the administrator decides what to do.
+const KEEP_FORM_CODES: ReadonlySet<string> = new Set([
+  'MARKET_BUSY',
+  'MARKET_INVALIDATION_LIMIT',
+  'OFFBOARD_PREVIEW_LIMIT',
+]);
+
+// A pending trade under a freeze: the details are read again, and the blocker shows.
+const TRADE_FROZEN_CODE = 'MARKET_INVALIDATION_TRADE_FROZEN';
+
+// The confirmed and delivered counts only inform; the backend stops them at 100.
 const COUNT_ROWS = [
-  ['openOrders', 'open_order_count'],
-  ['pendingTrades', 'pending_trade_count'],
-  ['confirmedTrades', 'confirmed_trade_count'],
-  ['deliveredTrades', 'delivered_trade_count'],
+  ['openOrders', 'open_owned_orders', false],
+  ['pendingTrades', 'pending_trades', false],
+  ['frozenPendingTrades', 'frozen_pending_trades', false],
+  ['confirmedTrades', 'confirmed_trades', true],
+  ['deliveredTrades', 'delivered_trades', true],
 ] as const;
+
+// The backend stops a confirmed or delivered count at this many rows.
+const PREVIEW_COUNT_CAP = 100;
 
 const fieldClass = 'mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text';
 
@@ -114,23 +129,31 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
   if (!allowed) return null;
 
   const caseRefValue = caseRef.trim();
-  const caseRefValid = EVIDENCE_CASE_REF_PATTERN.test(caseRefValue);
+  const caseRefValid = isValidCaseReference(caseRefValue);
+  // The person already carries the offboarding marker: there is nothing to send.
+  const alreadyOffboarded = previewState === 'ready' && preview !== null && preview.offboarded_at !== null;
+  // The command refuses while a pending trade is frozen, urgent or not.
+  const frozenBlocked = previewState === 'ready' && preview !== null && preview.frozen_pending_trades > 0;
   const canSubmit = stage === 'form'
     && previewState === 'ready'
     && preview !== null
+    && !alreadyOffboarded
+    && !frozenBlocked
     && reasonCode !== ''
     && caseRefValid
     && confirmed;
 
+  // The offboarding preview is the single-user read: it carries the marker.
   const rereadUser = async () => {
     setReread({ state: 'loading' });
-    const rows = await onReload();
-    if (rows === null) {
+    void onReload();
+    try {
+      const next = await api.admin.offboardingPreview(target.id);
+      setReread(next.user_id === target.id ? { state: 'found', preview: next } : { state: 'failed' });
+    } catch (cause) {
+      console.error('[admin] offboard.reread', cause);
       setReread({ state: 'failed' });
-      return;
     }
-    const record = rows.find(row => row.id === target.id);
-    setReread(record ? { state: 'found', record } : { state: 'absent' });
   };
 
   const startOver = () => {
@@ -154,7 +177,21 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
         await onReload();
         return;
       }
-      // The account changed under the admin: read both again, ask again.
+      if (cause.code === TRADE_FROZEN_CODE) {
+        // A freeze appeared or was missed: say so, read the details again so the blocker shows.
+        setStage('form');
+        setConfirmed(false);
+        setError(failureMessage(cause, 'offboard.error.submit'));
+        await Promise.all([onReload(), loadPreview()]);
+        return;
+      }
+      if (cause.code && KEEP_FORM_CODES.has(cause.code)) {
+        // Nothing changed and nothing repeats: the form stays for the administrator.
+        setStage('form');
+        setError(failureMessage(cause, 'offboard.error.submit'));
+        return;
+      }
+      // The membership (or any other 409) changed under the admin: read both again, ask again.
       setStage('form');
       setConflict(true);
       setConfirmed(false);
@@ -194,7 +231,7 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
       ?? (preview.organization_id ? t('offboard.companyUnnamed') : t('offboard.noCompany'))
     : '—';
 
-  const rereadStatus = reread?.state === 'found' ? reread.record : null;
+  const rereadPreview = reread?.state === 'found' ? reread.preview : null;
 
   let message = t('offboard.message');
   let confirmText = t('offboard.confirm');
@@ -212,7 +249,7 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
     variant = 'success';
     confirmDisabled = false;
     onConfirm = () => onOpenTrades(target);
-  } else if (stage === 'already') {
+  } else if (stage === 'already' || (stage === 'form' && alreadyOffboarded)) {
     message = t('offboard.alreadyDone');
     confirmText = t('offboard.done.trades');
     cancelText = t('offboard.close');
@@ -228,7 +265,7 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
     onConfirm = () => { void rereadUser(); };
   }
 
-  const showForm = stage === 'form' || stage === 'submitting';
+  const showForm = (stage === 'form' && !alreadyOffboarded) || stage === 'submitting';
 
   return (
     <ConfirmModal
@@ -287,17 +324,33 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
                 {t('offboard.counts.title')}
               </h4>
               <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                {COUNT_ROWS.map(([key, field]) => (
+                {COUNT_ROWS.map(([key, field, informational]) => (
                   <React.Fragment key={key}>
                     <dt className="text-verdaxis-text-muted">{t(`offboard.counts.${key}`)}</dt>
                     <dd className="text-right font-semibold text-verdaxis-text" data-testid={`offboard-count-${key}`}>
-                      {preview[field]}
+                      {informational && preview.informational_counts_capped && preview[field] >= PREVIEW_COUNT_CAP
+                        ? `${preview[field]}+`
+                        : preview[field]}
                     </dd>
                   </React.Fragment>
                 ))}
               </dl>
               <p className="mt-2 text-xs text-verdaxis-text-muted">{t('offboard.counts.note')}</p>
             </section>
+
+            {frozenBlocked && (
+              <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                <p>{t('offboard.frozenBlocker')}</p>
+                <button
+                  type="button"
+                  onClick={() => { void loadPreview(); }}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold underline underline-offset-2"
+                >
+                  <RefreshCw size={12} />
+                  {t('offboard.previewRetry')}
+                </button>
+              </div>
+            )}
 
             <section aria-labelledby="offboard-warning-title" className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
               <h4 id="offboard-warning-title" className="text-xs font-semibold uppercase text-amber-500">
@@ -393,14 +446,22 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
               </p>
             )}
             {reread?.state === 'failed' && <p className="mt-2 text-amber-400">{t('offboard.reread.failed')}</p>}
-            {reread?.state === 'absent' && <p className="mt-2 text-amber-400">{t('offboard.reread.notListed')}</p>}
-            {rereadStatus && (
-              <div className="mt-2 flex items-center justify-between gap-4">
-                <span className="text-verdaxis-text-muted">{t('offboard.reread.status')}</span>
-                <span className="font-semibold text-verdaxis-text">
-                  {t(`users.status.${rereadStatus.status}`, { defaultValue: t('users.status.unknown') })}
-                </span>
-                <span className="font-semibold text-verdaxis-text">{rereadStatus.org_name ?? t('offboard.noCompany')}</span>
+            {rereadPreview && (
+              <div className="mt-2 space-y-1">
+                <p className={`font-semibold ${rereadPreview.offboarded_at ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {rereadPreview.offboarded_at
+                    ? t('offboard.reread.offboarded', { time: new Date(rereadPreview.offboarded_at).toLocaleString() })
+                    : t('offboard.reread.notOffboarded')}
+                </p>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-verdaxis-text-muted">{t('offboard.reread.status')}</span>
+                  <span className="font-semibold text-verdaxis-text">
+                    {t(`users.status.${rereadPreview.status}`, { defaultValue: t('users.status.unknown') })}
+                  </span>
+                  <span className="font-semibold text-verdaxis-text">
+                    {rereadPreview.organization_name ?? t('offboard.noCompany')}
+                  </span>
+                </div>
               </div>
             )}
             <button

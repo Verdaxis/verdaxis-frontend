@@ -4,11 +4,10 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import {
   ApiError,
   ApiOutcomeUnknownError,
-  EVIDENCE_CASE_REF_PATTERN,
-  REASSIGN_MANUAL_RESOLUTION_CODE,
   api,
+  isValidCaseReference,
 } from '../../services/api';
-import type { OffboardingTradeItem } from '../../services/api';
+import type { OffboardingTradeItem, TradeSide } from '../../services/api';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { offboardingError } from './adminErrors';
 import type { OffboardTarget } from './OffboardMemberDialog';
@@ -27,17 +26,27 @@ interface Candidate {
 
 type Notice = 'done' | 'conflict' | 'unknown' | null;
 
-const TRADE_FROZEN_CODE = 'TRADE_FROZEN';
+// Refusals with their own handling. Every other 409 means "the trade changed".
+const MANUAL_RESOLUTION_CODE = 'REASSIGNMENT_MANUAL_RESOLUTION_REQUIRED';
+const STALE_CODE = 'REASSIGNMENT_STALE';
+const INELIGIBLE_CODE = 'REASSIGNMENT_REPLACEMENT_INELIGIBLE';
+
+// The trade or the person changed state: the list is read again and the form closes.
+const REFRESH_LIST_CODES: ReadonlySet<string> = new Set([
+  'TRADE_FROZEN',
+  'TRADE_NOT_REASSIGNABLE',
+  'TRADE_NOT_FOUND',
+  'REASSIGNMENT_CURRENT_STILL_MEMBER',
+]);
+
+// Nothing changed and the administrator can try again: the form stays.
+const KEEP_FORM_CODES: ReadonlySet<string> = new Set(['MARKET_BUSY']);
 
 const fieldClass = 'mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text';
 
-// A replacement must trade on the same side as the person they replace.
-const roleForSide = (side: string): 'BUYER' | 'SUPPLIER' | null => {
-  const normalized = side.toLowerCase();
-  if (normalized.startsWith('buy')) return 'BUYER';
-  if (normalized.startsWith('sell') || normalized.startsWith('supp')) return 'SUPPLIER';
-  return null;
-};
+// The replacement needs the role the side requires: the buyer side a BUYER, the
+// seller side a SUPPLIER (only a supplier can pay). The backend enforces this.
+const roleForSide = (side: TradeSide): 'BUYER' | 'SUPPLIER' => (side === 'BUYER' ? 'BUYER' : 'SUPPLIER');
 
 const candidateLabel = (user: any): string => {
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ');
@@ -79,6 +88,9 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
     try {
       const response = await api.admin.offboardingTrades(target.id);
       if (request !== loadRequest.current) return;
+      if (response.user_id !== target.id) {
+        throw new ApiError('The trade list belongs to a different account.', 502, 'OFFBOARD_RESPONSE_MALFORMED');
+      }
       setTrades(response.items);
       setTruncated(response.truncated);
     } catch (cause) {
@@ -110,12 +122,12 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
 
   const candidatesFor = (trade: OffboardingTradeItem): Candidate[] => {
     const role = roleForSide(trade.side);
-    if (!role || !trade.organization_id || !users) return [];
+    if (!users) return [];
     return (users as any[])
       .filter(user => (
         user.status === 'APPROVED'
         && user.role === role
-        && user.organization_id === trade.organization_id
+        && user.organization_id === trade.recorded_organization_id
         && user.id !== trade.responsible_user_id
         && user.id !== target.id
       ))
@@ -124,6 +136,16 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
 
   const isBlocked = (trade: OffboardingTradeItem) =>
     trade.frozen || trade.manual_resolution_required || manualTradeIds.has(trade.trade_id);
+
+  // The list names a side's company by id only; the members read supplies the name.
+  const companyName = (trade: OffboardingTradeItem): string => {
+    const match = (users as any[] | null)?.find(user => user.organization_id === trade.recorded_organization_id && user.org_name);
+    return match ? String(match.org_name) : trade.recorded_organization_id.slice(0, 8);
+  };
+
+  // The list holds the person's own sides, so the responsible person is the target.
+  const responsibleLabel = (trade: OffboardingTradeItem): string =>
+    trade.responsible_user_id === target.id ? target.email : trade.responsible_user_id;
 
   const startReassign = (trade: OffboardingTradeItem) => {
     // Each attempt starts from nothing: no earlier confirmation carries over.
@@ -147,7 +169,7 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
   const canSubmit = Boolean(selected)
     && !isBlocked(selected as OffboardingTradeItem)
     && candidates.some(candidate => candidate.id === replacementId)
-    && EVIDENCE_CASE_REF_PATTERN.test(caseRefValue)
+    && isValidCaseReference(caseRefValue)
     && confirmed
     && !submitting;
 
@@ -169,22 +191,38 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
       await loadTrades();
     } catch (cause) {
       const tradeId = selected.trade_id;
+      const code = cause instanceof ApiError ? cause.code : null;
+      const message = () => offboardingError(cause, translate.current.t, 'handover.error.reassign');
+      if (code && KEEP_FORM_CODES.has(code)) {
+        // A definite refusal and nothing changed: the form stays, nothing repeats.
+        setError(message());
+        return;
+      }
+      if (code === INELIGIBLE_CODE) {
+        // Another person must be chosen: keep the form, void the choice and the confirmation.
+        setReplacementId('');
+        setConfirmed(false);
+        setError(message());
+        void loadCandidates();
+        return;
+      }
       setSelected(null);
       setConfirmed(false);
       if (cause instanceof ApiOutcomeUnknownError) {
         // The change may or may not have committed: read the list, never resend.
         setNotice('unknown');
-      } else if (cause instanceof ApiError && cause.code === REASSIGN_MANUAL_RESOLUTION_CODE) {
+      } else if (code === MANUAL_RESOLUTION_CODE) {
         setManualTradeIds(previous => new Set(previous).add(tradeId));
-        setError(offboardingError(cause, translate.current.t, 'handover.error.reassign'));
-      } else if (cause instanceof ApiError && cause.code === TRADE_FROZEN_CODE) {
-        setError(offboardingError(cause, translate.current.t, 'handover.error.reassign'));
-      } else if (cause instanceof ApiError && cause.status === 409) {
+        setError(message());
+      } else if (code && REFRESH_LIST_CODES.has(code)) {
+        setError(message());
+      } else if (code === STALE_CODE || (cause instanceof ApiError && cause.status === 409)) {
+        // The trade or its person changed under the admin: read the list, ask again.
         setNotice('conflict');
       } else {
         // Nothing changed: keep the form so the admin can correct it.
         setSelected(selected);
-        setError(offboardingError(cause, translate.current.t, 'handover.error.reassign'));
+        setError(message());
         return;
       }
       await loadTrades();
@@ -195,7 +233,7 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
   };
 
   const sideLabel = (side: string) =>
-    t(`handover.side.${side.toUpperCase()}`, { defaultValue: t('handover.side.unknown') });
+    t(`handover.side.${side}`, { defaultValue: t('handover.side.unknown') });
   const statusLabel = (status: string) =>
     t(`handover.status.${status.toUpperCase()}`, { defaultValue: t('handover.status.unknown') });
 
@@ -253,7 +291,7 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
             <div className="flex items-center justify-between gap-4 px-3 py-2">
               <span className="text-verdaxis-text-muted">{t('handover.reassign.current')}</span>
               <span className="font-semibold text-verdaxis-text">
-                {selected.responsible_user_email ?? selected.responsible_user_id}
+                {responsibleLabel(selected)}
               </span>
             </div>
           </div>
@@ -289,11 +327,11 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
               disabled={submitting}
               autoComplete="off"
               maxLength={80}
-              aria-invalid={caseRefValue !== '' && !EVIDENCE_CASE_REF_PATTERN.test(caseRefValue)}
+              aria-invalid={caseRefValue !== '' && !isValidCaseReference(caseRefValue)}
               className={`${fieldClass} font-mono`}
             />
             <p className="mt-1 text-xs">{t('offboard.caseRefHint')}</p>
-            {caseRefValue !== '' && !EVIDENCE_CASE_REF_PATTERN.test(caseRefValue) && (
+            {caseRefValue !== '' && !isValidCaseReference(caseRefValue) && (
               <p className="mt-1 text-xs text-red-400">{t('offboard.caseRefInvalid')}</p>
             )}
           </div>
@@ -389,10 +427,8 @@ export const OffboardingTrades: React.FC<OffboardingTradesProps> = ({ target, on
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-verdaxis-text-muted">{trade.organization_name ?? '—'}</td>
-                      <td className="px-3 py-2 text-verdaxis-text-muted">
-                        {trade.responsible_user_email ?? trade.responsible_user_id}
-                      </td>
+                      <td className="px-3 py-2 text-verdaxis-text-muted">{companyName(trade)}</td>
+                      <td className="px-3 py-2 text-verdaxis-text-muted">{responsibleLabel(trade)}</td>
                       <td className="px-3 py-2 text-right">
                         <button
                           type="button"
