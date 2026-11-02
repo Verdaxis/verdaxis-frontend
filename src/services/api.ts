@@ -154,15 +154,28 @@ export class ApiError extends Error {
     readonly status: number;
     readonly code: string | null;
     readonly details: unknown;
+    /** The response's Retry-After wait in whole seconds, or null when it sent none. */
+    readonly retryAfterSeconds: number | null;
 
-    constructor(message: string, status: number, code: string | null = null, details?: unknown) {
+    constructor(
+        message: string,
+        status: number,
+        code: string | null = null,
+        details?: unknown,
+        retryAfterSeconds: number | null = null,
+    ) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
         this.code = code;
         this.details = details;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 }
+
+// Retry-After may also be an HTTP date; only the whole-seconds form is read.
+const retryAfterSeconds = (value: string | null): number | null =>
+    value !== null && /^\d+$/.test(value.trim()) ? Number(value.trim()) : null;
 
 /**
  * Detail code the backend returns with HTTP 403 when KYC blocks an execution
@@ -245,7 +258,7 @@ const handleResponse = async (res: Response, contextId?: string | null, silent =
                 detail: { reason: 'expired', code, status: res.status, ...(contextId ? { contextId } : {}) },
             }));
         }
-        throw new ApiError(message, res.status, code, structuredDetail);
+        throw new ApiError(message, res.status, code, structuredDetail, retryAfterSeconds(res.headers.get('Retry-After')));
     }
     if (res.status === 204 || res.status === 205) return undefined;
     return res.json();

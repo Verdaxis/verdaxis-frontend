@@ -198,6 +198,8 @@ export const OffboardMemberDialog: React.FC<OffboardMemberDialogProps> = ({
       await Promise.all([onReload(), loadPreview()]);
       return;
     }
+    // Any other definite refusal, a 429 RATE_LIMITED from the administrator quota
+    // included: nothing changed, the form and the confirmation stay, nothing repeats.
     setStage('form');
     setError(failureMessage(cause, 'offboard.error.submit'));
   };

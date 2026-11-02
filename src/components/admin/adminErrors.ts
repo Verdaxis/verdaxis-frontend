@@ -56,6 +56,7 @@ export const OFFBOARDING_ERROR_CODES = [
   'REASSIGNMENT_CURRENT_STILL_MEMBER',
   'REASSIGNMENT_REPLACEMENT_INELIGIBLE',
   // Contention and outcome.
+  'RATE_LIMITED',
   'MARKET_BUSY',
   'MARKET_TIMEOUT',
   'TRANSACTION_TIMEOUT',
@@ -74,6 +75,10 @@ export type OffboardingErrorCode = typeof OFFBOARDING_ERROR_CODES[number];
  */
 export const offboardingError = (error: unknown, t: TFunction, fallbackKey: string): string => {
   console.error(`[admin] ${fallbackKey}`, error);
+  // The shared administrator quota answers before any handler runs, with its wait.
+  if (error instanceof ApiError && error.code === 'RATE_LIMITED' && error.retryAfterSeconds !== null) {
+    return t('offboard.error.rateLimitedFor', { seconds: error.retryAfterSeconds });
+  }
   if (error instanceof ApiError && error.code) {
     const mapped = t(`offboard.errorCode.${error.code}`, { defaultValue: '' });
     if (mapped) return mapped;

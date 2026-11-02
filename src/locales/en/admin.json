@@ -590,7 +590,7 @@
   "offboard.counts.title": "Advisory counts",
   "offboard.counts.note": "These counts are advisory. They were read before the final check and can change when you confirm.",
   "offboard.frozenBlocker": "Offboarding is blocked until the freeze on a pending trade of this member is cleared. This applies to an urgent case too. Clear the freeze, then reload the details.",
-  "offboard.counts.openOrders": "Open orders owned",
+  "offboard.counts.openOrders": "Orders to withdraw (open, or linked to a pending trade)",
   "offboard.counts.pendingTrades": "Trades pending confirmation",
   "offboard.counts.frozenPendingTrades": "Pending trades under a freeze (they block offboarding)",
   "offboard.counts.confirmedTrades": "Confirmed trades",
@@ -707,5 +707,7 @@
   "offboard.errorCode.TRANSACTION_TIMEOUT": "The request took too long. Check the current record before you try again.",
   "offboard.errorCode.TRANSACTION_RETRY_EXHAUSTED": "The system could not finish the change in a consistent state. Check the current record, then try again.",
   "offboard.errorCode.COMMIT_OUTCOME_UNKNOWN": "The server did not confirm the result. Check the current record before you try again.",
-  "offboard.errorCode.DATABASE_ERROR": "The database could not complete the request. Check the current record before you try again."
+  "offboard.errorCode.DATABASE_ERROR": "The database could not complete the request. Check the current record before you try again.",
+  "offboard.errorCode.RATE_LIMITED": "Too many administrator requests. Nothing was changed. Wait a minute, then try again.",
+  "offboard.error.rateLimitedFor": "Too many administrator requests. Nothing was changed. Wait {{seconds}} seconds, then try again."
 }

@@ -40,7 +40,8 @@ const REFRESH_LIST_CODES: ReadonlySet<string> = new Set([
 ]);
 
 // Nothing changed and the administrator can try again: the form stays.
-const KEEP_FORM_CODES: ReadonlySet<string> = new Set(['MARKET_BUSY']);
+// RATE_LIMITED comes from the shared administrator quota, before the handler runs.
+const KEEP_FORM_CODES: ReadonlySet<string> = new Set(['MARKET_BUSY', 'RATE_LIMITED']);
 
 const fieldClass = 'mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text';
 

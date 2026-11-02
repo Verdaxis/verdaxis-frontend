@@ -590,7 +590,7 @@
   "offboard.counts.title": "参考数量",
   "offboard.counts.note": "这些数量仅供参考，读取于最终检查之前，确认时可能发生变化。",
   "offboard.frozenBlocker": "在解除此成员某笔待确认交易的冻结之前，无法办理离职，紧急情况也一样。请先解除冻结，然后重新加载详情。",
-  "offboard.counts.openOrders": "名下未结订单",
+  "offboard.counts.openOrders": "待撤回订单（未结订单，或与待确认交易关联的订单）",
   "offboard.counts.pendingTrades": "待确认交易",
   "offboard.counts.frozenPendingTrades": "已冻结的待确认交易（将阻止办理离职）",
   "offboard.counts.confirmedTrades": "已确认交易",
@@ -707,5 +707,7 @@
   "offboard.errorCode.TRANSACTION_TIMEOUT": "请求耗时过长。请先查看当前记录，再重试。",
   "offboard.errorCode.TRANSACTION_RETRY_EXHAUSTED": "系统未能在一致的状态下完成更改。请先查看当前记录，再重试。",
   "offboard.errorCode.COMMIT_OUTCOME_UNKNOWN": "服务器未确认结果。请先查看当前记录，再重试。",
-  "offboard.errorCode.DATABASE_ERROR": "数据库无法完成该请求。请先查看当前记录，再重试。"
+  "offboard.errorCode.DATABASE_ERROR": "数据库无法完成该请求。请先查看当前记录，再重试。",
+  "offboard.errorCode.RATE_LIMITED": "管理员请求过多，未做任何更改。请等待一分钟后再试。",
+  "offboard.error.rateLimitedFor": "管理员请求过多，未做任何更改。请等待 {{seconds}} 秒后再试。"
 }
