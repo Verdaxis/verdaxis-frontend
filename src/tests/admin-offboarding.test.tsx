@@ -47,6 +47,7 @@ vi.mock('../components/admin/product-analytics/ProductAnalyticsWorkspace', () =>
 
 import { AdminDashboard } from '../components/admin/AdminDashboard';
 import { ApiError, ApiOutcomeUnknownError } from '../services/api';
+import { OFFBOARDING_ERROR_CODES } from '../components/admin/adminErrors';
 import { clearAccessToken } from '../services/authToken';
 import i18n, { loadNamespace } from '../i18n';
 
@@ -108,12 +109,16 @@ const pendingApplicant = {
 const memberPreview = {
   user_id: 'user-1',
   email: 'mei@northstar.example',
+  status: 'APPROVED',
   organization_id: 'org-1',
   organization_name: 'Northstar Shipping',
-  open_order_count: 3,
-  pending_trade_count: 2,
-  confirmed_trade_count: 4,
-  delivered_trade_count: 1,
+  offboarded_at: null,
+  open_owned_orders: 3,
+  pending_trades: 2,
+  frozen_pending_trades: 0,
+  confirmed_trades: 4,
+  delivered_trades: 1,
+  informational_counts_capped: false,
 };
 
 const detachedPreview = {
@@ -122,25 +127,52 @@ const detachedPreview = {
   email: 'omar@former.example',
   organization_id: null,
   organization_name: null,
-  open_order_count: 0,
-  pending_trade_count: 0,
-  confirmed_trade_count: 0,
-  delivered_trade_count: 0,
+  open_owned_orders: 0,
+  pending_trades: 0,
+  confirmed_trades: 0,
+  delivered_trades: 0,
 };
 
+// The list holds the person's own sides: the responsible person is always the
+// target, and a side carries only the recorded organization's id.
 const ordinaryTrade = {
   trade_id: 'trade-ordinary',
   side: 'BUYER',
   status: 'CONFIRMED',
-  organization_id: 'org-1',
-  organization_name: 'Northstar Shipping',
+  recorded_organization_id: 'org-1',
   responsible_user_id: 'user-1',
-  responsible_user_email: 'mei@northstar.example',
   frozen: false,
   manual_resolution_required: false,
 };
+const tradePage = (items: unknown[], extra: Record<string, unknown> = {}) => ({
+  user_id: 'user-1',
+  items,
+  total: items.length,
+  skip: 0,
+  limit: 100,
+  ...extra,
+});
 const frozenTrade = { ...ordinaryTrade, trade_id: 'trade-frozen', status: 'DELIVERED', frozen: true };
+const sellerTrade = { ...ordinaryTrade, trade_id: 'trade-seller', side: 'SELLER' };
 const assistedTrade = { ...ordinaryTrade, trade_id: 'trade-assisted', manual_resolution_required: true };
+
+const offboardResult = {
+  operation_id: 'op-123',
+  user_id: 'user-1',
+  former_organization_id: 'org-1',
+  status: 'REJECTED',
+  offboarded_at: '2026-11-02T10:00:00Z',
+};
+
+const reassignResult = {
+  trade_id: 'trade-ordinary',
+  side: 'BUYER',
+  status: 'CONFIRMED',
+  recorded_organization_id: 'org-1',
+  previous_responsible_user_id: 'user-1',
+  responsible_user_id: 'user-4',
+  reassigned_at: '2026-11-02T10:05:00Z',
+};
 
 const renderUsers = () => render(
   <MemoryRouter initialEntries={['/app/admin/users']}>
@@ -148,7 +180,7 @@ const renderUsers = () => render(
   </MemoryRouter>,
 );
 
-const fillOffboardForm = (caseRef = 'CASE-2026-001') => {
+const fillOffboardForm = (caseRef = 'CASE-2026/0042') => {
   fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'COMPANY_REQUEST' } });
   fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: caseRef } });
 };
@@ -174,13 +206,9 @@ describe('admin member offboarding', () => {
     mocks.reviewQueue.mockResolvedValue({ items: [], limit: 100 });
     mocks.onboardingAttention.mockResolvedValue({ items: [], generated_at: '2026-10-31T00:00:00Z' });
     mocks.offboardingPreview.mockResolvedValue(memberPreview);
-    mocks.offboardUser.mockResolvedValue({
-      operation_id: 'op-123',
-      former_organization_id: 'org-1',
-      state: 'OFFBOARDED',
-    });
-    mocks.offboardingTrades.mockResolvedValue({ items: [ordinaryTrade], truncated: false });
-    mocks.reassignResponsible.mockResolvedValue({});
+    mocks.offboardUser.mockResolvedValue(offboardResult);
+    mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade]));
+    mocks.reassignResponsible.mockResolvedValue(reassignResult);
   });
 
   afterEach(async () => {
@@ -262,7 +290,7 @@ describe('admin member offboarding', () => {
       expect(Object.prototype.hasOwnProperty.call(input, 'expected_organization_id')).toBe(true);
       expect(input).toEqual({
         reason_code: 'COMPANY_REQUEST',
-        evidence_case_ref: 'CASE-2026-001',
+        evidence_case_ref: 'CASE-2026/0042',
         urgent: false,
         expected_organization_id: null,
       });
@@ -273,15 +301,15 @@ describe('admin member offboarding', () => {
 
       await openOffboardDialog();
       expect(within(screen.getByRole('dialog')).getByText('Northstar Shipping')).toBeTruthy();
-      fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'SECURITY_REPORT' } });
-      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: ' SEC-77 ' } });
-      fireEvent.click(screen.getByLabelText(/Urgent security report/));
+      fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'SECURITY_CONCERN' } });
+      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: ' SEC-2026-11-0001 ' } });
+      fireEvent.click(screen.getByLabelText(/Mark as urgent/));
       tickConfirmation();
       fireEvent.click(confirmButton());
 
       await waitFor(() => expect(mocks.offboardUser).toHaveBeenCalledWith('user-1', {
-        reason_code: 'SECURITY_REPORT',
-        evidence_case_ref: 'SEC-77',
+        reason_code: 'SECURITY_CONCERN',
+        evidence_case_ref: 'SEC-2026-11-0001',
         urgent: true,
         expected_organization_id: 'org-1',
       }));
@@ -296,6 +324,7 @@ describe('admin member offboarding', () => {
       expect(within(dialog).getByText(/can change when you confirm/)).toBeTruthy();
       expect(within(dialog).getByTestId('offboard-count-openOrders').textContent).toBe('3');
       expect(within(dialog).getByTestId('offboard-count-pendingTrades').textContent).toBe('2');
+      expect(within(dialog).getByTestId('offboard-count-frozenPendingTrades').textContent).toBe('0');
       expect(within(dialog).getByTestId('offboard-count-confirmedTrades').textContent).toBe('4');
       expect(within(dialog).getByTestId('offboard-count-deliveredTrades').textContent).toBe('1');
       // The warning names every effect of the action.
@@ -317,7 +346,7 @@ describe('admin member offboarding', () => {
 
       fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'has spaces and personal@mail.example' } });
       expect(confirmButton().disabled).toBe(true);
-      expect(screen.getByText(/Use 1 to 64 letters/)).toBeTruthy();
+      expect(screen.getByText(/Use CASE, REQ, SEC or TICKET/)).toBeTruthy();
 
       fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'CASE-9' } });
       expect(confirmButton().disabled).toBe(false);
@@ -361,7 +390,7 @@ describe('admin member offboarding', () => {
     });
 
     it('conflict_refreshes_and_requires_new_confirmation', async () => {
-      mocks.offboardUser.mockRejectedValueOnce(new ApiError('changed', 409, 'MEMBERSHIP_CHANGED'));
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('changed', 409, 'OFFBOARD_MEMBERSHIP_CHANGED'));
       mocks.offboardingPreview
         .mockResolvedValueOnce(memberPreview)
         .mockResolvedValueOnce({ ...detachedPreview, user_id: 'user-1', email: 'mei@northstar.example' });
@@ -405,10 +434,19 @@ describe('admin member offboarding', () => {
     });
 
     it('unknown_outcome_rereads_user_without_repeat', async () => {
-      mocks.offboardUser.mockRejectedValueOnce(new ApiOutcomeUnknownError(new ApiError('boom', 502, null)));
-      mocks.users
-        .mockResolvedValueOnce({ total: 1, items: [member] })
-        .mockResolvedValueOnce({ total: 1, items: [{ ...member, status: 'REJECTED', organization_id: null, org_name: null }] });
+      // 503 COMMIT_OUTCOME_UNKNOWN reaches the dialog as an unknown outcome.
+      mocks.offboardUser.mockRejectedValueOnce(
+        new ApiOutcomeUnknownError(new ApiError('unknown', 503, 'COMMIT_OUTCOME_UNKNOWN')),
+      );
+      mocks.offboardingPreview
+        .mockResolvedValueOnce(memberPreview)
+        .mockResolvedValueOnce({
+          ...memberPreview,
+          status: 'REJECTED',
+          organization_id: null,
+          organization_name: null,
+          offboarded_at: '2026-11-02T10:00:00Z',
+        });
       renderUsers();
 
       await openOffboardDialog();
@@ -417,9 +455,11 @@ describe('admin member offboarding', () => {
       fireEvent.click(confirmButton());
 
       expect(await screen.findByText(/did not confirm the result/)).toBeTruthy();
-      await waitFor(() => expect(mocks.users).toHaveBeenCalledTimes(2));
+      // The offboarding preview is the single-user read: it carries the marker.
+      await waitFor(() => expect(mocks.offboardingPreview).toHaveBeenCalledTimes(2));
       const record = await screen.findByTestId('offboard-reread');
-      expect(within(record).getByText('Rejected')).toBeTruthy();
+      expect(await within(record).findByText(/Offboarded on/)).toBeTruthy();
+      await waitFor(() => expect(mocks.users).toHaveBeenCalledTimes(2));
 
       // Nothing sends the command again, now or later; confirmation is gone.
       await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
@@ -428,8 +468,142 @@ describe('admin member offboarding', () => {
 
       // Checking again reads only; it never submits.
       fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
-      await waitFor(() => expect(mocks.users).toHaveBeenCalledTimes(3));
+      await waitFor(() => expect(mocks.offboardingPreview).toHaveBeenCalledTimes(3));
       expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('unknown_outcome_without_the_marker_says_the_member_is_not_offboarded', async () => {
+      mocks.offboardUser.mockRejectedValueOnce(new ApiOutcomeUnknownError(new Error('network')));
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      const record = await screen.findByTestId('offboard-reread');
+      expect(await within(record).findByText(/Not offboarded yet/)).toBeTruthy();
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_preview_with_the_marker_shows_the_member_as_already_offboarded', async () => {
+      mocks.offboardingPreview.mockResolvedValue({
+        ...memberPreview,
+        status: 'REJECTED',
+        organization_id: null,
+        organization_name: null,
+        offboarded_at: '2026-11-02T10:00:00Z',
+      });
+      renderUsers();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Offboard member mei@northstar.example' }));
+      expect(await screen.findByText(/already offboarded/)).toBeTruthy();
+      expect(screen.queryByLabelText('Reason')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Offboard member' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Review confirmed and delivered trades' })).toBeTruthy();
+    });
+
+    it('frozen_pending_trades_block_the_command', async () => {
+      mocks.offboardingPreview.mockResolvedValue({ ...memberPreview, pending_trades: 2, frozen_pending_trades: 1 });
+      renderUsers();
+
+      await openOffboardDialog();
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByTestId('offboard-count-frozenPendingTrades').textContent).toBe('1');
+      expect(within(dialog).getByRole('alert').textContent).toMatch(/blocked until the freeze/);
+
+      // Every field can be filled, and the command still cannot be sent.
+      fillOffboardForm();
+      tickConfirmation();
+      expect(confirmButton().disabled).toBe(true);
+      fireEvent.click(confirmButton());
+      expect(mocks.offboardUser).not.toHaveBeenCalled();
+
+      // Reading the details again is the way to find that the freeze is gone.
+      mocks.offboardingPreview.mockResolvedValue(memberPreview);
+      fireEvent.click(screen.getByRole('button', { name: 'Reload details' }));
+      await waitFor(() => expect(mocks.offboardingPreview).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(within(screen.getByRole('dialog')).queryByRole('alert')).toBeNull());
+      fillOffboardForm();
+      tickConfirmation();
+      expect(confirmButton().disabled).toBe(false);
+    });
+
+    it('capped_informational_counts_are_shown_as_a_lower_bound', async () => {
+      mocks.offboardingPreview.mockResolvedValue({
+        ...memberPreview,
+        confirmed_trades: 100,
+        delivered_trades: 100,
+        informational_counts_capped: true,
+      });
+      renderUsers();
+
+      await openOffboardDialog();
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByTestId('offboard-count-confirmedTrades').textContent).toBe('100+');
+      expect(within(dialog).getByTestId('offboard-count-deliveredTrades').textContent).toBe('100+');
+      // A capped informational count never blocks the command.
+      fillOffboardForm();
+      tickConfirmation();
+      expect(confirmButton().disabled).toBe(false);
+    });
+
+    it('a_busy_market_keeps_the_form_and_sends_nothing_again', async () => {
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('busy', 409, 'MARKET_BUSY'));
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      expect(await screen.findByText(/busy right now. Nothing was changed/)).toBeTruthy();
+      // A definite refusal: the form stays as it was and nothing repeats on its own.
+      expect((screen.getByLabelText(/I understand that access ends/) as HTMLInputElement).checked).toBe(true);
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+      expect(mocks.offboardingPreview).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_frozen_trade_found_by_the_command_refreshes_the_details', async () => {
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('frozen', 409, 'MARKET_INVALIDATION_TRADE_FROZEN'));
+      mocks.offboardingPreview
+        .mockResolvedValueOnce(memberPreview)
+        .mockResolvedValueOnce({ ...memberPreview, frozen_pending_trades: 1 });
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      await waitFor(() => expect(mocks.offboardingPreview).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText(/A pending trade of this member is frozen/)).toBeTruthy();
+      expect(await screen.findByTestId('offboard-count-frozenPendingTrades')).toBeTruthy();
+      expect(confirmButton().disabled).toBe(true);
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('too_many_open_items_are_explained_and_nothing_repeats', async () => {
+      mocks.offboardUser.mockRejectedValueOnce(new ApiError('too many', 409, 'MARKET_INVALIDATION_LIMIT'));
+      renderUsers();
+
+      await openOffboardDialog();
+      fillOffboardForm();
+      tickConfirmation();
+      fireEvent.click(confirmButton());
+
+      expect(await screen.findByText(/more than 100 open orders or pending trades/)).toBeTruthy();
+      expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_preview_over_the_limit_is_explained_and_blocks_the_command', async () => {
+      mocks.offboardingPreview.mockRejectedValueOnce(new ApiError('limit', 409, 'OFFBOARD_PREVIEW_LIMIT'));
+      renderUsers();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Offboard member mei@northstar.example' }));
+      expect(await screen.findByText(/more than 100 open orders or pending trades/)).toBeTruthy();
+      expect(confirmButton().disabled).toBe(true);
     });
 
     it('unknown_outcome_start_over_needs_fresh_details_and_new_confirmation', async () => {
@@ -458,10 +632,7 @@ describe('admin member offboarding', () => {
     };
 
     beforeEach(() => {
-      mocks.offboardingTrades.mockResolvedValue({
-        items: [ordinaryTrade, frozenTrade, assistedTrade],
-        truncated: false,
-      });
+      mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade, frozenTrade, assistedTrade]));
       mocks.users.mockResolvedValue({
         total: 5,
         items: [{ ...member, status: 'REJECTED', organization_id: null, org_name: null }, colleague, detached, otherAdmin],
@@ -492,7 +663,7 @@ describe('admin member offboarding', () => {
       expect(within(replacement).queryByRole('option', { name: /Mei Tan/ })).toBeNull();
 
       fireEvent.change(replacement, { target: { value: 'user-4' } });
-      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'CASE-55' } });
+      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'CASE-2026/55' } });
       expect(submit().disabled).toBe(true);
       fireEvent.click(screen.getByLabelText(/I verified the company's request/));
       expect(submit().disabled).toBe(false);
@@ -503,7 +674,7 @@ describe('admin member offboarding', () => {
       expect(mocks.reassignResponsible).toHaveBeenCalledWith('trade-ordinary', {
         side: 'BUYER',
         replacement_user_id: 'user-4',
-        evidence_case_ref: 'CASE-55',
+        evidence_case_ref: 'CASE-2026/55',
         expected_current_user_id: 'user-1',
       });
       // The list is read again after the change.
@@ -513,7 +684,7 @@ describe('admin member offboarding', () => {
 
     it('manual_resolution_refusal_is_shown_and_not_repeated', async () => {
       mocks.reassignResponsible.mockRejectedValueOnce(
-        new ApiError('refused', 409, 'REASSIGN_MANUAL_RESOLUTION_REQUIRED'),
+        new ApiError('refused', 409, 'REASSIGNMENT_MANUAL_RESOLUTION_REQUIRED'),
       );
       renderUsers();
       await openTradeList();
@@ -531,7 +702,7 @@ describe('admin member offboarding', () => {
     });
 
     it('stale_reassignment_refreshes_the_list_and_drops_the_confirmation', async () => {
-      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('stale', 409, 'RESPONSIBLE_USER_CHANGED'));
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('stale', 409, 'REASSIGNMENT_STALE'));
       renderUsers();
       await openTradeList();
 
@@ -576,13 +747,201 @@ describe('admin member offboarding', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Reassign trade trade-ordinary' }));
       expect(await screen.findByText(/No eligible replacement is listed/)).toBeTruthy();
     });
+
+    const submitReassignment = async (caseRef = 'CASE-60') => {
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign trade trade-ordinary' }));
+      fireEvent.change(await screen.findByLabelText('Replacement'), { target: { value: 'user-4' } });
+      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: caseRef } });
+      fireEvent.click(screen.getByLabelText(/I verified the company's request/));
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign' }));
+    };
+
+    it('lists_the_recorded_company_and_the_departed_person_from_the_real_list_shape', async () => {
+      mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade]));
+      mocks.users.mockResolvedValue({
+        total: 3,
+        items: [{ ...member, status: 'REJECTED', organization_id: null, org_name: null }, colleague],
+      });
+      renderUsers();
+      await openTradeList();
+
+      const row = screen.getByText('trade-ordinary').closest('tr') as HTMLElement;
+      // The side carries only the recorded organization id: the name comes from the members read.
+      expect(within(row).getByText('Northstar Shipping')).toBeTruthy();
+      expect(within(row).getByText('mei@northstar.example')).toBeTruthy();
+      expect(within(row).getByText('Buyer')).toBeTruthy();
+    });
+
+    it('offers_a_supplier_for_the_seller_side_and_a_buyer_for_the_buyer_side', async () => {
+      const supplierColleague = { ...colleague, id: 'user-6', email: 'sam@northstar.example', first_name: 'Sam', role: 'SUPPLIER' };
+      mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade, sellerTrade]));
+      mocks.users.mockResolvedValue({
+        total: 3,
+        items: [{ ...member, status: 'REJECTED', organization_id: null, org_name: null }, colleague, supplierColleague],
+      });
+      renderUsers();
+      await openTradeList();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign trade trade-seller' }));
+      let replacement = await screen.findByLabelText('Replacement') as HTMLSelectElement;
+      expect(within(replacement).getByRole('option', { name: /Sam/ })).toBeTruthy();
+      expect(within(replacement).queryByRole('option', { name: /Lena/ })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign trade trade-ordinary' }));
+      replacement = await screen.findByLabelText('Replacement') as HTMLSelectElement;
+      expect(within(replacement).getByRole('option', { name: /Lena/ })).toBeTruthy();
+      expect(within(replacement).queryByRole('option', { name: /Sam/ })).toBeNull();
+    });
+
+    it('sends_the_seller_side_as_it_was_listed', async () => {
+      const supplierColleague = { ...colleague, id: 'user-6', email: 'sam@northstar.example', first_name: 'Sam', role: 'SUPPLIER' };
+      mocks.offboardingTrades.mockResolvedValue(tradePage([sellerTrade]));
+      mocks.users.mockResolvedValue({
+        total: 2,
+        items: [{ ...member, status: 'REJECTED', organization_id: null, org_name: null }, supplierColleague],
+      });
+      renderUsers();
+      fireEvent.click(await screen.findByRole('button', { name: 'Handover trades for mei@northstar.example' }));
+      await screen.findByText('trade-seller');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign trade trade-seller' }));
+      fireEvent.change(await screen.findByLabelText('Replacement'), { target: { value: 'user-6' } });
+      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'TICKET-8841' } });
+      fireEvent.click(screen.getByLabelText(/I verified the company's request/));
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign' }));
+
+      await waitFor(() => expect(mocks.reassignResponsible).toHaveBeenCalledWith('trade-seller', {
+        side: 'SELLER',
+        replacement_user_id: 'user-6',
+        evidence_case_ref: 'TICKET-8841',
+        expected_current_user_id: 'user-1',
+      }));
+    });
+
+    it('a_case_reference_outside_the_grammar_blocks_the_reassignment', async () => {
+      renderUsers();
+      await openTradeList();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reassign trade trade-ordinary' }));
+      fireEvent.change(await screen.findByLabelText('Replacement'), { target: { value: 'user-4' } });
+      fireEvent.click(screen.getByLabelText(/I verified the company's request/));
+      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'ticket-77' } });
+      expect((screen.getByRole('button', { name: 'Reassign' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByText(/Use CASE, REQ, SEC or TICKET/)).toBeTruthy();
+      fireEvent.change(screen.getByLabelText('Case reference'), { target: { value: 'REQ-77' } });
+      expect((screen.getByRole('button', { name: 'Reassign' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('a_list_longer_than_the_page_says_so', async () => {
+      mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade], { total: 130 }));
+      renderUsers();
+      await openTradeList();
+      expect(screen.getByText(/The list is limited/)).toBeTruthy();
+    });
+
+    it('a_list_for_another_account_is_refused', async () => {
+      mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade], { user_id: 'user-9' }));
+      renderUsers();
+      fireEvent.click(await screen.findByRole('button', { name: 'Handover trades for mei@northstar.example' }));
+      expect(await screen.findByText('Could not load the trades.')).toBeTruthy();
+      expect(screen.queryByText('trade-ordinary')).toBeNull();
+    });
+
+    it('a_trade_that_changed_state_refreshes_the_list', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('state', 409, 'TRADE_NOT_REASSIGNABLE'));
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/can no longer be reassigned/)).toBeTruthy();
+      await waitFor(() => expect(mocks.offboardingTrades).toHaveBeenCalledTimes(2));
+      expect(screen.queryByLabelText(/I verified the company's request/)).toBeNull();
+      expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_frozen_refusal_refreshes_the_list_and_shows_the_freeze', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('frozen', 409, 'TRADE_FROZEN'));
+      mocks.offboardingTrades
+        .mockResolvedValueOnce(tradePage([ordinaryTrade]))
+        .mockResolvedValueOnce(tradePage([{ ...ordinaryTrade, frozen: true }]));
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/This trade is frozen/)).toBeTruthy();
+      await waitFor(() => expect(mocks.offboardingTrades).toHaveBeenCalledTimes(2));
+      await screen.findByText('Frozen');
+      expect((screen.getByRole('button', { name: 'Reassign trade trade-ordinary' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('a_person_who_is_still_a_member_is_explained', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('member', 409, 'REASSIGNMENT_CURRENT_STILL_MEMBER'));
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/still a member of the company/)).toBeTruthy();
+      expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(mocks.offboardingTrades).toHaveBeenCalledTimes(2));
+    });
+
+    it('an_ineligible_replacement_keeps_the_form_and_reads_the_members_again', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('no', 409, 'REASSIGNMENT_REPLACEMENT_INELIGIBLE'));
+      renderUsers();
+      await openTradeList();
+      const memberReads = mocks.users.mock.calls.length;
+
+      await submitReassignment();
+      expect(await screen.findByText(/cannot take over this trade side/)).toBeTruthy();
+      // The form stays so another person can be chosen; the choice and the confirmation are cleared.
+      expect((screen.getByLabelText('Replacement') as HTMLSelectElement).value).toBe('');
+      expect((screen.getByLabelText(/I verified the company's request/) as HTMLInputElement).checked).toBe(false);
+      await waitFor(() => expect(mocks.users.mock.calls.length).toBeGreaterThan(memberReads));
+      expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_busy_market_keeps_the_reassignment_form_and_sends_nothing_again', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('busy', 409, 'MARKET_BUSY'));
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/busy right now. Nothing was changed/)).toBeTruthy();
+      expect((screen.getByLabelText(/I verified the company's request/) as HTMLInputElement).checked).toBe(true);
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+      expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
+    });
+
+    it('a_missing_trade_refreshes_the_list', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('gone', 404, 'TRADE_NOT_FOUND'));
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/trade was not found/)).toBeTruthy();
+      await waitFor(() => expect(mocks.offboardingTrades).toHaveBeenCalledTimes(2));
+    });
+
+    it('a_commit_outcome_unknown_response_reads_the_list_and_never_repeats', async () => {
+      mocks.reassignResponsible.mockRejectedValueOnce(
+        new ApiOutcomeUnknownError(new ApiError('unknown', 503, 'COMMIT_OUTCOME_UNKNOWN')),
+      );
+      renderUsers();
+      await openTradeList();
+
+      await submitReassignment();
+      expect(await screen.findByText(/did not confirm the result/)).toBeTruthy();
+      await waitFor(() => expect(mocks.offboardingTrades).toHaveBeenCalledTimes(2));
+      expect(mocks.reassignResponsible).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('localized errors', () => {
     it('maps_known_codes_in_english_and_chinese', async () => {
       await loadNamespace('admin');
       await act(async () => { await i18n.changeLanguage('zh'); });
-      mocks.offboardingTrades.mockResolvedValue({ items: [ordinaryTrade], truncated: false });
+      mocks.offboardingTrades.mockResolvedValue(tradePage([ordinaryTrade]));
       mocks.reassignResponsible.mockRejectedValueOnce(new ApiError('Trade is frozen', 409, 'TRADE_FROZEN'));
       mocks.users.mockResolvedValue({
         total: 2,
@@ -625,6 +984,46 @@ describe('admin member offboarding', () => {
       expect(screen.getByRole('alert').textContent).toContain('无法');
     });
 
+    it('every_refusal_code_has_an_english_and_a_chinese_message', async () => {
+      await loadNamespace('admin');
+      const english = i18n.getFixedT('en', 'admin');
+      const chinese = i18n.getFixedT('zh', 'admin');
+      expect(OFFBOARDING_ERROR_CODES.length).toBeGreaterThanOrEqual(30);
+      for (const code of OFFBOARDING_ERROR_CODES) {
+        const key = `offboard.errorCode.${code}`;
+        const en = english(key, { defaultValue: '' });
+        const zh = chinese(key, { defaultValue: '' });
+        expect(en, `${code} (en)`).not.toBe('');
+        expect(zh, `${code} (zh)`).not.toBe('');
+        // The Chinese text is a translation, never a copy of the English text.
+        expect(zh, `${code} (zh)`).not.toBe(en);
+        expect(/[\u4e00-\u9fff]/.test(zh), `${code} (zh script)`).toBe(true);
+      }
+    });
+
+    it('names_every_refusal_code_the_two_backend_routes_can_send', () => {
+      for (const code of [
+        // account offboarding command and preview
+        'ADMIN_REQUIRED', 'ACCOUNT_NOT_MANAGEABLE', 'USER_NOT_FOUND', 'VALIDATION_FAILED', 'BODY_TOO_LARGE',
+        'OFFBOARD_ALREADY_COMPLETED', 'OFFBOARD_MEMBERSHIP_CHANGED', 'OFFBOARD_PREVIEW_LIMIT',
+        'MARKET_INVALIDATION_LIMIT', 'MARKET_INVALIDATION_TRADE_FROZEN', 'MARKET_SUPPORT_MUTATION_NOT_ALLOWED',
+        'ACCOUNT_STATE_INVALID',
+        // reassignment and the obligation list
+        'FORBIDDEN', 'TRADE_NOT_FOUND', 'REASSIGNMENT_STALE', 'TRADE_NOT_REASSIGNABLE', 'TRADE_FROZEN',
+        'REASSIGNMENT_MANUAL_RESOLUTION_REQUIRED', 'REASSIGNMENT_CURRENT_STILL_MEMBER',
+        'REASSIGNMENT_REPLACEMENT_INELIGIBLE',
+        // contention, outcome and sign-in refusals of both
+        'MARKET_BUSY', 'MARKET_TIMEOUT', 'TRANSACTION_TIMEOUT', 'TRANSACTION_RETRY_EXHAUSTED',
+        'COMMIT_OUTCOME_UNKNOWN', 'DATABASE_ERROR', 'EXECUTION_NOT_AVAILABLE',
+        'AUTH_CREDENTIALS_INVALID', 'INVALID_CREDENTIALS', 'AUTH_SESSION_REVOKED', 'AUTH_PASSWORD_CHANGED',
+        'ACCOUNT_PENDING', 'ACCOUNT_REJECTED', 'PASSWORD_CHANGE_REQUIRED',
+        // refused by this client before a request is sent
+        'MARKET_SUPPORT_MUTATION_BLOCKED',
+      ]) {
+        expect(OFFBOARDING_ERROR_CODES, code).toContain(code);
+      }
+    });
+
     it('shows_a_clear_message_when_the_route_is_not_available', async () => {
       mocks.offboardingPreview.mockRejectedValueOnce(new ApiError('Not Found', 404, null));
       renderUsers();
@@ -633,15 +1032,26 @@ describe('admin member offboarding', () => {
       expect(await screen.findByText('Offboarding is not available right now.')).toBeTruthy();
       expect(confirmButton().disabled).toBe(true);
     });
+
+    it('treats_405_from_a_dormant_route_as_not_available', async () => {
+      mocks.offboardingPreview.mockRejectedValueOnce(new ApiError('Method Not Allowed', 405, null));
+      renderUsers();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Offboard member mei@northstar.example' }));
+      expect(await screen.findByText('Offboarding is not available right now.')).toBeTruthy();
+    });
   });
 });
 
-// The component tests above replace the admin calls; these exercise the real client.
+// The component tests above replace the admin calls; these exercise the real client
+// against the response shapes the Rust routes send.
 describe('offboarding api contract', () => {
+  let apiModule: typeof import('../services/api');
   let api: typeof import('../services/api')['api'];
 
   beforeAll(async () => {
-    ({ api } = await vi.importActual<typeof import('../services/api')>('../services/api'));
+    apiModule = await vi.importActual<typeof import('../services/api')>('../services/api');
+    api = apiModule.api;
   });
 
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -654,79 +1064,241 @@ describe('offboarding api contract', () => {
     vi.unstubAllGlobals();
   });
 
-  it('sends_an_explicit_null_organization_and_the_exact_fields', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(json({ operation_id: 'op-1', former_organization_id: null, state: 'OFFBOARDED' }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const result = await api.admin.offboardUser('user-2', {
-      reason_code: 'OTHER',
-      evidence_case_ref: 'CASE-3',
-      urgent: false,
-      expected_organization_id: null,
+  describe('reason codes and case reference', () => {
+    it('offers_exactly_the_four_reason_codes_the_backend_accepts', () => {
+      expect([...apiModule.OFFBOARD_REASON_CODES]).toEqual([
+        'EMPLOYMENT_ENDED',
+        'COMPANY_REQUEST',
+        'SECURITY_CONCERN',
+        'ACCOUNT_HOLDER_REQUEST',
+      ]);
     });
 
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toMatch(/\/auth\/admin\/users\/user-2\/offboard$/);
-    expect(init.method).toBe('POST');
-    expect(init.body).toBe('{"reason_code":"OTHER","evidence_case_ref":"CASE-3","urgent":false,"expected_organization_id":null}');
-    expect(result).toEqual({ operation_id: 'op-1', former_organization_id: null, state: 'OFFBOARDED' });
-  });
-
-  it('reads_the_preview_and_refuses_a_response_without_the_organization_field', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json(memberPreview))
-      .mockResolvedValueOnce(json({ ...memberPreview, organization_id: undefined }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    await expect(api.admin.offboardingPreview('user-1')).resolves.toEqual(memberPreview);
-    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/auth\/admin\/users\/user-1\/offboarding-preview$/);
-    // A missing key is not the same as "no company": the response is refused.
-    await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
-  });
-
-  it('refuses_counts_that_are_not_whole_numbers', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ ...memberPreview, open_order_count: -1 })));
-    await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
-  });
-
-  it('treats_a_server_failure_of_the_command_as_an_unknown_outcome', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: { code: 'X', message: 'down' } }, 503)));
-    await expect(api.admin.offboardUser('user-1', {
-      reason_code: 'OTHER',
-      evidence_case_ref: 'CASE-4',
-      urgent: false,
-      expected_organization_id: 'org-1',
-    })).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
-  });
-
-  it('treats_a_missing_freeze_indicator_as_frozen', async () => {
-    const { frozen: _omitted, ...withoutFreeze } = ordinaryTrade;
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ items: [withoutFreeze], truncated: true })));
-
-    const list = await api.admin.offboardingTrades('user-1');
-    expect(list.items[0].frozen).toBe(true);
-    expect(list.truncated).toBe(true);
-  });
-
-  it('posts_the_reassignment_body_with_the_expected_current_user', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(json({}));
-    vi.stubGlobal('fetch', fetchMock);
-
-    await api.admin.reassignResponsible('trade-1', {
-      side: 'SELLER',
-      replacement_user_id: 'user-7',
-      evidence_case_ref: 'CASE-5',
-      expected_current_user_id: 'user-1',
+    it('accepts_the_ticket_grammar_of_the_backend', () => {
+      for (const reference of [
+        'CASE-2026/0042',
+        'SEC-2026-11-0001',
+        'REQ-1',
+        'TICKET-123456789012',
+        'CASE-1/2-3',
+        `CASE-${'9'.repeat(12)}-${'8'.repeat(12)}/${'7'.repeat(12)}`,
+      ]) {
+        expect(apiModule.isValidCaseReference(reference), reference).toBe(true);
+      }
     });
 
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toMatch(/\/auth\/admin\/trades\/trade-1\/reassign-responsible$/);
-    expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body)).toEqual({
-      side: 'SELLER',
-      replacement_user_id: 'user-7',
-      evidence_case_ref: 'CASE-5',
-      expected_current_user_id: 'user-1',
+    it('refuses_values_outside_the_ticket_grammar', () => {
+      for (const reference of [
+        '',
+        'CASE',
+        'CASE-',
+        'case-2026/0042',
+        'JIRA-123',
+        'CASE-ABC',
+        'CASE-12A',
+        'CASE-2026-',
+        'CASE--2026',
+        'CASE-1-2-3-4',
+        'CASE-1234567890123',
+        'CASE 2026',
+        'CASE-2026 ',
+        'CASE-2026/0042@example.com',
+        'CASE-1.2',
+        'CASE-１２３',
+        'Jane Doe',
+        `CASE-${'1'.repeat(65)}`,
+      ]) {
+        expect(apiModule.isValidCaseReference(reference), JSON.stringify(reference)).toBe(false);
+      }
+    });
+  });
+
+  describe('offboard command', () => {
+    it('sends_an_explicit_null_organization_and_exactly_the_four_fields', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(json({ ...offboardResult, user_id: 'user-2', former_organization_id: null }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await api.admin.offboardUser('user-2', {
+        reason_code: 'ACCOUNT_HOLDER_REQUEST',
+        evidence_case_ref: 'CASE-2026/0042',
+        urgent: false,
+        expected_organization_id: null,
+      });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(String(url)).toMatch(/\/auth\/admin\/users\/user-2\/offboard$/);
+      expect(init.method).toBe('POST');
+      expect(init.body).toBe('{"reason_code":"ACCOUNT_HOLDER_REQUEST","evidence_case_ref":"CASE-2026/0042","urgent":false,"expected_organization_id":null}');
+      expect(result).toEqual({
+        operation_id: 'op-123',
+        user_id: 'user-2',
+        former_organization_id: null,
+        status: 'REJECTED',
+        offboarded_at: '2026-11-02T10:00:00Z',
+      });
+    });
+
+    it('reads_the_committed_response_with_the_status_and_the_database_time', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(offboardResult)));
+      await expect(api.admin.offboardUser('user-1', {
+        reason_code: 'EMPLOYMENT_ENDED',
+        evidence_case_ref: 'REQ-4',
+        urgent: true,
+        expected_organization_id: 'org-1',
+      })).resolves.toEqual(offboardResult);
+    });
+
+    it('treats_503_commit_outcome_unknown_as_an_unknown_outcome', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: { code: 'COMMIT_OUTCOME_UNKNOWN', message: 'check' } }, 503)));
+      await expect(api.admin.offboardUser('user-1', {
+        reason_code: 'COMPANY_REQUEST',
+        evidence_case_ref: 'CASE-4',
+        urgent: false,
+        expected_organization_id: 'org-1',
+      })).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
+    });
+
+    it('keeps_the_refusal_code_of_a_409', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ detail: { code: 'OFFBOARD_MEMBERSHIP_CHANGED', message: 'x' } }, 409)));
+      const failure = await api.admin.offboardUser('user-1', {
+        reason_code: 'COMPANY_REQUEST',
+        evidence_case_ref: 'CASE-4',
+        urgent: false,
+        expected_organization_id: 'org-1',
+      }).catch((cause: unknown) => cause);
+      expect(failure).toBeInstanceOf(ApiError);
+      expect((failure as ApiError).code).toBe('OFFBOARD_MEMBERSHIP_CHANGED');
+    });
+  });
+
+  describe('preview', () => {
+    it('reads_every_field_of_the_preview', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(json({ ...memberPreview, frozen_pending_trades: 1, informational_counts_capped: true }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await expect(api.admin.offboardingPreview('user-1')).resolves.toEqual({
+        ...memberPreview,
+        frozen_pending_trades: 1,
+        informational_counts_capped: true,
+      });
+      expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/auth\/admin\/users\/user-1\/offboarding-preview$/);
+    });
+
+    it('refuses_a_response_without_the_organization_field', async () => {
+      // A missing key is not the same as "no company".
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ ...memberPreview, organization_id: undefined })));
+      await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('refuses_a_response_without_the_frozen_pending_count', async () => {
+      // The blocker must never be read as zero because the key is missing.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ ...memberPreview, frozen_pending_trades: undefined })));
+      await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('refuses_a_response_without_the_offboarding_marker_field', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ ...memberPreview, offboarded_at: undefined })));
+      await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('refuses_the_names_of_the_earlier_assumed_shape', async () => {
+      const { open_owned_orders, pending_trades, confirmed_trades, delivered_trades, ...rest } = memberPreview;
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({
+        ...rest,
+        open_order_count: open_owned_orders,
+        pending_trade_count: pending_trades,
+        confirmed_trade_count: confirmed_trades,
+        delivered_trade_count: delivered_trades,
+      })));
+      await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('refuses_counts_that_are_not_whole_numbers', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ ...memberPreview, open_owned_orders: -1 })));
+      await expect(api.admin.offboardingPreview('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+  });
+
+  describe('obligation list', () => {
+    it('reads_the_list_with_total_skip_and_limit', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(json(tradePage([ordinaryTrade, sellerTrade, frozenTrade], { total: 3 })));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const list = await api.admin.offboardingTrades('user-1');
+      expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/auth\/admin\/users\/user-1\/offboarding-trades$/);
+      expect(list.user_id).toBe('user-1');
+      expect(list.total).toBe(3);
+      expect(list.truncated).toBe(false);
+      expect(list.items.map(item => [item.trade_id, item.side, item.status, item.recorded_organization_id])).toEqual([
+        ['trade-ordinary', 'BUYER', 'CONFIRMED', 'org-1'],
+        ['trade-seller', 'SELLER', 'CONFIRMED', 'org-1'],
+        ['trade-frozen', 'BUYER', 'DELIVERED', 'org-1'],
+      ]);
+      expect(list.items[2].frozen).toBe(true);
+    });
+
+    it('is_truncated_when_the_total_is_above_the_page', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(tradePage([ordinaryTrade], { total: 101 }))));
+      expect((await api.admin.offboardingTrades('user-1')).truncated).toBe(true);
+    });
+
+    it('treats_a_missing_freeze_or_manual_resolution_indicator_as_blocking', async () => {
+      const { frozen: _frozen, manual_resolution_required: _manual, ...bare } = ordinaryTrade;
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(tradePage([bare]))));
+
+      const list = await api.admin.offboardingTrades('user-1');
+      expect(list.items[0].frozen).toBe(true);
+      expect(list.items[0].manual_resolution_required).toBe(true);
+    });
+
+    it('refuses_a_side_or_a_recorded_organization_it_cannot_echo_back', async () => {
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(json(tradePage([{ ...ordinaryTrade, side: 'buyer' }])))
+        .mockResolvedValueOnce(json(tradePage([{ ...ordinaryTrade, recorded_organization_id: undefined }]))));
+      await expect(api.admin.offboardingTrades('user-1')).rejects.toBeInstanceOf(ApiError);
+      await expect(api.admin.offboardingTrades('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('refuses_a_response_without_the_total', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ user_id: 'user-1', items: [ordinaryTrade] })));
+      await expect(api.admin.offboardingTrades('user-1')).rejects.toBeInstanceOf(ApiError);
+    });
+  });
+
+  describe('reassignment', () => {
+    it('posts_exactly_the_four_fields_and_reads_the_committed_response', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(json({ ...reassignResult, side: 'SELLER' }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await api.admin.reassignResponsible('trade-1', {
+        side: 'SELLER',
+        replacement_user_id: 'user-7',
+        evidence_case_ref: 'CASE-2026/5',
+        expected_current_user_id: 'user-1',
+      });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(String(url)).toMatch(/\/auth\/admin\/trades\/trade-1\/reassign-responsible$/);
+      expect(init.method).toBe('POST');
+      expect(init.body).toBe('{"side":"SELLER","replacement_user_id":"user-7","evidence_case_ref":"CASE-2026/5","expected_current_user_id":"user-1"}');
+      expect(result).toEqual({ ...reassignResult, side: 'SELLER' });
+    });
+
+    it('treats_a_server_failure_as_an_unknown_outcome_and_a_409_as_a_refusal', async () => {
+      const input = {
+        side: 'BUYER' as const,
+        replacement_user_id: 'user-7',
+        evidence_case_ref: 'CASE-5',
+        expected_current_user_id: 'user-1',
+      };
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(json({ detail: { code: 'COMMIT_OUTCOME_UNKNOWN', message: 'x' } }, 503))
+        .mockResolvedValueOnce(json({ detail: { code: 'REASSIGNMENT_CURRENT_STILL_MEMBER', message: 'x' } }, 409)));
+
+      await expect(api.admin.reassignResponsible('trade-1', input)).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
+      const refusal = await api.admin.reassignResponsible('trade-1', input).catch((cause: unknown) => cause);
+      expect(refusal).toBeInstanceOf(ApiError);
+      expect((refusal as ApiError).code).toBe('REASSIGNMENT_CURRENT_STILL_MEMBER');
     });
   });
 });
