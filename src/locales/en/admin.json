@@ -621,7 +621,7 @@
   "offboard.reread.loading": "Reading the account again...",
   "offboard.reread.status": "Status",
   "offboard.reread.offboarded": "Offboarded on {{time}}. The change was committed.",
-  "offboard.reread.notOffboarded": "Not offboarded yet. The change can still complete during the next 30 seconds. Check again shortly before you start over.",
+  "offboard.reread.notOffboarded": "No completed offboarding is visible yet. The earlier request may still finish. Check again before you start over.",
   "offboard.reread.failed": "The account could not be read again. Reload the page before taking another action.",
   "offboard.reread.check": "Check again",
   "offboard.reread.restart": "Start over with fresh details",
