@@ -1,7 +1,3 @@
-import type { FameRfqCreateInput, FameQuoteInput, FameRfq, FameQuote, FameRfqList } from '../types/fameRfq';
-import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from './fameRfq';
-import type { SupplierOffer, SupplierOfferCreateInput, SupplierOfferList, SupplierOfferListParams, SupplierOfferMyListParams, SupplierOfferUpdateInput } from '../types/fameSupplierOffer';
-import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferListQuery, SUPPLIER_OFFERS_CHANGED_EVENT } from './fameSupplierOffer';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { AggregatedOrderbook, MapCompactMarket, OrderBookOrder, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot, OrderCreateInput, Trade, TradeCreateInput } from '../types';
 import { mapOrderbookTermsResponse, mapTradeTermsResponse } from './orderTerms';
@@ -45,7 +41,7 @@ import {
     getMarketSupportContextId,
     MARKET_SUPPORT_CONTEXT_HEADER,
 } from './marketSupportContextStore';
-import { cachedRead, invalidateReadCacheWithCause, READ_CACHE_TTL_MS, type ReadInvalidationCause } from './readCache';
+import { cachedRead, invalidateReadCacheWithCause, OWN_ORDERS_CACHE_PREFIX, READ_CACHE_TTL_MS, type ReadInvalidationCause } from './readCache';
 import type {
     MarketSupportCapability,
     MarketSupportEntry,
@@ -909,6 +905,11 @@ const mapReassignResult = (raw: any): AdminReassignResult => ({
 });
 
 export const api = {
+    abilities: {
+        // What the signed-in user may do, and why not (UI hints only). Bypasses the
+        // read cache: the answer changes with account, organization, and KYC state.
+        mine: async (): Promise<unknown> => fetchApi('/auth/me/abilities', { headers: getHeaders() }),
+    },
     auth: {
         submitSurvey: async (answer: { use_case: string; referral_source?: string }): Promise<void> => {
             const res = await fetchWithTimeout(`${API_URL}/auth/survey`, {
@@ -1228,7 +1229,7 @@ export const api = {
             );
         },
         myOrders: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').OwnedOrderBookOrder[]> => {
-            const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
+            const response: any = await readApi(OWN_ORDERS_CACHE_PREFIX, '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
             return toOrderBookOrders(mapOrderbookTermsResponse(response.items ?? response)) as import('../types').OwnedOrderBookOrder[];
         },
         create: async (data: OrderCreateInput) => {
@@ -1677,66 +1678,6 @@ export const api = {
     fleetIntelligence: {
         get: async (cacheOptions?: ReadCacheOptions): Promise<{ entries: Array<{ fuel: string; ordered_vessels: number; delivered_vessels: number; avg_consumption_mt: number; color: string }>; last_updated: string; sources: string[] }> => {
             return readApi('fleet-intelligence:get', '/fleet-intelligence', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
-        },
-    },
-
-    supplierOffers: {
-        list: async (params?: SupplierOfferListParams): Promise<SupplierOfferList> => {
-            return mapSupplierOfferListResponse(await fetchApi(`/supplier-offers?${supplierOfferListQuery(params)}`, { headers: getHeaders() }));
-        },
-        my: async (params?: SupplierOfferMyListParams): Promise<SupplierOfferList> => {
-            return mapSupplierOfferListResponse(await fetchApi(`/supplier-offers/my?${supplierOfferListQuery(params)}`, { headers: getHeaders() }));
-        },
-        get: async (id: string): Promise<SupplierOffer> => {
-            return mapSupplierOfferResponse(await fetchApi(`/supplier-offers/${encodeURIComponent(id)}`, { headers: getHeaders() }));
-        },
-        create: async (data: SupplierOfferCreateInput, idempotencyKey: string): Promise<SupplierOffer> => {
-            const offer = mapSupplierOfferResponse(await fetchApi('/supplier-offers', {
-                method: 'POST',
-                headers: { ...getHeaders(), 'Idempotency-Key': idempotencyKey },
-                body: JSON.stringify(data),
-            }));
-            window.dispatchEvent(new CustomEvent(SUPPLIER_OFFERS_CHANGED_EVENT));
-            return offer;
-        },
-        update: async (id: string, data: SupplierOfferUpdateInput): Promise<SupplierOffer> => {
-            const offer = mapSupplierOfferResponse(await fetchApi(`/supplier-offers/${encodeURIComponent(id)}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) }));
-            window.dispatchEvent(new CustomEvent(SUPPLIER_OFFERS_CHANGED_EVENT));
-            return offer;
-        },
-        withdraw: async (id: string, data: { expected_revision: number }): Promise<SupplierOffer> => {
-            const offer = mapSupplierOfferResponse(await fetchApi(`/supplier-offers/${encodeURIComponent(id)}/withdraw`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }));
-            window.dispatchEvent(new CustomEvent(SUPPLIER_OFFERS_CHANGED_EVENT));
-            return offer;
-        },
-    },
-
-    rfq: {
-        create: async (data: FameRfqCreateInput): Promise<FameRfq> => {
-            return mapFameRfqResponse(await fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }));
-        },
-        list: async (params?: { status?: string; product_id?: string; skip?: number; limit?: number }): Promise<FameRfqList> => {
-            const sp = new URLSearchParams();
-            if (params?.status) sp.append('status', params.status);
-            if (params?.product_id) sp.append('product_id', params.product_id);
-            sp.append('skip', String(params?.skip ?? 0));
-            sp.append('limit', String(params?.limit ?? 20));
-            return mapFameRfqListResponse(await fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() }));
-        },
-        get: async (id: string): Promise<FameRfq> => {
-            return mapFameRfqResponse(await fetchApi(`/rfq/${encodeURIComponent(id)}`, { headers: getHeaders() }));
-        },
-        quote: async (rfqId: string, data: FameQuoteInput): Promise<FameQuote> => {
-            return mapFameQuoteResponse(await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/quote`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }));
-        },
-        cancel: async (rfqId: string): Promise<void> => {
-            await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/cancel`, { method: 'POST', headers: getHeaders() });
-        },
-        revise: async (rfqId: string, quoteId: string, data: FameQuoteInput & { expected_revision: number }): Promise<FameQuote> => {
-            return mapFameQuoteResponse(await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/quotes/${encodeURIComponent(quoteId)}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) }));
-        },
-        withdraw: async (rfqId: string, quoteId: string): Promise<void> => {
-            await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/quotes/${encodeURIComponent(quoteId)}/withdraw`, { method: 'POST', headers: getHeaders() });
         },
     },
 

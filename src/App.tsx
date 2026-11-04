@@ -3,16 +3,18 @@ import { LoadingScreen } from './components/LoadingScreen';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AbilitiesProvider } from './context/AbilitiesContext';
 import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider, useTutorial } from './context/TutorialContext';
 import { MarketSupportProvider, useMarketSupport } from './context/MarketSupportContext';
 import { defaultMarketSupportView } from './types/marketSupport';
+import { useAnyAbilityAllowed } from './hooks/useAbilityDenial';
+import { ADMIN_ABILITY_IDS } from './types/abilities';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
-import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
@@ -21,7 +23,7 @@ import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, PAGE_SLUGS, Port, AvailabilityWindow } from './types';
-import { MarketSlice, parseSlicePath, sliceToPath, UCOME_MARKETPLACE_PATH } from './utils/sliceUrl';
+import { MarketSlice, parseSlicePath, sliceToPath } from './utils/sliceUrl';
 import { isOrderbookMarketProduct } from './utils/marketProduct';
 import {
   cancelDashboardNavigation,
@@ -35,33 +37,22 @@ import LegacyRedirect from './components/public/LegacyRedirect';
 import { useTranslation } from 'react-i18next';
 import { EDUCATION_SLUGS } from './routeMetadata';
 import { publicPageLoaders, type PreparedPublicPage } from './publicPageLoaders';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
 
-const CHUNK_RELOAD_FLAG = 'verdaxis_chunk_reloaded';
-
-// After a deploy, bookmarked deep links can reference stale chunk URLs;
-// reload once to pick up the new manifest instead of stranding the user
-// on the ErrorBoundary. The sessionStorage flag guards against loops.
-function retryImport<T>(load: () => Promise<T>): Promise<T> {
-  return load().then((module) => {
-    sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
-    return module;
-  }).catch((error: unknown) => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem(CHUNK_RELOAD_FLAG) !== 'true') {
-      sessionStorage.setItem(CHUNK_RELOAD_FLAG, 'true');
-      window.location.reload();
-      return new Promise<T>(() => {});
-    }
-    throw error;
-  });
-}
-
-function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.ComponentType<P> }>) {
-  return lazy(() => retryImport(load));
-}
-
 const BuyerMap = lazyWithRetry(loadBuyerMap);
+
+// Trade alerts (sounds, browser notifications, election between tabs) matter only
+// to a signed-in user, so their code loads after sign-in, not with the public pages.
+const loadTradeNotifier = () => import('./components/TradeNotifier').then((module) => ({ default: module.TradeNotifier }));
+const TradeNotifier = lazyWithRetry(loadTradeNotifier);
+
+const SignedInTradeNotifier: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return null;
+  return <Suspense fallback={null}><TradeNotifier /></Suspense>;
+};
 const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
 
 // react-joyride (and its react-floater / redux peers) is a heavy dependency
@@ -227,7 +218,6 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 const DASHBOARD_PAGES = new Set<Page>([
   'MAP',
   'MARKETPLACE',
-  'RFQS',
   'COMPLIANCE',
   'TRAINING',
   'SETTINGS',
@@ -277,7 +267,6 @@ const pathToPage = (pathname: string): Page => {
     case 'home': return 'DASHBOARD';
     case 'map': return 'MAP';
     case 'marketplace': return 'MARKETPLACE';
-    case 'rfqs': return 'MARKETPLACE';
     case 'curve': return 'FORWARD_CURVE';
     case 'watchlist': return 'WATCHLISTS';
     case 'analytics': return 'DATA_ANALYTICS';
@@ -542,7 +531,9 @@ const SupportRestrictedRoute: React.FC<{ children: React.ReactElement }> = ({ ch
 const AdminRoute: React.FC = () => {
   const { user } = useAuth();
   const { isActive } = useMarketSupport();
-  if (user?.role !== 'ADMIN') return <Navigate to="/app/home" replace />;
+  // Server abilities decide when they are known; the role check is the fallback.
+  const canUseAdmin = useAnyAbilityAllowed(ADMIN_ABILITY_IDS) ?? user?.role === 'ADMIN';
+  if (!canUseAdmin) return <Navigate to="/app/home" replace />;
   if (isActive) return <Navigate to="/app/home" replace />;
   return <AdminDashboard />;
 };
@@ -668,7 +659,6 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
                         <Route path="home" element={<HomeRoute />} />
                         <Route path="map" element={<></>} />
                         <Route path="marketplace" element={<MarketplaceRoute />} />
-                        <Route path="rfqs" element={<Navigate to={`${UCOME_MARKETPLACE_PATH}&view=history_rfqs`} replace />} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
                         <Route path="watchlist" element={<SupportRestrictedRoute><WatchlistPage /></SupportRestrictedRoute>} />
@@ -697,6 +687,7 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
     <ErrorBoundary>
     <ThemeProvider>
       <AuthProvider>
+        <AbilitiesProvider>
         <MarketSupportProvider>
         <ToastProvider>
         <NotificationProvider>
@@ -705,16 +696,17 @@ const App: React.FC<AppProps> = ({ initialPublicPage }) => {
                 <AnalyticsProvider>
                 <RouteMetadata />
                 <PublicMarketSync />
+                <SignedInTradeNotifier />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes initialPublicPage={initialPublicPage} />
                 </AnalyticsProvider>
             </BrowserRouter>
         </TutorialProvider>
-        <TradeNotifier />
         </NotificationProvider>
         </ToastProvider>
         </MarketSupportProvider>
+        </AbilitiesProvider>
       </AuthProvider>
     </ThemeProvider>
     </ErrorBoundary>

@@ -416,6 +416,7 @@ describe('wire decimal mappers: the spelling of a decimal changes nothing', () =
             ['trade_paid', ['quantity', 'price']],
             ['trade_auto_matched', ['quantity', 'price']],
             ['trade_delivered', ['final_quantity', 'final_price', 'final_total']],
+            ['price_alert_triggered', ['price', 'threshold_usd']],
         ];
         for (const [event, keys] of events) {
             for (const key of keys) {

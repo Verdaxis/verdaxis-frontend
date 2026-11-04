@@ -93,7 +93,7 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">{bid.market_product ? formatMarketProduct(bid.market_product) : bid.fuel_type}</span>
-                                    {bid.fuel_grade && bid.fuel_grade !== 'Conventional' && (
+                                    {bid.fuel_grade && bid.fuel_grade !== 'Conventional' && bid.fuel_grade !== bid.market_product && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
                                             {t(`grade.${bid.fuel_grade.toLowerCase()}`, { defaultValue: t('grade.other') })}
                                         </span>

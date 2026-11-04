@@ -107,6 +107,9 @@ export const serializeProductAnalyticsFilters = (
   // Preserve every parameter this workspace does not own.
   const params = new URLSearchParams(existing);
   for (const owned of OWNED_PARAMS) params.delete(owned);
+  // OAuth/login credentials must never survive a URL canonicalization race.
+  params.delete('token');
+  params.delete('refresh');
 
   params.set('analytics', filters.tab);
   if (filters.period !== '30d') params.set('period', filters.period);

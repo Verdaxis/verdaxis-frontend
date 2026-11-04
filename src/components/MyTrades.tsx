@@ -19,6 +19,8 @@ import { getMarketSupportContextId } from '../services/marketSupportContextStore
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { useAuth } from '../context/AuthContext';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { useAbilityDenial } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useNamespace } from '../hooks/useNamespace';
@@ -36,6 +38,8 @@ import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
 import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import { LngOrderTermsDetails } from './lng/LngOrderTermsDetails';
+import { isPrivateOrderEvent } from '../services/orderStreamEvents';
+import { forgetOwnTradeAction, recordOwnTradeAction, type OwnTradeActionEvent } from '../services/ownTradeActions';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 type StatusGroup = Lowercase<FilterTab>;
@@ -59,6 +63,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const { t, ready } = useNamespace('trading');
     const { ready: fuelTermsReady } = useNamespace('rfq');
     const userRole = user?.role;
+    const confirmTradeDenial = useAbilityDenial('confirm_trade');
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -147,7 +152,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         }
     }, [currentSkip, totalCount]);
 
-    const handleTradeEvent = useCallback(() => {
+    const handleTradeEvent = useCallback((event: string) => {
+        // Order events change order lists only, not trades.
+        if (isPrivateOrderEvent(event)) return;
         fetchTrades(true, true);
     }, [fetchTrades]);
 
@@ -202,6 +209,11 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         activeCommandRef.current = commandToken;
         setActionLoadingId(tradeId);
         setKycBlocked(false);
+        // The trade event this command causes must not play the alert tone for
+        // the user who clicked. Record it before the request: the stream event
+        // can arrive before the response.
+        const ownEvent: OwnTradeActionEvent = operation === 'confirm' ? 'trade_confirmed' : 'trade_declined';
+        recordOwnTradeAction(request.tradeId, ownEvent);
         try {
             const updatedTrade = operation === 'confirm'
                 ? await api.trades.confirm(request.tradeId, request.idempotencyKey) as Trade
@@ -217,6 +229,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 : { type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
             fetchTrades(true, true);
         } catch (err: any) {
+            // A command that certainly failed causes no event; keep the alert
+            // for any later event on this trade. An unknown outcome keeps the record.
+            if (!(err instanceof ApiOutcomeUnknownError)) forgetOwnTradeAction(request.tradeId, ownEvent);
             if (!executionIsCurrent()) {
                 if (executionEpoch === commandEpochRef.current) setRetryRequest(null);
                 return;
@@ -317,8 +332,14 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         );
     };
 
-    const renderActions = (trade: Trade) => {
+    // The other party started the trade, so this user is the one who can confirm it.
+    const isCounterparty = (trade: Trade): boolean => {
         const userSide = getUserSide(trade);
+        return (trade.initiated_by === 'BUYER' && userSide === 'SELLER')
+            || (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
+    };
+
+    const renderActions = (trade: Trade) => {
         const isLoadingThis = actionLoadingId === trade.id;
         const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
@@ -327,11 +348,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
             }
 
-            const isCounterparty =
-                (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
-                (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
-
-            if (!isCounterparty) {
+            if (!isCounterparty(trade)) {
                 return (
                     <span className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                         <Clock size={12} />
@@ -347,8 +364,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                         <button
                             onClick={() => handleConfirm(trade.id)}
                             aria-describedby={trade.is_frozen ? `trade-freeze-${trade.id}` : undefined}
-                            disabled={Boolean(trade.is_frozen) || actionLoadingId !== null || Boolean(trade.fame_terms_snapshot && !fuelTermsReady)}
-                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                            disabled={Boolean(trade.is_frozen) || actionLoadingId !== null || confirmTradeDenial !== null || Boolean(trade.fame_terms_snapshot && !fuelTermsReady)}
+                            title={confirmTradeDenial?.message}
+                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                         >
                             {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                             {t('myTrades.btn.confirm')}
@@ -447,6 +465,12 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     </button>
                 ))}
             </div>
+
+            {confirmTradeDenial && trades.some(trade => (
+                normalizeTradeLifecycleStatus(trade.status) === 'PENDING_CONFIRMATION' && isCounterparty(trade)
+            )) && (
+                <AbilityDenialNote denial={confirmTradeDenial} className="mb-4" />
+            )}
 
             {retryRequest && (
                 <div role="status" className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">

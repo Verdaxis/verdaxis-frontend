@@ -6,6 +6,7 @@ import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
 import { useNamespace } from '../hooks/useNamespace';
 import { analytics } from '../services/analytics';
+import { requestTradeAlertPermissionAtSignIn } from '../services/tradeAlertNotifications';
 import { localizedAuthError } from './authApiError';
 
 type ErrorKind = 'generic' | 'unverified';
@@ -47,6 +48,8 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // First, before any await: the prompt must run inside this click.
+    requestTradeAlertPermissionAtSignIn();
     analytics.track('login_submitted');
     setLoginError(null);
     setIsSubmitting(true);

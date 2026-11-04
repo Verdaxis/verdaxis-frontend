@@ -31,8 +31,9 @@ export const readCookiePreferences = (
     }
     const raw = resolvedStorage.getItem(COOKIE_PREFERENCES_STORAGE_KEY);
     if (!raw) return null;
-    const value = JSON.parse(raw) as Partial<CookiePreferences>;
-    if (value.version !== 1 || typeof value.optionalAnalytics !== 'boolean') return null;
+    const value = JSON.parse(raw) as { version?: unknown; optionalAnalytics?: unknown };
+    // Keep the choices saved by both earlier releases without asking users again.
+    if ((value.version !== 1 && value.version !== 2) || typeof value.optionalAnalytics !== 'boolean') return null;
     return { version: 1, optionalAnalytics: value.optionalAnalytics };
   } catch {
     if (usesBrowserStorage) browserStorageFailed = true;

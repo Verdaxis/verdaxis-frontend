@@ -70,7 +70,7 @@ describe('accepted Query scope lifecycle', () => {
             userId: identity.user!.id, organizationId: identity.user!.organization_id,
             marketSupportContextId: identity.support!.id,
             scope: [getAuthGeneration(), identity.user!.id, identity.user!.organization_id, identity.support!.id],
-            isMarketSupportActive: true, isHistorySelected: false, readError: null, t, fetchMyOrders: refresh,
+            isMarketSupportActive: true, readError: null, t, fetchMyOrders: refresh,
         }), { wrapper });
         const order = { id: 'order-a', creation_method: 'MARKET_SUPPORT',
             etag: recovery === 'missing-version' ? null : '"v1"' } as OrderBookOrder;
@@ -102,7 +102,7 @@ describe('accepted Query scope lifecycle', () => {
         const hook = renderHook(() => useCancelOrder({
             userId: 'a', organizationId: 'org-a', marketSupportContextId: null,
             scope: [getAuthGeneration(), 'a', 'org-a', null],
-            isMarketSupportActive: true, isHistorySelected: false, readError: null, t, fetchMyOrders: refresh,
+            isMarketSupportActive: true, readError: null, t, fetchMyOrders: refresh,
         }), { wrapper: ({ children }) => <QueryProvider client={client}>{children}</QueryProvider> });
         try {
             await act(async () => { await hook.result.current.handleCancelOrder({

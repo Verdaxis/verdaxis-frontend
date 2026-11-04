@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSSE } from '../hooks/useSSE';
 import { cachedRead, invalidateReadCache } from '../services/readCache';
+import { deriveConnectionState, deriveServerStatus, getStreamHealthSnapshot, resetStreamHealth } from '../services/streamHealth';
 
 const authTokenMocks = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
@@ -56,8 +57,10 @@ const Harness: React.FC<{
   enabled?: boolean;
   scopeKey?: string;
   onEvent?: (event: string, data: unknown) => void;
-}> = ({ channel, enabled = true, scopeKey = '', onEvent = vi.fn() }) => {
-  useSSE(channel, onEvent, enabled, scopeKey);
+  onResult?: (result: ReturnType<typeof useSSE>) => void;
+}> = ({ channel, enabled = true, scopeKey = '', onEvent = vi.fn(), onResult }) => {
+  const result = useSSE(channel, onEvent, enabled, scopeKey);
+  onResult?.(result);
   return null;
 };
 
@@ -66,6 +69,7 @@ describe('useSSE', () => {
 
   beforeEach(() => {
     invalidateReadCache();
+    resetStreamHealth();
     acceptedScope.user = { id: 'user-1', organization_id: 'org-1' };
     fetchMock.mockReset();
     authTokenMocks.getAccessToken.mockReset();
@@ -84,6 +88,7 @@ describe('useSSE', () => {
   });
 
   afterEach(() => {
+    resetStreamHealth();
     invalidateReadCache();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -140,6 +145,20 @@ describe('useSSE', () => {
     expect(FakeEventSource.instances[1].url).toContain('stream_token=stream-token');
   });
 
+  it('hands the durable event id to the handler, and omits it when the frame has none', async () => {
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit('trade_confirmed', { data: '{"id":"trade-1"}', lastEventId: '42' });
+      FakeEventSource.instances[0].emit('trade_declined', { data: '{"id":"trade-2"}' });
+    });
+
+    expect(onEvent).toHaveBeenNthCalledWith(1, 'trade_confirmed', { id: 'trade-1' }, '42');
+    expect(onEvent).toHaveBeenNthCalledWith(2, 'trade_declined', { id: 'trade-2' });
+  });
+
   it('invalidates trade reads before delivering a declined-trade event', async () => {
     const load = vi.fn()
       .mockResolvedValueOnce('before-event')
@@ -156,6 +175,64 @@ describe('useSSE', () => {
     expect(onEvent).toHaveBeenCalledWith('trade_declined', { trade_id: 'trade-1' });
     await expect(cachedRead('trades:test', 'public', 1_000, load)).resolves.toBe('after-event');
     expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('delivers a triggered price alert without invalidating market reads', async () => {
+    const load = vi.fn().mockResolvedValue('cached');
+    await cachedRead('orderbook:test', 'public', 1_000, load);
+    await cachedRead('trades:test', 'public', 1_000, load);
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit('price_alert_triggered', {
+        data: '{"alert_id":"alert-1","price":"725.5"}',
+        lastEventId: '51',
+      });
+    });
+
+    expect(onEvent).toHaveBeenCalledWith('price_alert_triggered', { alert_id: 'alert-1', price: 725.5 }, '51');
+    await cachedRead('orderbook:test', 'public', 1_000, load);
+    await cachedRead('trades:test', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['order_created', { id: 'order-1', side: 'BID', price: '700', quantity: '100' }],
+    ['order_updated', { id: 'order-1', side: 'BID' }],
+    ['order_cancelled', { id: 'order-1', side: 'ASK' }],
+    ['orders_matched', { order_id: 'order-1', matches: 2 }],
+    ['order_expired', { id: 'order-1', status: 'EXPIRED' }],
+  ])('delivers %s on the private trades stream and refreshes only the My Orders read', async (event, payload) => {
+    const load = vi.fn().mockResolvedValue('cached');
+    await cachedRead('orderbook:my', 'public', 1_000, load);
+    await cachedRead('orderbook:/orderbook/bids?skip=0', 'public', 1_000, load);
+    await cachedRead('trades:my', 'public', 1_000, load);
+    await cachedRead('watchlists:list', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(4);
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit(event, { data: JSON.stringify(payload), lastEventId: '61' });
+    });
+
+    expect(onEvent).toHaveBeenCalledWith(event, payload, '61');
+    // Public book, trade and watchlist reads stay cached; My Orders is read again.
+    await cachedRead('orderbook:/orderbook/bids?skip=0', 'public', 1_000, load);
+    await cachedRead('trades:my', 'public', 1_000, load);
+    await cachedRead('watchlists:list', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(4);
+    await cachedRead('orderbook:my', 'public', 1_000, load);
+    expect(load).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps the order events off the public streams', async () => {
+    render(<Harness channel="orderbook" />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    expect([...FakeEventSource.instances[0].listeners.keys()]).not.toContain('order_created');
   });
 
   it('does not open a source when a pending token request finishes after disable', async () => {
@@ -343,5 +420,99 @@ describe('useSSE', () => {
       cachedRead('orderbook:snapshot:test', 'public', 60_000, load),
     ).resolves.toBe('after-reconnect');
     expect(load).toHaveBeenCalledTimes(2);
+  });
+  describe('heartbeat', () => {
+    const heartbeatData = (status: string, message: string | null = null) => JSON.stringify({
+      status,
+      message,
+      server_time: '2026-10-28T10:00:00Z',
+    });
+
+    it('exposes the latest heartbeat without calling the consumer handler', async () => {
+      const onEvent = vi.fn();
+      let latest: ReturnType<typeof useSSE> | undefined;
+      render(<Harness channel="orderbook" onEvent={onEvent} onResult={(result) => { latest = result; }} />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      expect(latest?.heartbeat).toBeNull();
+
+      act(() => {
+        FakeEventSource.instances[0].emit('open');
+        FakeEventSource.instances[0].emit('heartbeat', { data: heartbeatData('degraded', 'Slow matching') });
+      });
+
+      expect(latest?.heartbeat).toMatchObject({
+        status: 'degraded',
+        message: 'Slow matching',
+        serverTime: '2026-10-28T10:00:00Z',
+      });
+      expect(latest?.heartbeat?.receivedAt).toEqual(expect.any(Number));
+      expect(onEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not move the replay cursor', async () => {
+      render(<Harness channel="trades" />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      const first = FakeEventSource.instances[0];
+
+      act(() => {
+        first.emit('trade_confirmed', { data: '{}', lastEventId: '42' });
+        // A browser reports the stream's previous id on an id-less event.
+        first.emit('heartbeat', { data: heartbeatData('operational'), lastEventId: '99' });
+        first.emit('error');
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+
+      expect(FakeEventSource.instances[1].url).toContain('last_event_id=42');
+    });
+
+    it('does not invalidate cached reads', async () => {
+      const load = vi.fn().mockResolvedValue('cached');
+      await cachedRead('orderbook:snapshot:heartbeat', 'public', 60_000, load);
+      render(<Harness channel="orderbook" />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+      act(() => FakeEventSource.instances[0].emit('heartbeat', { data: heartbeatData('maintenance', 'Soon') }));
+
+      await cachedRead('orderbook:snapshot:heartbeat', 'public', 60_000, load);
+      expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores a malformed heartbeat', async () => {
+      const onEvent = vi.fn();
+      let latest: ReturnType<typeof useSSE> | undefined;
+      render(<Harness channel="orderbook" onEvent={onEvent} onResult={(result) => { latest = result; }} />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      const source = FakeEventSource.instances[0];
+
+      act(() => {
+        source.emit('open');
+        source.emit('heartbeat', { data: 'not json' });
+        source.emit('heartbeat', { data: '{"status":"outage","server_time":"2026-10-28T10:00:00Z"}' });
+        source.emit('heartbeat', { data: '{"status":"degraded"}' });
+      });
+
+      expect(latest?.heartbeat).toBeNull();
+      expect(latest?.isConnected).toBe(true);
+      expect(onEvent).not.toHaveBeenCalled();
+      expect(deriveServerStatus(getStreamHealthSnapshot(), Date.now())).toBeNull();
+    });
+
+    it('reports connection and heartbeat into the app-wide stream health', async () => {
+      const { rerender } = render(<Harness channel="orderbook" />);
+      await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      // No stream has been open yet on this page, so it is still connecting.
+      expect(deriveConnectionState(getStreamHealthSnapshot(), Date.now())).toBe('connecting');
+
+      act(() => {
+        FakeEventSource.instances[0].emit('open');
+        FakeEventSource.instances[0].emit('heartbeat', { data: heartbeatData('degraded', 'Slow') });
+      });
+      expect(deriveConnectionState(getStreamHealthSnapshot(), Date.now())).toBe('live');
+      expect(deriveServerStatus(getStreamHealthSnapshot(), Date.now())).toEqual({ status: 'degraded', message: 'Slow' });
+
+      rerender(<Harness channel="orderbook" enabled={false} />);
+      expect(getStreamHealthSnapshot().streams).toHaveLength(0);
+    });
   });
 });

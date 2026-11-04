@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ViewMode, Page } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -8,8 +8,14 @@ import { Header } from './layout/Header';
 import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
 import { KycDeadlineBanner } from './layout/KycDeadlineBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { ServerStatusBanner } from './layout/ServerStatusBanner';
 import { FeedbackButton } from './FeedbackButton';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { useTranslation } from 'react-i18next';
+
+// The notification card needs the alert code, which loads after the shell.
+const TradeAlertPrompt = lazyWithRetry(() => import('./notifications/TradeAlertPrompt')
+    .then((module) => ({ default: module.TradeAlertPrompt })));
 // Copilot removed per Gavin feedback
 
 interface LayoutProps {
@@ -71,6 +77,8 @@ export const Layout: React.FC<LayoutProps> = ({
                     isMarketSupportActive={Boolean(context)}
                 />
 
+                <ServerStatusBanner />
+
                 {context && <ActingOrganizationBanner context={context} onExit={() => {
                     setExitError(null);
                     void exit().then(() => navigate('/app/admin/users')).catch((error) => {
@@ -93,6 +101,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
                 {/* Copilot removed per Gavin feedback */}
                 <FeedbackButton />
+                <Suspense fallback={null}><TradeAlertPrompt /></Suspense>
             </div>
         </div>
     );

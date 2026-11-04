@@ -100,8 +100,6 @@ vi.mock('../context/MarketSupportContext', () => ({
   MarketSupportProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: ({ historyOnly }: { historyOnly?: boolean }) => <div data-testid="page-rfqs" data-history-only={historyOnly}>B100 RFQs</div> }));
-vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: ({ mine, historyOnly }: { mine?: boolean; historyOnly?: boolean }) => <div data-testid="page-b100-offers" data-history-only={historyOnly}>{mine ? 'My B100 offers' : 'B100 supplier Listings'}</div> }));
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
 vi.mock('../components/MobileDesktopGate', () => ({
   MobileDesktopGate: ({ children }: { children: React.ReactNode }) => children,
@@ -294,7 +292,6 @@ describe('app routing', () => {
         ['/app/watchlist', 'page-watchlist', 'WATCHLISTS'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/trades', 'page-trades', 'TRADES'],
-        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
         ['/app/compliance', 'page-compliance', 'COMPLIANCE'],
         ['/app/training', 'page-training', 'TRAINING'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
@@ -314,7 +311,6 @@ describe('app routing', () => {
         ['/app/home', 'page-supplier-dashboard', 'DASHBOARD'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/quotes', 'page-quotes', 'QUOTES'],
-        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
       ];
       for (const [path, marker, page] of cases) {
@@ -398,17 +394,8 @@ describe('app routing', () => {
       await waitFor(() => expect(currentPathname()).toBe('/app/marketplace'));
     });
 
-    it('restores legacy RFQ sessions to their history inside Marketplace', async () => {
-      sessionStorage.setItem('verdaxis_currentPage', 'RFQS');
-      renderApp('/app');
-      expect(await screen.findByTestId('page-rfqs')).toHaveProperty('dataset.historyOnly', 'true');
-      expect(currentPathname()).toBe('/app/marketplace');
-      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100&view=history_rfqs');
-      expect(dashboardPageAttr()).toBe('MARKETPLACE');
-    });
-
     it('maps INVENTORY, junk, and missing values to home', async () => {
-      for (const stored of ['INVENTORY', 'NOT_A_PAGE', null]) {
+      for (const stored of ['INVENTORY', 'RFQS', 'NOT_A_PAGE', null]) {
         if (stored === null) {
           sessionStorage.removeItem('verdaxis_currentPage');
         } else {
@@ -466,8 +453,6 @@ describe('app routing', () => {
       expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
       expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
       expect(screen.getByRole('button', { name: 'Post a Bid' })).toBeTruthy();
-      expect(screen.queryByTestId('page-b100-offers')).toBeNull();
-      expect(screen.queryByTestId('page-rfqs')).toBeNull();
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
     });
 
@@ -480,20 +465,23 @@ describe('app routing', () => {
         expect(screen.getByTestId('location-search').textContent).toBe('');
         expect(dashboardPageAttr()).toBe('MARKETPLACE');
         expect(document.querySelector('[data-market-product="UCOME_B100"]')?.getAttribute('aria-pressed')).toBe('true');
-        expect(screen.queryByTestId('page-b100-offers')).toBeNull();
-        view.unmount();
+          view.unmount();
       }
     });
 
-    it.each(['/app/rfqs', '/app/marketplace?product=UCOME_B100&view=history_rfqs', '/app/marketplace?product=UCOME_B100&view=requests'])('opens %s as RFQ history and returns to executable Listings', async (path) => {
-      renderApp(path);
-      expect(await screen.findByTestId('page-rfqs')).toHaveProperty('dataset.historyOnly', 'true');
+    it('has no route for the retired request-for-quote page', async () => {
+      renderApp('/app/rfqs');
+      expect(await screen.findByTestId('page-not-found')).toBeTruthy();
       expect(listAsksPaged).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole('button', { name: 'Back to market' }));
+    });
+
+    it.each(['history_rfqs', 'history_offers', 'history_my_offers', 'requests'])('opens the retired link view=%s as executable Listings', async (view) => {
+      renderApp(`/app/marketplace?product=UCOME_B100&view=${view}`);
       await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), queryRead));
-      expect(screen.queryByTestId('page-rfqs')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
       expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
-      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+      expect(screen.queryByRole('button', { name: 'Back to market' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
     });
 
     it('routes B100 My Listings through standard supplier orders', async () => {
@@ -501,19 +489,8 @@ describe('app routing', () => {
       renderApp('/app/marketplace?product=UCOME_B100&view=my_orders');
       await waitFor(() => expect(myOrders).toHaveBeenCalled());
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
-      expect(screen.queryByTestId('page-b100-offers')).toBeNull();
       expect(screen.getByRole('button', { name: 'My Listings' }).getAttribute('aria-pressed')).toBe('true');
       expect(screen.getByRole('button', { name: 'Post Supply' })).toBeTruthy();
-    });
-
-    it('keeps earlier supplier offers explicitly in history', async () => {
-      setRole('SUPPLIER');
-      renderApp('/app/marketplace?product=UCOME_B100&view=history_my_offers');
-      const history = await screen.findByTestId('page-b100-offers');
-      expect(history.textContent).toBe('My B100 offers');
-      expect(history.dataset.historyOnly).toBe('true');
-      expect(myOrders).not.toHaveBeenCalled();
-      expect(listBidsPaged).not.toHaveBeenCalled();
     });
 
     it('loads the B100 orderbook from an exact slice without losing its route', async () => {

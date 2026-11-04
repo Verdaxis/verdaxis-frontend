@@ -32,6 +32,7 @@
     "GET /api/auth/admin/users/{id}/offboarding-preview": "shared: admin-only offboarding route; dormant until the backend release switch is enabled, and the interface stays hidden until it is built with its own switch",
     "GET /api/auth/admin/users/{id}/offboarding-trades": "shared: admin-only offboarding route; dormant until the backend release switch is enabled, and the interface stays hidden until it is built with its own switch",
     "GET /api/auth/me": "task3-provisional: session loss requires re-login; profile eligibility and email privacy must be rechecked",
+    "GET /api/auth/me/abilities": "task3-provisional: session loss requires re-login; the caller's abilities follow the current session and must be rechecked",
     "GET /api/auth/stream-token": "task3-provisional: session loss requires re-login; profile eligibility and email privacy must be rechecked",
     "GET /api/availability": "union: eight distinct products; scalar B30/B100 and typed UCOME/LNG; retain IDs and saved filters",
     "GET /api/catalog/delivery-points": "union: eight distinct products; scalar B30/B100 and typed UCOME/LNG; retain IDs and saved filters",

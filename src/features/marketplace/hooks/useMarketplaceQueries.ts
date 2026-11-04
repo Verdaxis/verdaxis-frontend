@@ -6,6 +6,7 @@ import type { QueryScope } from '../../../lib/query/keys';
 import { useVisibleDocument } from '../../../lib/query/useVisibleDocument';
 import { isOrderbookMarketProduct } from '../../../utils/marketProduct';
 import type { OrderBookOrder } from '../../../types';
+import { subscribeToOwnOrderChanges } from '../../../services/orderStreamEvents';
 
 const EMPTY_ORDERS: OrderBookOrder[] = [];
 const EMPTY_COUNTS: Record<string, number> = {};
@@ -31,7 +32,6 @@ export function useMarketplaceReferences(ready: boolean) {
 
 interface MarketplaceQueryOptions {
     ready: boolean;
-    isHistorySelected: boolean;
     marketTab: 'market' | 'orderbook' | 'my_orders';
     isCatalogScopeResolving: boolean;
     selection: MarketplaceReadSelection;
@@ -39,16 +39,16 @@ interface MarketplaceQueryOptions {
     hasUser: boolean;
 }
 
-export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isCatalogScopeResolving, selection, scope, hasUser }: MarketplaceQueryOptions) {
+export function useMarketplaceQueries({ ready, marketTab, isCatalogScopeResolving, selection, scope, hasUser }: MarketplaceQueryOptions) {
     const visible = useVisibleDocument();
-    const marketEnabled = ready && !isHistorySelected && !isCatalogScopeResolving && visible;
+    const marketEnabled = ready && !isCatalogScopeResolving && visible;
     const listingsQuery = useQuery({ ...marketplaceQueries.listings(selection),
         enabled: marketEnabled && marketTab === 'market',
         refetchInterval: marketEnabled && marketTab === 'market' ? 60_000 : false });
     const countsQuery = useQuery({ ...marketplaceQueries.counts(selection), enabled: marketEnabled,
         refetchInterval: marketEnabled ? 60_000 : false });
     const myOptions = marketplaceQueries.myOrders(scope);
-    const myQuery = useQuery({ ...myOptions, enabled: ready && hasUser && !isHistorySelected && marketTab === 'my_orders' && visible });
+    const myQuery = useQuery({ ...myOptions, enabled: ready && hasUser && marketTab === 'my_orders' && visible });
     const entryReadCompleted = useRef(false);
     if (listingsQuery.isFetchedAfterMount) entryReadCompleted.current = true;
     const hasLoadedListings = entryReadCompleted.current && listingsQuery.data !== undefined;
@@ -74,7 +74,7 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
         // Read only from a settled listings answer. A listings refresh that
         // keeps the ids does not re-read the overlay; one that changes the ids
         // reads the new set once.
-        enabled: ready && hasUser && visible && !isHistorySelected && askIds.length > 0
+        enabled: ready && hasUser && visible && askIds.length > 0
             && listingsQuery.isFetchedAfterMount && !listingsQuery.isFetching });
 
     // These signatures keep the controlled presentation and financial handlers
@@ -86,8 +86,21 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
         if (marketEnabled) await countsQuery.refetch({ cancelRefetch: false });
     }, [marketEnabled, countsQuery.refetch]);
     const fetchMyOrders = useCallback(async (_force = false) => {
-        if (ready && hasUser && !isHistorySelected) await myQuery.refetch({ cancelRefetch: false });
-    }, [ready, hasUser, isHistorySelected, myQuery.refetch]);
+        if (ready && hasUser) await myQuery.refetch({ cancelRefetch: false });
+    }, [ready, hasUser, myQuery.refetch]);
+
+    // A teammate or a match changed one of the organization's orders (private
+    // trade stream). Only the My Listings tab shows this data. The reload keeps
+    // the visible list in place: no spinner, and a failed read keeps the list.
+    const backgroundReload = useRef(false);
+    const refetchMyQuery = myQuery.refetch;
+    useEffect(() => {
+        if (!ready || !hasUser || marketTab !== 'my_orders') return undefined;
+        return subscribeToOwnOrderChanges(() => {
+            backgroundReload.current = true;
+            void refetchMyQuery({ cancelRefetch: false }).finally(() => { backgroundReload.current = false; });
+        });
+    }, [ready, hasUser, marketTab, refetchMyQuery]);
 
     return { listings, totalCount: hasLoadedListings ? listingsQuery.data!.total : 0,
         acceptedSkip: hasLoadedListings ? listingsQuery.data!.skip : selection.skip ?? 0,
@@ -95,7 +108,7 @@ export function useMarketplaceQueries({ ready, isHistorySelected, marketTab, isC
         refreshing: listingsQuery.isFetching && hasLoadedListings, hasLoadedListings,
         error: listingsQuery.isFetchedAfterMount && listingsQuery.isError ? (listingsQuery.error instanceof Error ? listingsQuery.error.message : '') : null,
         marketProductCounts: countsQuery.data?.counts ?? EMPTY_COUNTS,
-        myOrders: myQuery.data ?? EMPTY_ORDERS, myOrdersLoading: myQuery.isFetching,
+        myOrders: myQuery.data ?? EMPTY_ORDERS, myOrdersLoading: myQuery.isFetching && !backgroundReload.current,
         myOrdersReadError: myQuery.isError ? myQuery.error : null,
         complianceOverlays: overlay.isError ? {} : overlay.data?.overlays ?? {},
         overlayAssumptions: overlay.isError ? null : overlay.data?.assumptions ?? null,

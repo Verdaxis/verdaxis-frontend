@@ -9,7 +9,7 @@ React 19 and Vite frontend for the Verdaxis public site and authenticated green-
 - The sidebar exposes Command Center, Intelligence Map, Marketplace, Forward Curve, Watchlist, Analytics, and Trade History. Buyer and Supplier modes change the home view and BID/ASK primary action.
 - Marketplace owns catalog filters, canonical product/port/window slices, listings, orderbook depth, and the user's open orders. `OrderPlaceModal` submits both BID and ASK orders.
 - Forward Curve is a separate monitoring workspace. It reads the table and selected-slice endpoints and links a selected market back to Marketplace.
-- This staging branch adds catalog-gated UCOME B100 orderbook terms and preserves earlier FAME supplier offers and RFQs as non-executable history. It does not contain the production identified-activity provider.
+- This staging branch adds catalog-gated UCOME B100 orderbook terms and has retired the earlier FAME supplier offers, RFQs and negotiations (no screens, no calls). It does not contain the production identified-activity provider.
 
 ### Market Support
 
@@ -90,7 +90,7 @@ Do not submit orders, trades, or customer forms during a read-only smoke unless 
 | Forward Curve | `src/components/ForwardCurveWorkspace.tsx`, `src/utils/forwardCurveAxis.ts` | `src/tests/forward-curve-workspace.test.tsx`, `src/tests/forward-curve-axis.test.ts` |
 | Market Support | `src/context/MarketSupportContext.tsx`, `src/types/marketSupport.ts`, `src/services/marketSupportContextStore.ts` | `src/tests/market-support-*.test.tsx`, `src/tests/api-market-support-context.test.ts` |
 | Auth, transport, cache | `src/context/AuthContext.tsx`, `src/services/authToken.ts`, `src/services/api.ts`, `src/services/readCache.ts` | `src/tests/auth-*.test.ts`, `src/tests/api-*.test.ts`, `src/tests/read-cache.test.ts` |
-| Staging FAME/catalog | `src/types/fame*.ts`, `src/services/fame*.ts`, `src/components/fame/`, `src/components/rfq/`, `src/components/supplier/` | `src/tests/b100-order-api.test.ts`, `src/tests/marketplace-b100-take.test.tsx`, FAME unit/component tests |
+| Staging FAME/catalog | `src/types/fame*.ts`, `src/services/fame*.ts`, `src/components/fame/`, `src/components/rfq/` (shared declaration readback) | `src/tests/b100-order-api.test.ts`, `src/tests/marketplace-b100-take.test.tsx`, FAME unit/component tests |
 | Build artifact | `vite.config.ts`, `scripts/check-build-artifacts.mjs`, `scripts/deploy.sh` | both target builds and `npm run build:check` |
 
 `openapi.json` is a vendored backend contract snapshot; see [Vendored OpenAPI contract](#vendored-openapi-contract) for how to update it. `.codesight/` is a historical generated navigation aid. Verify both against current source before relying on them. Product language is in [the market glossary](docs/market-glossary.md); UI rules are in [the design system](docs/design-system.md).

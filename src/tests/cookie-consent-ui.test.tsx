@@ -16,6 +16,16 @@ describe('cookie consent controls', () => {
     localStorage.clear();
   });
 
+  it.each([1, 2])('does not ask version-%s users to choose again', (version) => {
+    localStorage.setItem(COOKIE_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      version,
+      optionalAnalytics: false,
+    }));
+    render(<MemoryRouter><CookieConsentControls /></MemoryRouter>);
+    expect(screen.queryByRole('region', { name: 'Cookie preferences' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cookie settings' })).toBeTruthy();
+  });
+
   it.each([false, true])('keeps app settings reachable with a sidebar consent control (collapsed=%s)', async (collapsed) => {
     act(() => { writeCookiePreferences(false, { window }); });
     const { container } = render(

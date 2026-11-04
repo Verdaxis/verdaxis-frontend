@@ -36,12 +36,9 @@ import {
     readLngOrderAcknowledgements, type LngOrderAcknowledgements,
 } from './lng/LngOrderFields';
 import { LngOrderTermsDetails } from './lng/LngOrderTermsDetails';
-import type { SupplierOffer, SupplierOfferCreateInput } from '../types/fameSupplierOffer';
-import {
-    FameSupplierOfferForm,
-    buildFameSupplierOfferInput,
-    validateFameSupplierOfferInput,
-} from './supplier/FameSupplierOfferForm';
+import { useAbilityDenial } from '../hooks/useAbilityDenial';
+import { AbilityDenialNote } from './ui/AbilityDenialNote';
+import { PLACE_ORDER_ABILITY } from '../types/abilities';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -54,8 +51,6 @@ interface OrderPlaceModalProps {
     prefillAvailabilityWindow?: AvailabilityWindow;
     prefillPrice?: number;
     prefillQuantity?: number;
-    editSupplierOffer?: SupplierOffer;
-    onOfferSaved?: () => void;
 }
 
 interface OrderFormData {
@@ -102,7 +97,7 @@ const DELIVERY_POINT_REGION_KEYS: Record<string, string> = {
     americas: 'orderPlaceModal.region.americas',
 };
 
-const getSupplierOfferDeliveryPoints = (product: Product | undefined, points: DeliveryPoint[]) => points.filter(point => (
+const getB100DeliveryPoints = (product: Product | undefined, points: DeliveryPoint[]) => points.filter(point => (
     point.is_active
     && point.name.trim().toLowerCase() === 'singapore'
     && product?.available_delivery_point_ids?.includes(point.id)
@@ -174,8 +169,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillAvailabilityWindow,
     prefillPrice,
     prefillQuantity,
-    editSupplierOffer,
-    onOfferSaved,
 }) => {
     const dialogRef = useRef<HTMLDivElement>(null);
     const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -185,9 +178,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const { t, ready } = useNamespace('trading');
     const { t: tRfq, ready: rfqReady } = useNamespace('rfq');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
-    const b100Requested = Boolean(editSupplierOffer) || prefillMarketProduct === 'UCOME_B100'
+    const b100Requested = prefillMarketProduct === 'UCOME_B100'
         || /^(FAME|UCOME(?:[ _-]B100)?)$/i.test(prefillFuelType?.trim() ?? '');
     const { context: marketSupportContext } = useMarketSupport();
+    // Server rule for placing this side. Null when unknown, allowed, or while acting
+    // for a customer in an assisted context (the server then judges that organization).
+    const placeDenial = useAbilityDenial(PLACE_ORDER_ABILITY[side]);
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -234,13 +230,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         const preserveSubmission = submissionInFlightRef.current || submissionRef.current !== null;
         if (!preserveSubmission) {
             const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow, prefillQuantity);
-            if (editSupplierOffer) {
-                initialForm.product_id = editSupplierOffer.productId;
-                initialForm.delivery_point_id = editSupplierOffer.deliveryPointId;
-                initialForm.quantity_mt = editSupplierOffer.quantityMt;
-                initialForm.price_per_mt_usd = editSupplierOffer.pricePerMtUsd;
-                initialForm.availability_window = editSupplierOffer.availabilityWindow;
-            }
             setFormData(initialForm);
             setModalState('form');
             setErrorMessage('');
@@ -262,15 +251,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
         ]).then(([prods, dps]) => {
             if (cancelled) return;
-            const activeProds = prods.filter(product => isOrderbookProduct(product)
-                || (Boolean(editSupplierOffer) && product.is_active && product.id === editSupplierOffer?.productId));
+            const activeProds = prods.filter(product => isOrderbookProduct(product));
             const activeDps = dps.filter(d => d.is_active && isApprovedTradingPortName(d.name));
             setProducts(activeProds);
             setDeliveryPoints(activeDps);
 
-            const matchedProduct = editSupplierOffer
-                ? activeProds.find(product => product.id === editSupplierOffer.productId)
-                : activeProds.find((product) => (
+            const matchedProduct = activeProds.find((product) => (
                 (prefillMarketProduct && product.market_product === prefillMarketProduct)
                 || (!prefillMarketProduct && prefillFuelType && (
                     product.fuel_type.toLowerCase() === prefillFuelType.toLowerCase()
@@ -279,17 +265,15 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             )) ?? (!prefillMarketProduct && !prefillFuelType && !b100Requested ? activeProds[0] : undefined);
 
             const eligiblePoints = matchedProduct?.market_product === 'UCOME_B100'
-                ? getSupplierOfferDeliveryPoints(matchedProduct, activeDps)
+                ? getB100DeliveryPoints(matchedProduct, activeDps)
                 : activeDps;
-            const matchedDeliveryPoint = editSupplierOffer
-                ? eligiblePoints.find(point => point.id === editSupplierOffer.deliveryPointId)
-                : eligiblePoints.find((point) => (
+            const matchedDeliveryPoint = eligiblePoints.find((point) => (
                 (prefillDeliveryPointId && point.id === prefillDeliveryPointId)
                 || (!prefillDeliveryPointId && prefillRegion && (
                     point.region.toLowerCase().includes(prefillRegion.toLowerCase())
                     || point.name.toLowerCase().includes(prefillRegion.toLowerCase())
                 ))
-            )) ?? (!prefillDeliveryPointId && !prefillRegion && !editSupplierOffer ? eligiblePoints[0] : undefined);
+            )) ?? (!prefillDeliveryPointId && !prefillRegion ? eligiblePoints[0] : undefined);
 
             setFormData((prev) => ({
                 ...prev,
@@ -297,7 +281,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 specification_standard: getBiofuelSpecification(matchedProduct?.market_product) ?? '',
                 carbon_intensity_gco2_mj: getBiofuelSpecification(matchedProduct?.market_product) ? NaN : prev.carbon_intensity_gco2_mj,
                 delivery_point_id: matchedDeliveryPoint?.id ?? '',
-                availability_window: editSupplierOffer?.availabilityWindow || prefillAvailabilityWindow || prev.availability_window,
+                availability_window: prefillAvailabilityWindow || prev.availability_window,
             }));
         }).finally(() => {
             if (!cancelled) setCatalogLoading(false);
@@ -314,7 +298,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         prefillDeliveryPointId,
         prefillRegion,
         b100Requested,
-        editSupplierOffer,
         marketSupportContext,
     ]);
 
@@ -322,22 +305,21 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
     const biofuelSpecification = getBiofuelSpecification(selectedProduct?.market_product);
     const biofuelKey = selectedProduct?.market_product === 'B100' ? 'b100' : 'b30';
-    const isSupplierOffer = side === 'ASK' && Boolean(editSupplierOffer);
-    const isFameOrder = !isSupplierOffer && selectedProduct?.market_product === 'UCOME_B100';
-    const isLngOrder = !isSupplierOffer && selectedProduct?.market_product === 'BIO_LNG';
-    const executionUnavailable = !editSupplierOffer && b100Requested && !catalogLoading && !selectedProduct;
-    const namespacesReady = ready && (!(b100Requested || isFameOrder || isSupplierOffer) || rfqReady);
-    const availableDeliveryPoints = useMemo(() => isSupplierOffer || isFameOrder
-        ? getSupplierOfferDeliveryPoints(selectedProduct, deliveryPoints)
+    const isFameOrder = selectedProduct?.market_product === 'UCOME_B100';
+    const isLngOrder = selectedProduct?.market_product === 'BIO_LNG';
+    const executionUnavailable = b100Requested && !catalogLoading && !selectedProduct;
+    const namespacesReady = ready && (!(b100Requested || isFameOrder) || rfqReady);
+    const availableDeliveryPoints = useMemo(() => isFameOrder
+        ? getB100DeliveryPoints(selectedProduct, deliveryPoints)
         : isLngOrder
             ? getProductLaneDeliveryPoints(selectedProduct, deliveryPoints)
-            : deliveryPoints, [deliveryPoints, isSupplierOffer, isFameOrder, isLngOrder, selectedProduct]);
+            : deliveryPoints, [deliveryPoints, isFameOrder, isLngOrder, selectedProduct]);
 
     useEffect(() => {
-        if ((!isSupplierOffer && !isFameOrder && !isLngOrder) || editSupplierOffer || catalogLoading) return;
+        if ((!isFameOrder && !isLngOrder) || catalogLoading) return;
         if (availableDeliveryPoints.some(point => point.id === formData.delivery_point_id)) return;
         setFormData(previous => ({ ...previous, delivery_point_id: availableDeliveryPoints[0]?.id ?? '' }));
-    }, [availableDeliveryPoints, catalogLoading, editSupplierOffer, formData.delivery_point_id, isSupplierOffer, isFameOrder, isLngOrder]);
+    }, [availableDeliveryPoints, catalogLoading, formData.delivery_point_id, isFameOrder, isLngOrder]);
     const getDeliveryPointRegionLabel = (region: string) => {
         const key = DELIVERY_POINT_REGION_KEYS[region.trim().toLowerCase()];
         if (key) return t(key);
@@ -454,11 +436,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     };
 
     useEffect(() => {
-        if (editSupplierOffer) return;
         if (!availabilityOptions.some(option => option.value === formData.availability_window)) {
             setFormData(prev => ({ ...prev, availability_window: availabilityOptions[0]?.value ?? SPOT_WINDOW }));
         }
-    }, [availabilityOptions, editSupplierOffer, formData.availability_window]);
+    }, [availabilityOptions, formData.availability_window]);
 
     const buildSupportDraft = useCallback((): MarketSupportDraftSummary => ({
         side,
@@ -540,11 +521,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         Boolean(selectedProduct && isOrderbookProduct(selectedProduct)) &&
         (isFameOrder || isLngOrder || side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (isFameOrder || isLngOrder || side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
-    const isValidSupplierOffer = hasValidCore && isSupplierOffer &&
-        selectedProduct?.market_product === 'UCOME_B100' &&
-        availableDeliveryPoints.some(point => point.id === formData.delivery_point_id) &&
-        !marketSupportContext && (!editSupplierOffer || editSupplierOffer.canEdit);
-    const isValid = isSupplierOffer ? isValidSupplierOffer : isOrderValid;
+    const isValid = isOrderValid;
 
     const buildOrderPayload = (supportConfirmation?: MarketSupportConfirmation): Record<string, any> => {
         const payload: Record<string, any> = {
@@ -735,56 +712,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
     };
 
-    const submitSupplierOffer = async (form: HTMLFormElement) => {
-        if (submissionInFlightRef.current || !isValidSupplierOffer) return;
-        let input: SupplierOfferCreateInput;
-        try {
-            input = buildFameSupplierOfferInput(new FormData(form), {
-                product_id: formData.product_id,
-                delivery_point_id: formData.delivery_point_id,
-                quantity_mt: formData.quantity_mt,
-                price_per_mt_usd: formData.price_per_mt_usd,
-                availability_window: formData.availability_window,
-            });
-            const validationError = validateFameSupplierOfferInput(input);
-            if (validationError) {
-                setErrorMessage(tRfq(validationError));
-                return;
-            }
-        } catch {
-            setErrorMessage(tRfq('offerModal.saveError'));
-            return;
-        }
-
-        submissionInFlightRef.current = true;
-        setModalState('submitting');
-        setErrorMessage('');
-        try {
-            if (!editSupplierOffer) return;
-            await api.supplierOffers.update(editSupplierOffer.id, {
-                ...input,
-                expected_revision: editSupplierOffer.revision,
-            });
-            setModalState('success');
-        } catch (error) {
-            const message = error instanceof Error && !locale.startsWith('zh') ? error.message : '';
-            setErrorMessage(message || tRfq('offerModal.saveError'));
-            // Keep the fields mounted so a rejected or uncertain save preserves the draft.
-            setModalState('form');
-            return;
-        } finally {
-            submissionInFlightRef.current = false;
-        }
-        onOfferSaved?.();
-    };
-
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (isSupplierOffer) {
-            await submitSupplierOffer(e.currentTarget);
-            return;
-        }
-        if (!isOrderValid) return;
+        if (!isOrderValid || placeDenial) return;
         if (isFameOrder) {
             const data = new FormData(e.currentTarget);
             const terms = readFameOrderTerms(data, side);
@@ -844,7 +774,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const showOrderReview = Boolean(
         orderSnapshot
         && !supportRequestRef.current
-        && !isSupplierOffer
         && (modalState === 'reviewing' || modalState === 'submitting')
     );
 
@@ -940,12 +869,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     <CheckCircle2 size={32} className={side === 'BID' ? 'text-emerald-500' : 'text-blue-500'} />
                                 </div>
                                 <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                                    {isSupplierOffer
-                                        ? tRfq(editSupplierOffer ? 'offerModal.updatedTitle' : 'offerModal.successTitle')
-                                        : t('orderPlaceModal.success.title', { side: sideLabel })}
+                                    {t('orderPlaceModal.success.title', { side: sideLabel })}
                                 </h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                                    {isSupplierOffer ? tRfq('offerModal.successBody') : t('orderPlaceModal.success.body', {
+                                    {t('orderPlaceModal.success.body', {
                                         side: sideLabel,
                                         qty: orderSnapshot?.quantityMt.toLocaleString(locale) ?? '',
                                         product: orderSnapshot?.productName || t('orderPlaceModal.productFallback'),
@@ -995,7 +922,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <div className="flex items-center gap-3">
                             <h2 id="order-place-modal-title" className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
                                 {executionUnavailable ? tRfq('orderFields.unavailableTitle')
-                                    : isSupplierOffer ? tRfq(editSupplierOffer ? 'offerModal.editTitle' : 'offerModal.title')
                                     : showOrderReview ? t('orderPlaceModal.review.title', { side: sideLabel })
                                     : t('orderPlaceModal.title', { side: sideLabel })}
                             </h2>
@@ -1004,12 +930,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                             }`}>
-                                {isSupplierOffer ? tRfq('offerModal.badge') : sideLabel}
+                                {sideLabel}
                             </span>}
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                             {executionUnavailable ? tRfq('orderFields.unavailableBody')
-                                : isSupplierOffer ? tRfq('offerModal.subtitle')
                                 : showOrderReview ? t('orderPlaceModal.review.subtitle')
                                 : side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
                         </p>
@@ -1091,7 +1016,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 type="button"
                                 data-tour="order-final-confirm-button"
                                 onClick={() => { void confirmReviewedOrder(); }}
-                                disabled={modalState === 'submitting'}
+                                disabled={modalState === 'submitting' || placeDenial !== null}
+                                title={placeDenial?.message}
                                 className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 text-white disabled:cursor-not-allowed disabled:opacity-60 ${
                                     side === 'BID' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
                                 }`}
@@ -1107,7 +1033,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </div>
                 ) : <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {!isSupplierOffer && !isFameOrder && !isLngOrder && errorMessage && (
+                        {!isFameOrder && !isLngOrder && errorMessage && (
                             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="order-modal-core-fields">
@@ -1123,7 +1049,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         ariaLabel={t('orderPlaceModal.aria.product')}
                                         value={formData.product_id}
                                         onChange={(value) => handleChange('product_id', value)}
-                                        disabled={Boolean(editSupplierOffer) || modalState === 'submitting'}
+                                        disabled={modalState === 'submitting'}
                                         options={products.map(product => ({
                                             value: product.id,
                                             label: getProductDisplayName(product),
@@ -1145,7 +1071,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         ariaLabel={t('orderPlaceModal.aria.deliveryPoint')}
                                         value={formData.delivery_point_id}
                                         onChange={(value) => handleChange('delivery_point_id', value)}
-                                        disabled={Boolean(editSupplierOffer) || modalState === 'submitting'}
+                                        disabled={modalState === 'submitting'}
                                         options={availableDeliveryPoints.map(point => ({
                                             value: point.id,
                                             label: point.name,
@@ -1172,14 +1098,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.unit')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.unit}</div>
                                     </div>
-                                    {!isSupplierOffer && <div>
+                                    <div>
                                         <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.minLot')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">
                                             {hasValidCatalogMinimum
                                                 ? `${minimumQuantityMt.toLocaleString(locale)} MT`
                                                 : t('orderPlaceModal.validation.catalogMinimumUnavailable')}
                                         </div>
-                                    </div>}
+                                    </div>
                                     {selectedDeliveryPoint && (
                                         <div>
                                             <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.region')}</span>
@@ -1189,7 +1115,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                                 {(biofuelSpecification || selectedProduct.spec_description) && (
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
-                                        {locale.startsWith('zh')
+                                        {biofuelSpecification ? t(`${biofuelKey}.contract`) : locale.startsWith('zh')
                                             ? t('orderPlaceModal.productSpecifications.generic')
                                             : selectedProduct.spec_description}
                                     </p>
@@ -1225,12 +1151,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     disabled={modalState === 'submitting'}
                                     value={formData.quantity_mt || ''}
                                     onChange={(e) => handleChange('quantity_mt', parseFloat(e.target.value) || 0)}
-                                    placeholder={selectedProduct && !isSupplierOffer
+                                    placeholder={selectedProduct
                                         ? hasValidCatalogMinimum
                                             ? t('orderPlaceModal.placeholder.minQuantity', { quantity: minimumQuantityMt.toLocaleString(locale) })
                                             : t('orderPlaceModal.validation.catalogMinimumUnavailable')
                                         : t('orderPlaceModal.placeholder.quantity')}
-                                    min={isSupplierOffer ? 1 : hasValidCatalogMinimum ? minimumQuantityMt : undefined}
+                                    min={hasValidCatalogMinimum ? minimumQuantityMt : undefined}
                                     max={MAX_ORDER_QUANTITY_MT}
                                     step={0.01}
                                     aria-invalid={Boolean(quantityValidationMessage)}
@@ -1242,7 +1168,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 )}
                             </div>
                             <div>
-                                <label htmlFor="order-price" className={labelClass}>{t('orderPlaceModal.label.price')} {!isSupplierOffer && <span className="normal-case font-normal text-slate-400">({t('orderPlaceModal.label.deliveredFob')})</span>}</label>
+                                <label htmlFor="order-price" className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">({t('orderPlaceModal.label.deliveredFob')})</span></label>
                                 <input
                                     id="order-price"
                                     type="number"
@@ -1258,31 +1184,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </div>
                         </div>
 
-                        {isSupplierOffer ? (
-                            <>
-                                <div>
-                                    <label className={labelClass}>{t('orderPlaceModal.label.availability')}</label>
-                                    <VerdaxisSelect
-                                        ariaLabel={t('orderPlaceModal.aria.availability')}
-                                        value={formData.availability_window}
-                                        onChange={(value) => handleChange('availability_window', value)}
-                                        disabled={modalState === 'submitting'}
-                                        options={[
-                                            ...(!availabilityOptions.some(option => option.value === formData.availability_window)
-                                                ? [{ value: formData.availability_window, label: formData.availability_window }]
-                                                : []),
-                                            ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
-                                        ]}
-                                    />
-                                </div>
-                                <FameSupplierOfferForm
-                                    key={editSupplierOffer?.id ?? 'new-supplier-offer'}
-                                    offer={editSupplierOffer}
-                                    quantityMt={formData.quantity_mt}
-                                    pending={modalState === 'submitting'}
-                                />
-                            </>
-                        ) : <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                             <button
                                 type="button"
                                 data-tour="order-modal-advanced-toggle"
@@ -1371,7 +1273,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>}
 
-                                    {biofuelSpecification && <p className="text-sm text-slate-600 dark:text-slate-300">{t(`${biofuelKey}.contract`)}</p>}
                                     {!isFameOrder && !isLngOrder && side === 'ASK' && (
                                         <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
@@ -1519,7 +1420,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
                                 </div>
                             )}
-                        </div>}
+                        </div>
 
                         {isFameOrder && <FameOrderFields
                             key={`${formData.product_id}:${side}`}
@@ -1553,17 +1454,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                         <div className="rounded-md border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-900/20 px-3 py-2">
                             <p className="text-xs text-blue-700 dark:text-blue-300">
-                                {isSupplierOffer ? tRfq('offerModal.info')
-                                    : side === 'BID' ? t('orderPlaceModal.info.bid') : t('orderPlaceModal.info.ask')}
+                                {side === 'BID' ? t('orderPlaceModal.info.bid') : t('orderPlaceModal.info.ask')}
                             </p>
                         </div>
-                        {isSupplierOffer && (errorMessage || marketSupportContext || (!catalogLoading && (!selectedProduct || !selectedDeliveryPoint)) || (editSupplierOffer && !editSupplierOffer.canEdit)) && (
-                            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-                                {marketSupportContext ? tRfq('offerModal.supportBlocked')
-                                    : editSupplierOffer && !editSupplierOffer.canEdit ? tRfq('offerModal.editUnavailable')
-                                    : !selectedProduct || !selectedDeliveryPoint ? tRfq('offerModal.catalogUnavailable')
-                                    : errorMessage}
-                            </p>
+
+                        {placeDenial && (
+                            <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-900/20">
+                                <AbilityDenialNote denial={placeDenial} id="order-place-denial" />
+                            </div>
                         )}
                     </div>
 
@@ -1580,9 +1478,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <button
                             type="submit"
                             data-tour="order-modal-submit-boundary"
-                            disabled={!isValid || modalState === 'submitting'}
+                            disabled={!isValid || modalState === 'submitting' || placeDenial !== null}
+                            title={placeDenial?.message}
+                            aria-describedby={placeDenial ? 'order-place-denial' : undefined}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                isValid && modalState !== 'submitting'
+                                isValid && modalState !== 'submitting' && !placeDenial
                                     ? side === 'BID'
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                                         : 'bg-[#5DADE2] hover:bg-[#4A9BD9] text-white'
@@ -1592,14 +1492,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             {modalState === 'submitting' ? (
                                 <>
                                     <Loader2 className="animate-spin" size={18} />
-                                    {isSupplierOffer ? tRfq(editSupplierOffer ? 'offerModal.saving' : 'offerModal.publishing')
-                                        : t('orderPlaceModal.btn.placing', { side: sideLabel })}
+                                    {t('orderPlaceModal.btn.placing', { side: sideLabel })}
                                 </>
                             ) : (
-                                isSupplierOffer ? tRfq(editSupplierOffer ? 'offerModal.save' : 'offerModal.publish')
-                                    : marketSupportContext
-                                        ? t('orderPlaceModal.btn.place', { side: sideLabel })
-                                        : t('orderPlaceModal.btn.review', { side: sideLabel })
+                                marketSupportContext
+                                    ? t('orderPlaceModal.btn.place', { side: sideLabel })
+                                    : t('orderPlaceModal.btn.review', { side: sideLabel })
                             )}
                         </button>
                     </div>

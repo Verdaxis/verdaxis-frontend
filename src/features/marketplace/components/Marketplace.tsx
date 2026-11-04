@@ -6,7 +6,6 @@ import { TakeTradeDialog } from './TakeTradeDialog';
 import { MarketDepthPanel } from './MarketDepthPanel';
 import { MyListingsPanel } from './MyListingsPanel';
 import { CancelOrderDialog } from './CancelOrderDialog';
-import { MarketplaceHistory } from './MarketplaceHistory';
 import { useMarketplaceQueries, useMarketplaceReferences } from '../hooks/useMarketplaceQueries';
 import { useMarketplaceSelection } from '../hooks/useMarketplaceSelection';
 import { useTakeTrade } from '../hooks/useTakeTrade';
@@ -25,6 +24,8 @@ import { useWatchlist } from '../../../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../../../utils/watchlist';
 import i18n from '../../../i18n';
 import { useMarketSupport } from '../../../context/MarketSupportContext';
+import { useAbilityGate } from '../../../hooks/useAbilityDenial';
+import { HIT_ORDER_ABILITY, PLACE_ORDER_ABILITY } from '../../../types/abilities';
 
 // ─── Role Config ──────────────────────────────────────────────────
 export type MarketplaceColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -82,7 +83,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const bioLngProduct = catalogProducts.find(product => product.market_product === 'BIO_LNG');
     const bioLngTradingEnabled = Boolean(bioLngProduct && isOrderbookProduct(bioLngProduct));
     const {
-        role, marketTab, isHistorySelected, fameTab, setMarketTab,
+        role, marketTab, setMarketTab,
         portInput, resolvedPort, resolvedDeliveryPointId, marketProduct, availability,
         availabilityOptions, filtersExpanded, setFiltersExpanded, currentSkip, setCurrentSkip,
         sortBy, setAvailability, portOptions, sliceSummary, clearMarketFilters,
@@ -93,6 +94,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     });
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
+    // Server rules for the action buttons. `null` means no denial is known, so a
+    // button keeps its existing behavior (including while the abilities load or fail).
+    const getAbilityDenial = useAbilityGate();
+    const primaryActionDenial = getAbilityDenial(PLACE_ORDER_ABILITY[configBase.primaryAction.side]);
+    const cancelOrderDenial = getAbilityDenial('cancel_order');
+    // The listings table shows the orders of the opposite side; the user hits those.
+    const hitListingDenial = getAbilityDenial(HIT_ORDER_ABILITY[configBase.primaryAction.side === 'BID' ? 'ASK' : 'BID']);
     const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
     // Scope is rebuilt on every render, as before: the auth generation is read
     // from the token store, not from React state, so memoizing it would keep a
@@ -105,21 +113,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         myOrders, myOrdersLoading, myOrdersReadError,
         fetchListings, fetchProductCounts, fetchMyOrders,
     } = useMarketplaceQueries({
-        ready, isHistorySelected, marketTab, isCatalogScopeResolving, hasUser: Boolean(user),
+        ready, marketTab, isCatalogScopeResolving, hasUser: Boolean(user),
         scope: queryScope,
         selection: { side: role === 'BUYER' ? 'ASK' : 'BID', region: resolvedPort,
             deliveryPointId: resolvedDeliveryPointId, product: marketProduct === ALL_MARKET_PRODUCTS ? null : marketProduct,
             window: availability, sort: sortBy, skip: currentSkip },
     });
     const takeTrade = useTakeTrade({
-        userId: user?.id, organizationId: user?.organization_id, isMarketSupportActive, isHistorySelected, marketTab,
+        userId: user?.id, organizationId: user?.organization_id, isMarketSupportActive, marketTab,
         b100TradingEnabled, bioLngTradingEnabled, t, tRfq, fetchProductCounts, fetchListings, currentSkip,
         prefillAskOrder: order => { setOrderModalPrefill(order); setOrderModalSide('ASK'); },
     });
     const cancellation = useCancelOrder({
         userId: user?.id, organizationId: user?.organization_id,
         marketSupportContextId: marketSupportContext?.id ?? null, scope: queryScope,
-        isMarketSupportActive, isHistorySelected, readError: myOrdersReadError, t, fetchMyOrders,
+        isMarketSupportActive, readError: myOrdersReadError, t, fetchMyOrders,
     });
     const {
         selectedOrder, tradeState, tradeResult, tradeError, tradeKycBlocked, tradeNeedsRefresh,
@@ -131,7 +139,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         pendingCancellation, cancellationReason, setCancellationReason, cancellationLoading,
         cancellationOutcomeUnknown, myOrdersError, handleCancelOrder, confirmCancelOrder, closeCancellationModal,
     } = cancellation;
-    useDashboardContentReady('MARKETPLACE', !isHistorySelected && ready && (marketTab !== 'market' || (!loading && hasLoadedListings)));
+    useDashboardContentReady('MARKETPLACE', ready && (marketTab !== 'market' || (!loading && hasLoadedListings)));
 
     const currentSliceTarget = useMemo(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
@@ -177,11 +185,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setOrderModalSide(null);
     }, [user?.id, user?.organization_id, isMarketSupportActive]);
 
-
-    useEffect(() => {
-        if (!isHistorySelected) return;
-        setOrderModalSide(null);
-    }, [isHistorySelected]);
 
     const filteredListings = listings;
 
@@ -272,19 +275,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── Render ───────────────────────────────────────────────────
     return (
         <div
-            className={isHistorySelected ? 'min-h-full flex flex-col' : 'h-full min-h-0 flex flex-col overflow-hidden'}
-            data-tour-market-product={isHistorySelected ? 'UCOME_B100' : marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
-            data-tour-port={isHistorySelected ? 'Singapore' : resolvedPort}
-            data-tour-window={isHistorySelected ? '' : availability}
+            className="h-full min-h-0 flex flex-col overflow-hidden"
+            data-tour-market-product={marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
+            data-tour-port={resolvedPort}
+            data-tour-window={availability}
             data-tour-tab={marketTab}
         >
             <MarketplaceHeader
-                isHistorySelected={isHistorySelected}
                 t={t}
                 configBase={configBase}
                 setOrderModalSide={setOrderModalSide}
-                marketProduct={marketProduct}
-                setMarketTab={setMarketTab}
+                primaryActionDenial={primaryActionDenial}
                 marketTab={marketTab}
                 loadCatalogProducts={loadCatalogProducts}
                 fetchProductCounts={fetchProductCounts}
@@ -298,7 +299,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             >
             <MarketplaceFilters
                 t={t}
-                isHistorySelected={isHistorySelected}
                 marketProduct={marketProduct}
                 marketProductCounts={marketProductCounts}
                 handleProductChipClick={handleProductChipClick}
@@ -317,28 +317,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             />
 
             <MarketplaceTabs
-                isHistorySelected={isHistorySelected}
-                isMarketSupportActive={isMarketSupportActive}
                 t={t}
                 setMarketTab={setMarketTab}
-                user={user}
-                fameTab={fameTab}
                 marketTab={marketTab}
                 role={role}
+                hitListingDenial={hitListingDenial}
+                primaryActionDenial={primaryActionDenial}
             />
 
             </MarketplaceHeader>
 
-            <MarketplaceHistory
-                isHistorySelected={isHistorySelected}
-                isMarketSupportActive={isMarketSupportActive}
-                fameTab={fameTab}
-                user={user}
-                t={t}
-            />
-
             {/* Error state */}
-            {!isHistorySelected && marketTab === 'market' && error && !loading && !hasLoadedListings && (
+            {marketTab === 'market' && error && !loading && !hasLoadedListings && (
                 <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
                         <div role="alert" className="v-card p-8 flex flex-col items-center text-center">
@@ -360,14 +350,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             )}
 
-            {!isHistorySelected && marketTab === 'market' && error && hasLoadedListings && (
+            {marketTab === 'market' && error && hasLoadedListings && (
                 <div role="alert" className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 lg:mx-10">
                     {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
                 </div>
             )}
 
             <MarketDepthPanel
-                isHistorySelected={isHistorySelected}
                 marketTab={marketTab}
                 t={t}
                 orderbookRequiresExactSlice={orderbookRequiresExactSlice}
@@ -385,7 +374,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             />
 
             <MyListingsPanel
-                isHistorySelected={isHistorySelected}
                 marketTab={marketTab}
                 myOrdersError={myOrdersError}
                 myOrdersLoading={myOrdersLoading}
@@ -393,6 +381,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 filteredMyOrders={filteredMyOrders}
                 role={role}
                 setOrderModalSide={setOrderModalSide}
+                primaryActionDenial={primaryActionDenial}
+                cancelOrderDenial={cancelOrderDenial}
                 sliceSummary={sliceSummary}
                 hasActiveSliceFilters={hasActiveSliceFilters}
                 clearMarketFilters={clearMarketFilters}
@@ -404,7 +394,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             />
 
             <ListingsTable
-                isHistorySelected={isHistorySelected}
                 marketTab={marketTab}
                 error={error}
                 hasLoadedListings={hasLoadedListings}
@@ -422,6 +411,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 pinnedOrderIds={pinnedOrderIds}
                 isMarketSupportActive={isMarketSupportActive}
                 openTradeModal={openTradeModal}
+                getAbilityDenial={getAbilityDenial}
                 catalogError={catalogError}
                 togglePin={togglePin}
                 totalCount={totalCount}
@@ -430,7 +420,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             />
 
             <TakeTradeDialog
-                isHistorySelected={isHistorySelected}
                 selectedOrder={selectedOrder}
                 tradeState={tradeState}
                 tradeResult={tradeResult}
@@ -458,7 +447,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <CancelOrderDialog
-                isHistorySelected={isHistorySelected}
                 pendingCancellation={pendingCancellation}
                 closeCancellationModal={closeCancellationModal}
                 confirmCancelOrder={confirmCancelOrder}
@@ -470,7 +458,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             />
 
             <OrderPlaceModal
-                isOpen={orderModalSide !== null && !isHistorySelected}
+                isOpen={orderModalSide !== null}
                 onClose={() => {
                     setOrderModalSide(null);
                     setOrderModalPrefill(null);

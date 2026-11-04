@@ -14,7 +14,13 @@ function fill(label: string, value: string) {
 function data() { return new FormData(screen.getByRole('form') as HTMLFormElement); }
 function terms(side: 'BID' | 'ASK') { return readLngOrderTerms(data(), side); }
 
+function chooseFeedstock(feedstock = 'MANURE') {
+    fireEvent.click(screen.getByRole('combobox', { name: text('lngTerms.field.feedstock') }));
+    fireEvent.click(screen.getByRole('option', { name: text(`lngTerms.feedstock.${feedstock}`) }));
+}
+
 function fillValidAsk() {
+    chooseFeedstock();
     fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
     fill(text('lngTerms.field.productionCountry'), 'NL');
     fill(text('lngTerms.field.bioShare'), '95');
@@ -34,7 +40,7 @@ describe('LngOrderFields', () => {
             sustainability_scheme: 'ISCC_EU',
             scheme_certificate_number: 'ISCC-EU-001',
             chain_of_custody: 'MASS_BALANCE',
-            union_database_registered: false,
+            union_database_registered: true,
             bio_share_pct: 95,
             feedstock: 'MANURE',
             feedstock_detail: null,
@@ -79,6 +85,21 @@ describe('LngOrderFields', () => {
         expect(validateLngOrderTerms(terms('ASK'))).toBe('lngTerms.validation.supplierName');
     });
 
+    it('starts an ASK with no feedstock and the Union Database box ticked', () => {
+        render(<form aria-label="order"><LngOrderFields side="ASK" /></form>);
+        expect((screen.getByLabelText(text('lngTerms.ask.unionDatabase')) as HTMLInputElement).checked).toBe(true);
+        fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
+        fill(text('lngTerms.field.productionCountry'), 'NL');
+        fill(text('lngTerms.field.bioShare'), '95');
+        fill(text('lngTerms.field.wtt'), '12.5');
+        fill(text('lngTerms.field.supplierName'), 'Supplier A');
+        // The seller must choose the feedstock they declare.
+        expect(terms('ASK')).toEqual(expect.objectContaining({ feedstock: '' }));
+        expect(validateLngOrderTerms(terms('ASK'))).toBe('lngTerms.validation.requiredFields');
+        chooseFeedstock('FOOD_WASTE');
+        expect(validateLngOrderTerms(terms('ASK'))).toBeNull();
+    });
+
     it('keeps the named physical supplier when the seller is a reseller', () => {
         render(<form aria-label="order"><LngOrderFields side="ASK" /></form>);
         fillValidAsk();
@@ -105,6 +126,18 @@ describe('LngOrderFields', () => {
             min_methane_number: null,
             accept_resellers: true,
         });
+        expect(validateLngOrderTerms(terms('BID'))).toBeNull();
+    });
+
+    it('rejects more than two decimals in the bid bio share and well-to-tank limits', () => {
+        render(<form aria-label="order"><LngOrderFields side="BID" /></form>);
+        fill(text('lngTerms.field.minBioShare'), '50.125');
+        expect(validateLngOrderTerms(terms('BID'))).toBe('lngTerms.validation.bioShare');
+        fill(text('lngTerms.field.minBioShare'), '50.12');
+        expect(validateLngOrderTerms(terms('BID'))).toBeNull();
+        fill(text('lngTerms.field.maxWtt'), '-10.005');
+        expect(validateLngOrderTerms(terms('BID'))).toBe('lngTerms.validation.wtt');
+        fill(text('lngTerms.field.maxWtt'), '-10.05');
         expect(validateLngOrderTerms(terms('BID'))).toBeNull();
     });
 

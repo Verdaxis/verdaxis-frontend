@@ -5,7 +5,6 @@ import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import type { TFunction } from 'i18next';
 
 interface CancelOrderDialogProps {
-    isHistorySelected: boolean;
     pendingCancellation: OrderBookOrder | null;
     closeCancellationModal: () => void;
     confirmCancelOrder: () => Promise<void>;
@@ -16,10 +15,10 @@ interface CancelOrderDialogProps {
     setCancellationReason: (reason: string) => void;
 }
 
-export function CancelOrderDialog({ isHistorySelected, pendingCancellation, closeCancellationModal, confirmCancelOrder, t, cancellationOutcomeUnknown, cancellationLoading, cancellationReason, setCancellationReason }: CancelOrderDialogProps) {
+export function CancelOrderDialog({ pendingCancellation, closeCancellationModal, confirmCancelOrder, t, cancellationOutcomeUnknown, cancellationLoading, cancellationReason, setCancellationReason }: CancelOrderDialogProps) {
     return <>
             <ConfirmModal
-                isOpen={!isHistorySelected && Boolean(pendingCancellation)}
+                isOpen={Boolean(pendingCancellation)}
                 onClose={closeCancellationModal}
                 onConfirm={() => { void confirmCancelOrder(); }}
                 title={t('marketplace.cancel.title')}

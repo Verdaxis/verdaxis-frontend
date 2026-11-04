@@ -13,7 +13,6 @@ const MARKET_PRODUCT_FILTERS: Array<'All' | MarketProduct> = ['All', ...ORDERBOO
 
 interface MarketplaceFiltersProps {
     t: TFunction;
-    isHistorySelected: boolean;
     marketProduct: 'All' | MarketProduct;
     marketProductCounts: Record<string, number>;
     handleProductChipClick: (product: 'All' | MarketProduct) => void;
@@ -31,7 +30,7 @@ interface MarketplaceFiltersProps {
     sliceSummary: string;
 }
 
-export function MarketplaceFilters({ t, isHistorySelected, marketProduct, marketProductCounts, handleProductChipClick, filtersExpanded, setFiltersExpanded, portInput, handlePortChange, portOptions, availability, setAvailability, availabilityOptions, sortBy, handleSortChange, currentSliceCount, sliceSummary }: MarketplaceFiltersProps) {
+export function MarketplaceFilters({ t, marketProduct, marketProductCounts, handleProductChipClick, filtersExpanded, setFiltersExpanded, portInput, handlePortChange, portOptions, availability, setAvailability, availabilityOptions, sortBy, handleSortChange, currentSliceCount, sliceSummary }: MarketplaceFiltersProps) {
     return <>
                     {/* Unified filter rail */}
                     <div className="v-glass p-3 mb-3 relative z-[90]">
@@ -44,7 +43,7 @@ export function MarketplaceFilters({ t, isHistorySelected, marketProduct, market
                                     </div>
                                     <div className="flex flex-1 flex-wrap gap-2" data-tour="marketplace-product-filters">
                                         {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                            const isActive = isHistorySelected ? productCode === 'UCOME_B100' : marketProduct === productCode;
+                                            const isActive = marketProduct === productCode;
                                             const count = productCode === ALL_MARKET_PRODUCTS ? 0 : (marketProductCounts[productCode] || 0);
                                             const label = productCode === ALL_MARKET_PRODUCTS ? t('marketplace.filter.allProducts') : formatMarketProduct(productCode);
                                             return (
@@ -61,14 +60,14 @@ export function MarketplaceFilters({ t, isHistorySelected, marketProduct, market
                                                             : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
                                                     }`}
                                                 >
-                                                    {label}{!isHistorySelected && count > 0 ? ` (${count})` : ''}
+                                                    {label}{count > 0 ? ` (${count})` : ''}
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
 
-                                {!isHistorySelected && <button
+                                <button
                                     type="button"
                                     data-tour="marketplace-filter-toggle"
                                     aria-expanded={filtersExpanded}
@@ -78,10 +77,10 @@ export function MarketplaceFilters({ t, isHistorySelected, marketProduct, market
                                 >
                                     <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
                                     <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
-                                </button>}
+                                </button>
                             </div>
 
-                            {!isHistorySelected && filtersExpanded && (
+                            {filtersExpanded && (
                                 <>
                                     <div id="marketplace-advanced-filters" data-tour="marketplace-advanced-filters" className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
                                         <div>
