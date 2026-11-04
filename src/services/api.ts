@@ -150,15 +150,28 @@ export class ApiError extends Error {
     readonly status: number;
     readonly code: string | null;
     readonly details: unknown;
+    /** The response's Retry-After wait in whole seconds, or null when it sent none. */
+    readonly retryAfterSeconds: number | null;
 
-    constructor(message: string, status: number, code: string | null = null, details?: unknown) {
+    constructor(
+        message: string,
+        status: number,
+        code: string | null = null,
+        details?: unknown,
+        retryAfterSeconds: number | null = null,
+    ) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
         this.code = code;
         this.details = details;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 }
+
+// Retry-After may also be an HTTP date; only the whole-seconds form is read.
+const retryAfterSeconds = (value: string | null): number | null =>
+    value !== null && /^\d+$/.test(value.trim()) ? Number(value.trim()) : null;
 
 /**
  * Detail code the backend returns with HTTP 403 when KYC blocks an execution
@@ -241,7 +254,7 @@ const handleResponse = async (res: Response, contextId?: string | null, silent =
                 detail: { reason: 'expired', code, status: res.status, ...(contextId ? { contextId } : {}) },
             }));
         }
-        throw new ApiError(message, res.status, code, structuredDetail);
+        throw new ApiError(message, res.status, code, structuredDetail, retryAfterSeconds(res.headers.get('Retry-After')));
     }
     if (res.status === 204 || res.status === 205) return undefined;
     return res.json();
@@ -682,6 +695,214 @@ export interface AdminInvitationResponse {
     expires_at: string;
     reissued: boolean;
 }
+
+/**
+ * Member offboarding contracts, as the Rust routes send them
+ * (`business::offboarding`, `order_write::reassignment`, `case_reference`).
+ * The reason codes and the case-reference grammar are shared with the backend;
+ * change them here and nowhere else.
+ */
+export const OFFBOARD_REASON_CODES = [
+    'EMPLOYMENT_ENDED',
+    'COMPANY_REQUEST',
+    'SECURITY_CONCERN',
+    'ACCOUNT_HOLDER_REQUEST',
+] as const;
+export type OffboardReasonCode = typeof OFFBOARD_REASON_CODES[number];
+
+/** The longest case reference the backend stores. */
+export const CASE_REFERENCE_MAX_LENGTH = 64;
+
+/**
+ * Opaque reference to a verified request, written as a ticket identifier:
+ * `CASE`, `REQ`, `SEC` or `TICKET`, a dash, then one to three groups of 1 to 12
+ * digits separated by `-` or `/` (for example `CASE-2026/0042`). Only digits
+ * follow the prefix, so the field cannot carry a name or an email address.
+ */
+export const EVIDENCE_CASE_REF_PATTERN = /^(?:CASE|REQ|SEC|TICKET)-[0-9]{1,12}(?:[-/][0-9]{1,12}){0,2}$/;
+
+export const isValidCaseReference = (value: string): boolean =>
+    value.length <= CASE_REFERENCE_MAX_LENGTH && EVIDENCE_CASE_REF_PATTERN.test(value);
+
+/** The sides of a trade whose responsible person can change. */
+export type TradeSide = 'BUYER' | 'SELLER';
+
+export interface AdminOffboardInput {
+    reason_code: OffboardReasonCode;
+    evidence_case_ref: string;
+    urgent: boolean;
+    /** Always sent; null means the person is detached from any company. */
+    expected_organization_id: string | null;
+}
+
+/** The committed result. The time is the database clock at the moment of the change. */
+export interface AdminOffboardResult {
+    operation_id: string | null;
+    user_id: string | null;
+    former_organization_id: string | null;
+    status: string | null;
+    offboarded_at: string | null;
+}
+
+/**
+ * Advisory counts read before the locked final check; never a final count.
+ * `frozen_pending_trades` is a blocker: the command refuses while a pending
+ * trade of the person is frozen. A confirmed or delivered count stops at 100,
+ * and `informational_counts_capped` says when it did.
+ */
+export interface AdminOffboardPreview {
+    user_id: string;
+    email: string;
+    status: string;
+    organization_id: string | null;
+    organization_name: string | null;
+    /** Set once the person is offboarded. */
+    offboarded_at: string | null;
+    open_owned_orders: number;
+    pending_trades: number;
+    frozen_pending_trades: number;
+    confirmed_trades: number;
+    delivered_trades: number;
+    informational_counts_capped: boolean;
+}
+
+export interface OffboardingTradeItem {
+    trade_id: string;
+    side: TradeSide;
+    status: string;
+    /** The organization recorded on the side. The list carries no name. */
+    recorded_organization_id: string;
+    responsible_user_id: string;
+    frozen: boolean;
+    manual_resolution_required: boolean;
+}
+
+export interface OffboardingTradesResponse {
+    user_id: string;
+    items: OffboardingTradeItem[];
+    total: number;
+    /** True when the person has more sides than this page holds. */
+    truncated: boolean;
+}
+
+export interface AdminReassignInput {
+    side: TradeSide;
+    replacement_user_id: string;
+    evidence_case_ref: string;
+    expected_current_user_id: string;
+}
+
+export interface AdminReassignResult {
+    trade_id: string | null;
+    side: string | null;
+    status: string | null;
+    recorded_organization_id: string | null;
+    previous_responsible_user_id: string | null;
+    responsible_user_id: string | null;
+    reassigned_at: string | null;
+}
+
+const malformedOffboardingResponse = (what: string) =>
+    new ApiError(`The ${what} response was not in the expected form.`, 502, 'OFFBOARD_RESPONSE_MALFORMED');
+
+const optionalString = (value: unknown): string | null => typeof value === 'string' ? value : null;
+
+const isWholeCount = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+const isNullableString = (value: unknown): value is string | null =>
+    value === null || typeof value === 'string';
+
+// An absent key is refused, never read as a default: a missing organization
+// must not mean "no company", and a missing blocker count must not mean zero.
+const mapOffboardPreview = (raw: any): AdminOffboardPreview => {
+    if (
+        !raw
+        || typeof raw.user_id !== 'string'
+        || typeof raw.email !== 'string'
+        || typeof raw.status !== 'string'
+        || !('organization_id' in raw)
+        || !isNullableString(raw.organization_id)
+        || !('offboarded_at' in raw)
+        || !isNullableString(raw.offboarded_at)
+        || !isWholeCount(raw.open_owned_orders)
+        || !isWholeCount(raw.pending_trades)
+        || !isWholeCount(raw.frozen_pending_trades)
+        || !isWholeCount(raw.confirmed_trades)
+        || !isWholeCount(raw.delivered_trades)
+    ) {
+        throw malformedOffboardingResponse('offboarding preview');
+    }
+    return {
+        user_id: raw.user_id,
+        email: raw.email,
+        status: raw.status,
+        organization_id: raw.organization_id,
+        organization_name: optionalString(raw.organization_name),
+        offboarded_at: raw.offboarded_at,
+        open_owned_orders: raw.open_owned_orders,
+        pending_trades: raw.pending_trades,
+        frozen_pending_trades: raw.frozen_pending_trades,
+        confirmed_trades: raw.confirmed_trades,
+        delivered_trades: raw.delivered_trades,
+        informational_counts_capped: raw.informational_counts_capped === true,
+    };
+};
+
+const mapOffboardResult = (raw: any): AdminOffboardResult => ({
+    operation_id: optionalString(raw?.operation_id),
+    user_id: optionalString(raw?.user_id),
+    former_organization_id: optionalString(raw?.former_organization_id),
+    status: optionalString(raw?.status),
+    offboarded_at: optionalString(raw?.offboarded_at),
+});
+
+// A missing freeze or manual-resolution indicator counts as set, so the unsafe
+// reading never enables a reassignment. The side is sent back unchanged, so
+// only the two values the backend accepts are read.
+const mapOffboardingTrades = (raw: any): OffboardingTradesResponse => {
+    if (!raw || typeof raw.user_id !== 'string' || !Array.isArray(raw.items) || !isWholeCount(raw.total)) {
+        throw malformedOffboardingResponse('offboarding trades');
+    }
+    const skip = isWholeCount(raw.skip) ? raw.skip : 0;
+    const items = raw.items.map((item: any): OffboardingTradeItem => {
+        if (
+            !item
+            || typeof item.trade_id !== 'string'
+            || (item.side !== 'BUYER' && item.side !== 'SELLER')
+            || typeof item.status !== 'string'
+            || typeof item.recorded_organization_id !== 'string'
+            || typeof item.responsible_user_id !== 'string'
+        ) {
+            throw malformedOffboardingResponse('offboarding trades');
+        }
+        return {
+            trade_id: item.trade_id,
+            side: item.side,
+            status: item.status,
+            recorded_organization_id: item.recorded_organization_id,
+            responsible_user_id: item.responsible_user_id,
+            frozen: item.frozen !== false,
+            manual_resolution_required: item.manual_resolution_required !== false,
+        };
+    });
+    return {
+        user_id: raw.user_id,
+        items,
+        total: raw.total,
+        truncated: raw.total > skip + items.length,
+    };
+};
+
+const mapReassignResult = (raw: any): AdminReassignResult => ({
+    trade_id: optionalString(raw?.trade_id),
+    side: optionalString(raw?.side),
+    status: optionalString(raw?.status),
+    recorded_organization_id: optionalString(raw?.recorded_organization_id),
+    previous_responsible_user_id: optionalString(raw?.previous_responsible_user_id),
+    responsible_user_id: optionalString(raw?.responsible_user_id),
+    reassigned_at: optionalString(raw?.reassigned_at),
+});
 
 export const api = {
     abilities: {
@@ -1263,6 +1484,43 @@ export const api = {
                 method: 'PUT',
                 headers: getHeaders(),
             });
+        },
+        offboardingPreview: async (userId: string): Promise<AdminOffboardPreview> => {
+            return mapOffboardPreview(await fetchApi(
+                `/auth/admin/users/${encodeURIComponent(userId)}/offboarding-preview`,
+                { headers: getHeaders() },
+            ));
+        },
+        offboardUser: async (userId: string, input: AdminOffboardInput): Promise<AdminOffboardResult> => {
+            // A lost response is never retried here: the caller re-reads the user.
+            return mapOffboardResult(await mutateApi(invalidateAllReads, `/auth/admin/users/${encodeURIComponent(userId)}/offboard`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    reason_code: input.reason_code,
+                    evidence_case_ref: input.evidence_case_ref,
+                    urgent: input.urgent,
+                    expected_organization_id: input.expected_organization_id,
+                }),
+            }));
+        },
+        offboardingTrades: async (userId: string): Promise<OffboardingTradesResponse> => {
+            return mapOffboardingTrades(await fetchApi(
+                `/auth/admin/users/${encodeURIComponent(userId)}/offboarding-trades`,
+                { headers: getHeaders() },
+            ));
+        },
+        reassignResponsible: async (tradeId: string, input: AdminReassignInput): Promise<AdminReassignResult> => {
+            return mapReassignResult(await mutateApi(invalidateTradeReads, `/auth/admin/trades/${encodeURIComponent(tradeId)}/reassign-responsible`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    side: input.side,
+                    replacement_user_id: input.replacement_user_id,
+                    evidence_case_ref: input.evidence_case_ref,
+                    expected_current_user_id: input.expected_current_user_id,
+                }),
+            }));
         },
         daily: async (days: number = 30) => {
             return fetchApi(`/admin/analytics/daily?days=${days}`, { headers: getHeaders() });

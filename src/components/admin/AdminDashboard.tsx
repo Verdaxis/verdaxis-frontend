@@ -34,6 +34,11 @@ import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization }
 import { defaultMarketSupportView } from '../../types/marketSupport';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { getAvailableCountries } from '../../utils/countries';
+import { safeAdminError } from './adminErrors';
+import { OffboardMemberDialog, OffboardRowActions } from './OffboardMemberDialog';
+import type { OffboardTarget } from './OffboardMemberDialog';
+import { OffboardingTrades } from './OffboardingTrades';
+import { isOffboardingEnabled } from './offboardingAccess';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +60,7 @@ interface AdminUserEntry {
   last_login?: string | null;
   org_has_orders?: boolean;
   must_change_password?: boolean;
+  offboarded_at?: string | null;
 }
 
 interface AdminReviewOrganization {
@@ -123,16 +129,6 @@ const journeyStage = (u: AdminUserEntry, t: TFunction): { label: string; cls: st
 };
 
 const STATUS_FILTERS: UserStatusFilter[] = ['PENDING', 'ALL', 'APPROVED', 'REJECTED'];
-
-const safeAdminError = (error: unknown, t: TFunction, language: string, fallbackKey: string) => {
-  console.error(`[admin] ${fallbackKey}`, error);
-  const fallback = t(fallbackKey);
-  if (error instanceof ApiError && error.code) {
-    const mapped = t(`errors.code.${error.code}`, { defaultValue: fallback });
-    if (language.startsWith('zh') || mapped !== fallback) return mapped;
-  }
-  return language.startsWith('zh') ? fallback : error instanceof Error ? error.message : fallback;
-};
 
 type InvitationOrganizationMode = 'existing' | 'new';
 
@@ -333,11 +329,13 @@ const UsersTab: React.FC = () => {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [invitation, setInvitation] = useState<AdminInvitationResponse | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [offboardTarget, setOffboardTarget] = useState<OffboardTarget | null>(null);
+  const [tradesTarget, setTradesTarget] = useState<OffboardTarget | null>(null);
   const navigate = useNavigate();
   const { start, resume } = useMarketSupport();
   const enterOrganizationDenial = useAbilityGate()('market_support_assisted_orders');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<AdminUserEntry[] | null> => {
     setLoading(true);
     setUserError(null);
     try {
@@ -354,8 +352,10 @@ const UsersTab: React.FC = () => {
       setReviewByUser(Object.fromEntries(
         (queue.items ?? []).map((review: AdminReviewCase) => [review.user_id, review]),
       ));
+      return data.items ?? [];
     } catch (error) {
       setUserError(safeAdminError(error, t, language, 'users.error.load'));
+      return null;
     } finally {
       setLoading(false);
     }
@@ -798,6 +798,13 @@ const UsersTab: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      {isOffboardingEnabled() && (
+                        <OffboardRowActions
+                          user={u}
+                          onOffboard={() => setOffboardTarget({ id: u.id, email: u.email, name })}
+                          onTrades={() => setTradesTarget({ id: u.id, email: u.email, name })}
+                        />
+                      )}
                     </td>
                   </tr>
                 );
@@ -1080,6 +1087,20 @@ const UsersTab: React.FC = () => {
           </p>
         )}
       </ConfirmModal>
+      {offboardTarget && (
+        <OffboardMemberDialog
+          target={offboardTarget}
+          onClose={() => setOffboardTarget(null)}
+          onReload={load}
+          onOpenTrades={(target) => {
+            setOffboardTarget(null);
+            setTradesTarget(target);
+          }}
+        />
+      )}
+      {tradesTarget && (
+        <OffboardingTrades target={tradesTarget} onClose={() => setTradesTarget(null)} />
+      )}
       <ConfirmModal
         isOpen={Boolean(replacementInput)}
         onClose={() => setReplacementInput(null)}
