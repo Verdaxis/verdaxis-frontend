@@ -26,13 +26,13 @@ import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 import { isWebGLUnavailableError } from '../map/webglSupport';
 import { WebGLHelp } from './map/WebGLHelp';
-import {
-    BasicMarketMap,
-    type BasicMapCamera,
-    type BasicPortMarker,
-    type BasicVesselMarker,
-    type LngLatCorners,
+import type {
+    BasicMapCamera,
+    BasicPortMarker,
+    BasicVesselMarker,
+    LngLatCorners,
 } from './map/BasicMarketMap';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { loadEcaZoneCollection, type EcaZoneFeatureCollection } from '../data/secaZones';
 import {
     calculateHeading,
@@ -43,6 +43,10 @@ import {
     vesselColor,
     vesselTooltipHtml,
 } from './map/mapMarkup';
+
+// Leaflet loads only for the basic map (no WebGL), so it never weighs on
+// the full map's first load.
+const BasicMarketMap = lazyWithRetry(() => import('./map/BasicMarketMap').then(module => ({ default: module.BasicMarketMap })));
 
 interface BuyerMapProps {
     active?: boolean;
@@ -997,17 +1001,19 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 {webglUnavailable ? (
-                    <BasicMarketMap
-                        isDark={isDark}
-                        ports={basicPortMarkers}
-                        vessels={basicVessels}
-                        ecaZones={basicEcaZones}
-                        showEcaZones={showSecaZones}
-                        initialBounds={portBounds as LngLatCorners | undefined}
-                        onPortClick={handleBasicPortClick}
-                        cameraRef={basicCameraRef}
-                        ariaLabel={t('buyerMap.mapLabel')}
-                    />
+                    <React.Suspense fallback={<LoadingScreen />}>
+                        <BasicMarketMap
+                            isDark={isDark}
+                            ports={basicPortMarkers}
+                            vessels={basicVessels}
+                            ecaZones={basicEcaZones}
+                            showEcaZones={showSecaZones}
+                            initialBounds={portBounds as LngLatCorners | undefined}
+                            onPortClick={handleBasicPortClick}
+                            cameraRef={basicCameraRef}
+                            ariaLabel={t('buyerMap.mapLabel')}
+                        />
+                    </React.Suspense>
                 ) : (
                     <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
                 )}

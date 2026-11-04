@@ -50,7 +50,8 @@ describe('BuyerMap without WebGL', () => {
 
     expect(construction.attempts).toBe(1);
     // The basic (Leaflet) map takes the map region, with its port markers.
-    const region = screen.getByRole('region', { name: 'buyerMap.mapLabel' });
+    // The basic map loads on demand.
+    const region = await screen.findByRole('region', { name: 'buyerMap.mapLabel' });
     expect(region.classList.contains('verdaxis-basic-map')).toBe(true);
     expect(region.querySelectorAll('path.leaflet-interactive').length).toBeGreaterThan(0);
 
