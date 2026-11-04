@@ -621,7 +621,7 @@
   "offboard.reread.loading": "正在重新读取账户……",
   "offboard.reread.status": "状态",
   "offboard.reread.offboarded": "已于 {{time}} 办理离职，更改已提交。",
-  "offboard.reread.notOffboarded": "尚未办理离职，更改未提交。您可以重新开始。",
+  "offboard.reread.notOffboarded": "尚未办理离职。该更改在接下来的 30 秒内仍可能完成。请稍后再次检查，然后再重新开始。",
   "offboard.reread.failed": "无法重新读取账户。请先刷新页面再进行其他操作。",
   "offboard.reread.check": "再次检查",
   "offboard.reread.restart": "重新开始并加载最新信息",
