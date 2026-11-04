@@ -204,10 +204,10 @@
     },
     "specificationScope": "B100 prices may cover different grades, cold-flow limits and certification. Check the order specification before trading.",
     "webgl": {
-      "title": "The map needs graphics acceleration",
-      "body": "Your browser could not start WebGL, which the Intelligence Map uses to draw. This is a browser setting; the rest of Verdaxis works normally.",
+      "basicMode": "Basic map: your browser has graphics acceleration off, so zoom is simpler. Turn it on for the full map.",
+      "how": "How?",
+      "hideHow": "Hide",
       "stepRestart": "Quit the browser completely and open it again (on a Mac: Cmd+Q). Browsers turn graphics off for the session after repeated graphics crashes.",
-      "retry": "Try again",
       "browsers": {
         "chrome": {
           "acceleration": "Open Settings → System, turn on \"Use graphics acceleration when available\", then click Relaunch.",

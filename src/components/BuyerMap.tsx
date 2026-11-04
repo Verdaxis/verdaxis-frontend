@@ -27,6 +27,14 @@ import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 import { isWebGLUnavailableError } from '../map/webglSupport';
 import { WebGLHelp } from './map/WebGLHelp';
 import {
+    BasicMarketMap,
+    type BasicMapCamera,
+    type BasicPortMarker,
+    type BasicVesselMarker,
+    type LngLatCorners,
+} from './map/BasicMarketMap';
+import { loadEcaZoneCollection, type EcaZoneFeatureCollection } from '../data/secaZones';
+import {
     calculateHeading,
     getPortRadius,
     getSpreadColor,
@@ -142,6 +150,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [marketDataError, setMarketDataError] = useState(false);
     const [ecaOverlayError, setEcaOverlayError] = useState(false);
     const [webglUnavailable, setWebglUnavailable] = useState(false);
+    // Without WebGL the map runs in basic mode (Leaflet); these feed it.
+    const basicCameraRef = useRef<BasicMapCamera | null>(null);
+    const [basicEcaZones, setBasicEcaZones] = useState<EcaZoneFeatureCollection | null>(null);
+    const [basicVessels, setBasicVessels] = useState<BasicVesselMarker[]>([]);
+    const [showWebglHelp, setShowWebglHelp] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -301,6 +314,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         if (!portBounds) return;
         popupRef.current?.remove();
         setSelectedPortId(null);
+        basicCameraRef.current?.closePopup();
+        basicCameraRef.current?.fitBounds(portBounds as LngLatCorners);
         mapRef.current?.fitBounds(portBounds, {
             padding: mapPadding(),
             retainPadding: false,
@@ -313,6 +328,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         setSelectedPortId(port.id);
         setIsPanelOpen(true);
         if (options.flyTo) {
+            basicCameraRef.current?.flyTo(port.location.lng, port.location.lat, 4);
             mapRef.current?.flyTo({
                 center: [port.location.lng, port.location.lat],
                 zoom: Math.max(mapRef.current.getZoom(), 3.6),
@@ -325,6 +341,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
     const handlePanelPortSelect = useCallback((port: Port) => {
         focusMapPort(port, { flyTo: true });
+        basicCameraRef.current?.closePopup();
         if (popupRef.current) {
             popupRef.current.remove();
             popupRef.current = null;
@@ -332,10 +349,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [focusMapPort]);
 
     const focusEuropeanEcaZones = useCallback(() => {
-        const map = mapRef.current;
-        if (!map) return;
         setShowSecaZones(true);
         setIsLayersMenuOpen(false);
+        basicCameraRef.current?.fitBounds([[-11, 29], [37, 67]], 5);
+        const map = mapRef.current;
+        if (!map) return;
         map.fitBounds([[-11, 29], [37, 67]], {
             padding: mapPadding(),
             retainPadding: false,
@@ -418,6 +436,68 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const maxVolume = useMemo(() => {
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
+
+    // ---- basic mode (no WebGL) ----------------------------------------------
+
+    const basicPortMarkers = useMemo<BasicPortMarker[]>(() => {
+        if (!webglUnavailable) return [];
+        return visiblePorts.map(port => {
+            const market = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
+            return {
+                port,
+                radius: getPortRadius(market.totalVolume, maxVolume),
+                color: getSpreadColor(market.spreadPct),
+                selected: port.id === selectedPortId,
+                tooltipHtml: portTooltipHtml({
+                    name: port.name,
+                    referencePrice: market.reference?.price ?? 0,
+                    referenceProduct: market.reference?.productLabel ?? '',
+                    totalVolume: market.totalVolume,
+                }, t),
+            };
+        });
+    }, [webglUnavailable, visiblePorts, portMarketMap, maxVolume, selectedPortId, t]);
+
+    const handleBasicPortClick = useCallback((port: Port) => {
+        setSelectedPortId(port.id);
+        setIsPanelOpen(true);
+        return portPopupHtml({
+            port,
+            market: portMarketRef.current[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null },
+            isDark: isDarkRef.current,
+            selectedProduct: selectedProductRef.current,
+            translate: translateRef.current,
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!webglUnavailable) return;
+        let cancelled = false;
+        setEcaOverlayError(false);
+        loadEcaZoneCollection()
+            .then(collection => { if (!cancelled) setBasicEcaZones(collection); })
+            .catch(() => { if (!cancelled) setEcaOverlayError(true); });
+        return () => { cancelled = true; };
+    }, [webglUnavailable]);
+
+    useEffect(() => {
+        if (!webglUnavailable) return;
+        let cancelled = false;
+        api.vessels.list()
+            .then((vessels: any[]) => {
+                if (cancelled) return;
+                setBasicVessels(vessels.filter(v => v.location).map(v => ({
+                    id: String(v.id ?? v.name),
+                    lat: v.location.lat,
+                    lng: v.location.lng,
+                    heading: calculateHeading(v.previousLocation, v.location),
+                    color: vesselColor(v.vesselType),
+                    tooltipHtml: vesselTooltipHtml({ name: v.name, vesselType: v.vesselType, ciiGrade: v.ciiGrade }, translateRef.current),
+                })));
+            })
+            .catch(() => { /* Vessels are an optional layer; the map works without them. */ });
+        return () => { cancelled = true; };
+    }, [webglUnavailable]);
 
     // Aggregate all eligible ASK volume by exact approved delivery point.
     const availsByRegion = useMemo(() => {
@@ -907,25 +987,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         );
     }
 
-    if (webglUnavailable) {
-        return (
-            <div className="flex h-full w-full items-center justify-center bg-slate-50 p-6 dark:bg-slate-900" role="alert">
-                <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                    <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">{t('buyerMap.webgl.title')}</h2>
-                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t('buyerMap.webgl.body')}</p>
-                    <div className="mt-3"><WebGLHelp /></div>
-                    <button
-                        type="button"
-                        onClick={() => window.location.reload()}
-                        className="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
-                    >
-                        {t('buyerMap.webgl.retry')}
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     const mapChromeStyle = {
         '--verdaxis-map-rail-offset': isPanelOpen ? '344px' : '24px',
     } as React.CSSProperties;
@@ -935,7 +996,37 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
             <div className="flex-1 relative z-0">
-                <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
+                {webglUnavailable ? (
+                    <BasicMarketMap
+                        isDark={isDark}
+                        ports={basicPortMarkers}
+                        vessels={basicVessels}
+                        ecaZones={basicEcaZones}
+                        showEcaZones={showSecaZones}
+                        initialBounds={portBounds as LngLatCorners | undefined}
+                        onPortClick={handleBasicPortClick}
+                        cameraRef={basicCameraRef}
+                        ariaLabel={t('buyerMap.mapLabel')}
+                    />
+                ) : (
+                    <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
+                )}
+                {webglUnavailable && (
+                    <div className="absolute bottom-4 left-1/2 z-[25] w-[min(92%,34rem)] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-xs text-slate-700 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-200" role="status">
+                        <div className="flex items-center justify-between gap-3">
+                            <span>{t('buyerMap.webgl.basicMode')}</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowWebglHelp(open => !open)}
+                                aria-expanded={showWebglHelp}
+                                className="shrink-0 rounded border border-amber-300 px-2 py-1 font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                            >
+                                {t(showWebglHelp ? 'buyerMap.webgl.hideHow' : 'buyerMap.webgl.how')}
+                            </button>
+                        </div>
+                        {showWebglHelp && <div className="mt-2"><WebGLHelp /></div>}
+                    </div>
+                )}
                 {(loadError || marketDataError) && (
                     <div className="pointer-events-none absolute left-1/2 top-16 z-[25] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
                         {t('buyerMap.error')}

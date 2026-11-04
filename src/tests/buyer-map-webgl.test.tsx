@@ -44,19 +44,29 @@ vi.mock('mapbox-gl', () => ({
 }));
 
 describe('BuyerMap without WebGL', () => {
-  it('shows the browser fix instead of the generic error screen', async () => {
+  it('falls back to the basic map with a banner that explains how to get the full map', async () => {
     renderWithProviders(<BuyerMap active onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
     await act(async () => { await Promise.resolve(); });
 
     expect(construction.attempts).toBe(1);
-    const text = screen.getByRole('alert').textContent ?? '';
-    for (const key of ['title', 'body', 'stepRestart']) {
-      expect(text).toContain(`buyerMap.webgl.${key}`);
-    }
+    // The basic (Leaflet) map takes the map region, with its port markers.
+    const region = screen.getByRole('region', { name: 'buyerMap.mapLabel' });
+    expect(region.classList.contains('verdaxis-basic-map')).toBe(true);
+    expect(region.querySelectorAll('path.leaflet-interactive').length).toBeGreaterThan(0);
+
+    const banner = screen.getByRole('status');
+    expect(banner.textContent).toContain('buyerMap.webgl.basicMode');
+    const how = screen.getByRole('button', { name: 'buyerMap.webgl.how' });
+    expect(how.getAttribute('aria-expanded')).toBe('false');
+    expect(banner.textContent).not.toContain('buyerMap.webgl.stepRestart');
+
+    await act(async () => { how.click(); });
+    const text = screen.getByRole('status').textContent ?? '';
+    expect(text).toContain('buyerMap.webgl.stepRestart');
     // jsdom names no known browser, so the general steps show.
     expect(text).toContain('buyerMap.webgl.browsers.other.acceleration');
     expect(text).toContain('buyerMap.webgl.browsers.other.check');
-    expect(screen.getByRole('button', { name: 'buyerMap.webgl.retry' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'buyerMap.webgl.hideHow' }).getAttribute('aria-expanded')).toBe('true');
   });
 
   it('treats only a WebGL failure as a browser setting', () => {
