@@ -21,6 +21,29 @@ import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
+import {
+    calculateHeading,
+    getPortRadius,
+    getSpreadColor,
+    portPopupHtml,
+    portTooltipHtml,
+    vesselColor,
+    vesselTooltipHtml,
+} from './map/mapMarkup';
+import { isWebGLUnavailableError } from '../map/webglSupport';
+import { WebGLHelp } from './map/WebGLHelp';
+import type {
+    BasicMapCamera,
+    BasicPortMarker,
+    BasicVesselMarker,
+    LngLatCorners,
+} from './map/BasicMarketMap';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+import type { EcaZoneFeatureCollection } from '../data/secaZones';
+
+// Leaflet loads only for the basic map (no WebGL), so it never weighs on
+// the full map's first load.
+const BasicMarketMap = lazyWithRetry(() => import('./map/BasicMarketMap').then(module => ({ default: module.BasicMarketMap })));
 
 interface BuyerMapProps {
     active?: boolean;
@@ -28,20 +51,6 @@ interface BuyerMapProps {
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
 }
-
-// Port circle radius: proportional to volume, clamped 6-20px
-const getPortRadius = (volume: number, maxVolume: number): number => {
-    if (maxVolume <= 0 || volume <= 0) return 6;
-    const ratio = volume / maxVolume;
-    return Math.round(6 + ratio * 14); // 6..20
-};
-
-// Border color by spread tightness
-const getSpreadColor = (spreadPct: number): string => {
-    if (spreadPct < 5) return '#10B981';  // green
-    if (spreadPct < 15) return '#F59E0B'; // amber
-    return '#EF4444';                      // red
-};
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 const resolveApprovedPortName = (
@@ -51,26 +60,6 @@ const resolveApprovedPortName = (
 ) => [deliveryPointId, deliveryPointName]
     .map(value => approvedLocations.get(normalizeMarketLocation(value)))
     .find((value): value is string => Boolean(value));
-const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
-const calculateHeading = (prev?: { lat: number; lng: number }, curr?: { lat: number; lng: number }): number => {
-    if (!prev || !curr) return 0;
-
-    const lat1 = prev.lat * Math.PI / 180;
-    const lat2 = curr.lat * Math.PI / 180;
-    const longitudeDelta = (curr.lng - prev.lng) * Math.PI / 180;
-    const y = Math.sin(longitudeDelta) * Math.cos(lat2);
-    const x = Math.cos(lat1) * Math.sin(lat2)
-        - Math.sin(lat1) * Math.cos(lat2) * Math.cos(longitudeDelta);
-
-    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-};
-const escapeHtml = (value: unknown) => String(value).replace(/[&<>"']/g, character => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-}[character]!));
 const MAP_UI_LOCALES = {
     en: {
         'AttributionControl.ToggleAttribution': 'Toggle attribution',
@@ -151,6 +140,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [marketSummaryReady, setMarketSummaryReady] = useState(false);
     const [marketDataError, setMarketDataError] = useState(false);
     const [ecaOverlayError, setEcaOverlayError] = useState(false);
+    const [webglUnavailable, setWebglUnavailable] = useState(false);
+    // Without WebGL the map runs in basic mode (Leaflet); these feed it.
+    const basicCameraRef = useRef<BasicMapCamera | null>(null);
+    const [basicEcaZones, setBasicEcaZones] = useState<EcaZoneFeatureCollection | null>(null);
+    const [basicVessels, setBasicVessels] = useState<BasicVesselMarker[]>([]);
+    const [showWebglHelp, setShowWebglHelp] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -303,6 +298,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         if (!portBounds) return;
         popupRef.current?.remove();
         setSelectedPortId(null);
+        basicCameraRef.current?.closePopup();
+        basicCameraRef.current?.fitBounds(portBounds as LngLatCorners);
         mapRef.current?.fitBounds(portBounds, {
             padding: mapPadding(),
             retainPadding: false,
@@ -315,6 +312,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         setSelectedPortId(port.id);
         setIsPanelOpen(true);
         if (options.flyTo) {
+            basicCameraRef.current?.flyTo(port.location.lng, port.location.lat, 4);
             mapRef.current?.flyTo({
                 center: [port.location.lng, port.location.lat],
                 zoom: Math.max(mapRef.current.getZoom(), 3.6),
@@ -327,6 +325,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
     const handlePanelPortSelect = useCallback((port: Port) => {
         focusMapPort(port, { flyTo: true });
+        basicCameraRef.current?.closePopup();
         if (popupRef.current) {
             popupRef.current.remove();
             popupRef.current = null;
@@ -334,10 +333,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [focusMapPort]);
 
     const focusEuropeanEcaZones = useCallback(() => {
-        const map = mapRef.current;
-        if (!map) return;
         setShowSecaZones(true);
         setIsLayersMenuOpen(false);
+        basicCameraRef.current?.fitBounds([[-11, 29], [37, 67]], 5);
+        const map = mapRef.current;
+        if (!map) return;
         map.fitBounds([[-11, 29], [37, 67]], {
             padding: mapPadding(),
             retainPadding: false,
@@ -407,6 +407,69 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
 
+    // ---- basic mode (no WebGL) ----------------------------------------------
+
+    const basicPortMarkers = useMemo<BasicPortMarker[]>(() => {
+        if (!webglUnavailable) return [];
+        return ports.map(port => {
+            const market = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
+            return {
+                port,
+                radius: getPortRadius(market.totalVolume, maxVolume),
+                color: getSpreadColor(market.spreadPct),
+                selected: port.id === selectedPortId,
+                tooltipHtml: portTooltipHtml({
+                    name: port.name,
+                    referencePrice: market.reference?.price ?? 0,
+                    referenceProduct: market.reference?.productLabel ?? '',
+                    totalVolume: market.totalVolume,
+                }, t),
+            };
+        });
+    }, [webglUnavailable, ports, portMarketMap, maxVolume, selectedPortId, t]);
+
+    const handleBasicPortClick = useCallback((port: Port) => {
+        setSelectedPortId(port.id);
+        setIsPanelOpen(true);
+        return portPopupHtml({
+            port,
+            market: portMarketRef.current[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null },
+            isDark: isDarkRef.current,
+            selectedProduct: selectedProductRef.current,
+            translate: translateRef.current,
+        });
+    }, []);
+
+    // The ECA geometry is large; load it only when the basic map needs it.
+    useEffect(() => {
+        if (!webglUnavailable) return;
+        let cancelled = false;
+        setEcaOverlayError(false);
+        import('../data/secaZones')
+            .then(module => { if (!cancelled) setBasicEcaZones(module.ECA_ZONE_COLLECTION); })
+            .catch(() => { if (!cancelled) setEcaOverlayError(true); });
+        return () => { cancelled = true; };
+    }, [webglUnavailable]);
+
+    useEffect(() => {
+        if (!webglUnavailable) return;
+        let cancelled = false;
+        api.vessels.list()
+            .then((vessels: any[]) => {
+                if (cancelled) return;
+                setBasicVessels(vessels.filter(v => v.location).map(v => ({
+                    id: String(v.id ?? v.name),
+                    lat: v.location.lat,
+                    lng: v.location.lng,
+                    heading: calculateHeading(v.previousLocation, v.location),
+                    color: vesselColor(v.vesselType),
+                    tooltipHtml: vesselTooltipHtml({ name: v.name, vesselType: v.vesselType, ciiGrade: v.ciiGrade }, translateRef.current),
+                })));
+            })
+            .catch(() => { /* Vessels are an optional layer; the map works without them. */ });
+        return () => { cancelled = true; };
+    }, [webglUnavailable]);
+
     // Aggregate all eligible ASK volume by exact approved delivery point.
     const availsByRegion = useMemo(() => {
         const regionMap: Record<string, number> = {};
@@ -459,17 +522,24 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
         const style = isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
 
-        const map = new mapboxgl.Map({
-            container: mapContainer.current,
-            accessToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN,
-            style,
-            projection: 'mercator',
-            language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
-            bounds: portBounds,
-            fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
-            attributionControl: false,
-            locale: mapLocale,
-        });
+        let map: mapboxgl.Map;
+        try {
+            map = new mapboxgl.Map({
+                container: mapContainer.current,
+                accessToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN,
+                style,
+                projection: 'mercator',
+                language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
+                bounds: portBounds,
+                fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
+                attributionControl: false,
+                locale: mapLocale,
+            });
+        } catch (error) {
+            if (!isWebGLUnavailableError(error)) throw error;
+            setWebglUnavailable(true);
+            return;
+        }
 
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
         const handleStyleLoad = () => setMapStyleLoaded(true);
@@ -632,17 +702,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     const f = e.features[0];
                     const props = f.properties;
                     const coords = (f.geometry as any).coordinates.slice();
-                    const pricePart = props.referencePrice
-                        ? ' <span style="color:#94A3B8">' + escapeHtml(props.referenceProduct) + '</span> <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + Number(props.referencePrice).toFixed(0) + '</span>'
-                        : '';
-                    const volumePart = props.totalVolume > 0
-                        ? '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + escapeHtml(translate('buyerMap.openVolume', { volume: Math.round(props.totalVolume).toLocaleString() })) + '</div>'
-                        : '';
-                    const tooltipHtml = '<div style="background:#1E293B;color:#F8FAFC;border-radius:6px;padding:6px 10px;font-family:\'DM Sans\',\'Inter\',sans-serif;font-size:12px;white-space:nowrap">'
-                        + '<span style="font-weight:700">' + escapeHtml(props.name) + '</span>'
-                        + pricePart
-                        + volumePart
-                        + '</div>';
+                    const tooltipHtml = portTooltipHtml({
+                        name: props.name,
+                        referencePrice: props.referencePrice,
+                        referenceProduct: props.referenceProduct,
+                        totalVolume: props.totalVolume,
+                    }, translate);
                     hoverPopup.setLngLat(coords).setHTML(tooltipHtml).addTo(map);
                 });
 
@@ -666,81 +731,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     if (popupRef.current) popupRef.current.remove();
 
                     const mkt = portMarketRef.current[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
-                    // Build popup HTML
-                    const fuelRowsHtml = mkt.fuelRows.length > 0
-                        ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">'
-                            + '<thead><tr style="border-bottom:1px solid rgba(148,163,184,0.3)">'
-                            + '<th style="text-align:left;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px;text-transform:uppercase">' + escapeHtml(translate('buyerMap.popup.fuel')) + '</th>'
-                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">' + escapeHtml(translate('buyerMap.popup.bid')) + '</th>'
-                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">' + escapeHtml(translate('buyerMap.popup.ask')) + '</th>'
-                            + '<th style="text-align:right;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px">#</th>'
-                            + '</tr></thead><tbody>'
-                            + mkt.fuelRows.map((row, i) =>'<tr style="border-bottom:' + (i < mkt.fuelRows.length - 1 ? '1px solid rgba(148,163,184,0.1)' : 'none') + '">'
-                                + '<td style="padding:4px 0;font-weight:600;color:#E2E8F0">' + escapeHtml(row.label) + '</td>'
-                                + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#10B981;font-weight:600">' + (row.bestBid !== null ? '$' + row.bestBid.toFixed(0) : '--') + '</td>'
-                                + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#EF4444;font-weight:600">' + (row.bestAsk !== null ? '$' + row.bestAsk.toFixed(0) : '--') + '</td>'
-                                + '<td style="text-align:right;padding:4px 0;color:#94A3B8">' + row.orderCount + '</td>'
-                                + '</tr>').join('')
-                            + '</tbody></table>'
-                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">' + escapeHtml(translate('buyerMap.popup.noOpenOrders')) + '</div>';
-
-                    // Market intelligence section
-                    const spotPrice = mkt.reference ? '$' + mkt.reference.price.toFixed(0) : '--';
-                    const referenceLabel = mkt.reference
-                        ? translate('buyerMap.spotIndication', { product: mkt.reference.productLabel })
-                        : translate('buyerMap.spotIndicationUnavailable');
-                    const referenceSource = !mkt.reference
-                        ? '--'
-                        : mkt.reference.source === 'DEMO'
-                            ? translate('buyerMap.demoMarketplace')
-                            : mkt.reference.source === 'MIXED'
-                                ? translate('buyerMap.mixedMarketplace')
-                                : translate('buyerMap.marketplace');
-                    const isBiofuel = Boolean(getBiofuelSpecification(selectedProductRef.current ?? mkt.reference?.productLabel));
-                    const plattsPrice = !isBiofuel && port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
-                    const swapPrice = !isBiofuel && port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
-                    const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
-                    const congestionLabel = congestion === '--'
-                        ? congestion
-                        : translate(`intelligencePanel.congestionLevels.${translationKey(congestion)}`, { defaultValue: translate('intelligencePanel.congestionLevels.unknown') });
-                    const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : congestion === 'High' ? '#EF4444' : '#94A3B8';
-                    const externalReferencesHtml = plattsPrice !== '--' || swapPrice !== '--'
-                        ? '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
-                            + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
-                            + '<span style="color:#E8373E;font-weight:600">' + escapeHtml(translate('buyerMap.benchmarkReference')) + '</span>'
-                            + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
-                            + '</div>'
-                            + '<div style="display:flex;justify-content:space-between;font-size:11px">'
-                            + '<span style="color:#94A3B8;font-weight:600">' + escapeHtml(translate('buyerMap.swapReference')) + '</span>'
-                            + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
-                            + '</div>'
-                            + '</div>'
-                        : '';
-                    const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
-                        // Product-specific SPOT indication
-                        + '<div style="margin-bottom:6px">'
-                        + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600;margin-bottom:2px">' + escapeHtml(referenceLabel) + '</div>'
-                        + '<div style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace">' + spotPrice + '</div>'
-                        + '</div>'
-                        + externalReferencesHtml
-                        // Congestion row
-                        + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px">'
-                        + '<div><span style="color:#94A3B8;font-weight:600">' + escapeHtml(translate('intelligencePanel.congestion')) + '</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + escapeHtml(congestionLabel) + '</span></div>'
-                        + '<div><span style="color:#94A3B8;font-weight:600">' + escapeHtml(translate('buyerMap.source')) + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + escapeHtml(referenceSource) + '</span></div>'
-                        + '</div>'
-                        + '</div>';
-
-                    const html = '<div class="verdaxis-port-popup-body" style="width:260px;background:' + (isDarkRef.current ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
-                        + '<h3 style="font-family:\'Montserrat\',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.2)">'
-                        + escapeHtml(port.name || translate('buyerMap.popup.unknownPort'))
-                        + '<span style="display:block;font-size:10px;font-weight:500;color:#94A3B8;margin-top:2px">' + escapeHtml(port.country
-                            ? translate(`countries.${translationKey(port.country)}`, { defaultValue: port.country })
-                            : translate('buyerMap.popup.global')) + '</span>'
-                        + '</h3>'
-                        + fuelRowsHtml
-                        + marketIntelHtml
-                        + '<button onclick="window.__verdaxisTradeAt && window.__verdaxisTradeAt(' + escapeHtml(JSON.stringify(port.id)) + ')" style="width:100%;background:#10B981;color:#FFF;font-size:12px;font-weight:700;padding:8px 0;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' + escapeHtml(translate('buyerMap.popup.tradeAt', { port: port.name })) + ' \u2192</button>'
-                        + '</div>';
+                    const html = portPopupHtml({
+                        port,
+                        market: mkt,
+                        isDark: isDarkRef.current,
+                        selectedProduct: selectedProductRef.current,
+                        translate,
+                    });
 
                     const coords = (f.geometry as any).coordinates.slice();
                     popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '280px', className: 'verdaxis-port-popup' })
@@ -839,9 +836,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
                     const features = vessels.filter((v: any) => v.location).map((v: any) => {
                         const heading = calculateHeading(v.previousLocation, v.location);
-                        const vt = (v.vesselType || '').toLowerCase();
-                        const color = vt.includes('methanol') || vt.includes('dual') || vt.includes('green') || vt.includes('ammonia')
-                            ? '#10B981' : vt.includes('lng') ? '#3B82F6' : '#94A3B8';
+                        const color = vesselColor(v.vesselType);
                         return {
                             type: 'Feature' as const,
                             geometry: { type: 'Point' as const, coordinates: [v.location.lng, v.location.lat] },
@@ -903,12 +898,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                                 const translate = translateRef.current;
                                 const p = e.features[0].properties;
                                 const coords = (e.features[0].geometry as any).coordinates.slice();
-                                const ciiColor = ['A','B'].includes(p.ciiGrade) ? '#10B981' : p.ciiGrade === 'C' ? '#F59E0B' : '#EF4444';
-                                const vesselType = translate(`buyerMap.vesselTypes.${translationKey(p.vesselType || '')}`, { defaultValue: translate('buyerMap.vesselTypes.other') });
-                                const html = '<div style="font-family:\'DM Sans\',sans-serif"><strong>' + escapeHtml(p.name) + '</strong>'
-                                    + '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + escapeHtml(vesselType)
-                                    + (p.ciiGrade ? ' <span style="color:' + ciiColor + ';font-weight:700">CII ' + escapeHtml(p.ciiGrade) + '</span>' : '')
-                                    + '</div></div>';
+                                const html = vesselTooltipHtml({ name: p.name, vesselType: p.vesselType, ciiGrade: p.ciiGrade }, translate);
                                 vesselPopup.setLngLat(coords).setHTML(html).addTo(map);
                             });
                             map.on('mouseleave', 'vessels-layer', () => {
@@ -967,7 +957,39 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
             <div className="flex-1 relative z-0">
-                <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
+                {webglUnavailable ? (
+                    <React.Suspense fallback={<LoadingScreen />}>
+                        <BasicMarketMap
+                            isDark={isDark}
+                            ports={basicPortMarkers}
+                            vessels={basicVessels}
+                            ecaZones={basicEcaZones}
+                            showEcaZones={showSecaZones}
+                            initialBounds={portBounds as LngLatCorners | undefined}
+                            onPortClick={handleBasicPortClick}
+                            cameraRef={basicCameraRef}
+                            ariaLabel={t('buyerMap.mapLabel')}
+                        />
+                    </React.Suspense>
+                ) : (
+                    <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
+                )}
+                {webglUnavailable && (
+                    <div className="absolute bottom-4 left-1/2 z-[25] w-[min(92%,34rem)] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-xs text-slate-700 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-200" role="status">
+                        <div className="flex items-center justify-between gap-3">
+                            <span>{t('buyerMap.webgl.basicMode')}</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowWebglHelp(open => !open)}
+                                aria-expanded={showWebglHelp}
+                                className="shrink-0 rounded border border-amber-300 px-2 py-1 font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                            >
+                                {t(showWebglHelp ? 'buyerMap.webgl.hideHow' : 'buyerMap.webgl.how')}
+                            </button>
+                        </div>
+                        {showWebglHelp && <div className="mt-2"><WebGLHelp /></div>}
+                    </div>
+                )}
                 {(loadError || marketDataError) && (
                     <div className="pointer-events-none absolute left-1/2 top-16 z-[25] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
                         {t('buyerMap.error')}

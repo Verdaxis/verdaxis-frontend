@@ -201,6 +201,34 @@
     "navigation": {
       "choosePort": "Go to port",
       "allPorts": "All ports"
+    },
+    "webgl": {
+      "basicMode": "Basic map: your browser has graphics acceleration off, so zoom is simpler. Turn it on for the full map.",
+      "how": "How?",
+      "hideHow": "Hide",
+      "stepRestart": "Quit the browser completely and open it again (on a Mac: Cmd+Q). Browsers turn graphics off for the session after repeated graphics crashes.",
+      "browsers": {
+        "chrome": {
+          "acceleration": "Open Settings → System, turn on \"Use graphics acceleration when available\", then click Relaunch.",
+          "check": "Open chrome://gpu and check that WebGL2 shows \"Hardware accelerated\"."
+        },
+        "edge": {
+          "acceleration": "Open Settings → System and performance, turn on \"Use graphics acceleration when available\", then restart Edge.",
+          "check": "Open edge://gpu and check that WebGL2 shows \"Hardware accelerated\"."
+        },
+        "firefox": {
+          "acceleration": "Open Settings → General → Performance, clear \"Use recommended performance settings\", tick \"Use hardware acceleration when available\", then restart Firefox.",
+          "check": "Open about:support and check that the WebGL 2 lines show a graphics driver, not \"blocked\"."
+        },
+        "safari": {
+          "acceleration": "Update macOS, which updates Safari. Safari turns graphics on by default.",
+          "check": "If the map still fails, open Safari Settings → Advanced, tick \"Show features for web developers\", then check Develop → Feature Flags that WebGL 2.0 is on."
+        },
+        "other": {
+          "acceleration": "In your browser settings, turn on hardware or graphics acceleration, then restart the browser.",
+          "check": "If the map still fails, a company policy or remote desktop may block the graphics card; open the map in Chrome, Edge or Safari, or on another computer."
+        }
+      }
     }
   },
   "dataAnalytics": {
