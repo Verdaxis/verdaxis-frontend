@@ -489,7 +489,7 @@ describe('admin member offboarding', () => {
       fireEvent.click(confirmButton());
 
       const record = await screen.findByTestId('offboard-reread');
-      expect(await within(record).findByText(/Not offboarded yet/)).toBeTruthy();
+      expect(await within(record).findByText(/No completed offboarding is visible yet/)).toBeTruthy();
       expect(mocks.offboardUser).toHaveBeenCalledTimes(1);
     });
 
@@ -1032,7 +1032,7 @@ describe('admin member offboarding', () => {
       fireEvent.click(confirmButton());
 
       const record = await screen.findByTestId('offboard-reread');
-      expect(await within(record).findByText(/Not offboarded yet/)).toBeTruthy();
+      expect(await within(record).findByText(/No completed offboarding is visible yet/)).toBeTruthy();
       fireEvent.click(screen.getByRole('button', { name: 'Start over with fresh details' }));
       await screen.findByText('Advisory counts');
       expect(confirmButton().disabled).toBe(true);
