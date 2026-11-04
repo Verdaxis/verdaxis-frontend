@@ -25,6 +25,7 @@ import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 import { isWebGLUnavailableError } from '../map/webglSupport';
+import { WebGLHelp } from './map/WebGLHelp';
 
 interface BuyerMapProps {
     active?: boolean;
@@ -1021,11 +1022,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                     <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">{t('buyerMap.webgl.title')}</h2>
                     <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t('buyerMap.webgl.body')}</p>
-                    <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-300">
-                        <li>{t('buyerMap.webgl.stepRestart')}</li>
-                        <li>{t('buyerMap.webgl.stepAcceleration')}</li>
-                        <li>{t('buyerMap.webgl.stepCheck')}</li>
-                    </ol>
+                    <div className="mt-3"><WebGLHelp /></div>
                     <button
                         type="button"
                         onClick={() => window.location.reload()}
