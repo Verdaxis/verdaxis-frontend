@@ -24,6 +24,7 @@ import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
+import { isWebGLUnavailableError } from '../map/webglSupport';
 
 interface BuyerMapProps {
     active?: boolean;
@@ -165,6 +166,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [marketSummaryReady, setMarketSummaryReady] = useState(false);
     const [marketDataError, setMarketDataError] = useState(false);
     const [ecaOverlayError, setEcaOverlayError] = useState(false);
+    const [webglUnavailable, setWebglUnavailable] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -495,17 +497,24 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
         const style = isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
 
-        const map = new mapboxgl.Map({
-            container: mapContainer.current,
-            accessToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN,
-            style,
-            projection: 'mercator',
-            language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
-            bounds: portBounds,
-            fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
-            attributionControl: false,
-            locale: mapLocale,
-        });
+        let map: mapboxgl.Map;
+        try {
+            map = new mapboxgl.Map({
+                container: mapContainer.current,
+                accessToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN,
+                style,
+                projection: 'mercator',
+                language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
+                bounds: portBounds,
+                fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
+                attributionControl: false,
+                locale: mapLocale,
+            });
+        } catch (error) {
+            if (!isWebGLUnavailableError(error)) throw error;
+            setWebglUnavailable(true);
+            return;
+        }
 
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
         const handleStyleLoad = () => setMapStyleLoaded(true);
@@ -1001,6 +1010,29 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
                         <LoadingScreen />
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (webglUnavailable) {
+        return (
+            <div className="flex h-full w-full items-center justify-center bg-slate-50 p-6 dark:bg-slate-900" role="alert">
+                <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                    <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">{t('buyerMap.webgl.title')}</h2>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t('buyerMap.webgl.body')}</p>
+                    <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-300">
+                        <li>{t('buyerMap.webgl.stepRestart')}</li>
+                        <li>{t('buyerMap.webgl.stepAcceleration')}</li>
+                        <li>{t('buyerMap.webgl.stepCheck')}</li>
+                    </ol>
+                    <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+                    >
+                        {t('buyerMap.webgl.retry')}
+                    </button>
                 </div>
             </div>
         );

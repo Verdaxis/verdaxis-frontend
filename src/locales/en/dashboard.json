@@ -202,7 +202,15 @@
       "choosePort": "Go to port",
       "allPorts": "All ports"
     },
-    "specificationScope": "B100 prices may cover different grades, cold-flow limits and certification. Check the order specification before trading."
+    "specificationScope": "B100 prices may cover different grades, cold-flow limits and certification. Check the order specification before trading.",
+    "webgl": {
+      "title": "The map needs graphics acceleration",
+      "body": "Your browser could not start WebGL, which the Intelligence Map uses to draw. This is a browser setting; the rest of Verdaxis works normally.",
+      "stepRestart": "Quit the browser completely and open it again (on a Mac: Cmd+Q). The browser turns graphics off for the session after repeated graphics crashes.",
+      "stepAcceleration": "In Chrome, open Settings → System, turn on \"Use graphics acceleration when available\", then relaunch.",
+      "stepCheck": "Open chrome://gpu and check that WebGL2 shows \"Hardware accelerated\". If it stays off, a company policy or remote desktop may block the graphics card; try another browser or computer.",
+      "retry": "Try again"
+    }
   },
   "dataAnalytics": {
     "title": "Data & Analytics",
