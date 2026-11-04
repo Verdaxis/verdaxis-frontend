@@ -202,7 +202,35 @@
       "choosePort": "前往港口",
       "allPorts": "所有港口"
     },
-    "specificationScope": "B100 价格可能涉及不同牌号、低温性能限值和认证。交易前请核对订单规格。"
+    "specificationScope": "B100 价格可能涉及不同牌号、低温性能限值和认证。交易前请核对订单规格。",
+    "webgl": {
+      "title": "地图需要启用图形加速",
+      "body": "您的浏览器无法启动 WebGL，情报地图需要它来绘制。这是浏览器设置问题，Verdaxis 的其他功能可正常使用。",
+      "stepRestart": "完全退出浏览器后重新打开（Mac：Cmd+Q）。图形多次崩溃后，浏览器会在本次会话中关闭图形加速。",
+      "retry": "重试",
+      "browsers": {
+        "chrome": {
+          "acceleration": "打开“设置 → 系统”，开启“使用图形加速（如果可用）”，然后点击“重新启动”。",
+          "check": "打开 chrome://gpu，确认 WebGL2 显示“Hardware accelerated”。"
+        },
+        "edge": {
+          "acceleration": "打开“设置 → 系统和性能”，开启“使用图形加速（如果可用）”，然后重新启动 Edge。",
+          "check": "打开 edge://gpu，确认 WebGL2 显示“Hardware accelerated”。"
+        },
+        "firefox": {
+          "acceleration": "打开“设置 → 常规 → 性能”，取消勾选“使用推荐的性能设置”，勾选“自动启用硬件加速（如可用）”，然后重新启动 Firefox。",
+          "check": "打开 about:support，确认 WebGL 2 相关行显示显卡驱动，而不是“blocked”。"
+        },
+        "safari": {
+          "acceleration": "更新 macOS（同时更新 Safari）。Safari 默认开启图形加速。",
+          "check": "如果地图仍无法显示，打开 Safari“设置 → 高级”，勾选“显示网页开发者功能”，然后在“开发 → 功能标志”中确认 WebGL 2.0 已开启。"
+        },
+        "other": {
+          "acceleration": "在浏览器设置中开启硬件加速或图形加速，然后重新启动浏览器。",
+          "check": "如果地图仍无法显示，可能是公司策略或远程桌面禁用了显卡；请改用 Chrome、Edge 或 Safari，或换一台电脑。"
+        }
+      }
+    }
   },
   "dataAnalytics": {
     "title": "数据与分析",
