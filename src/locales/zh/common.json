@@ -280,6 +280,7 @@
   "abilities.reason.LEGACY_ADMIN_MUTATION_RETIRED": "管理员必须在有效的市场支持环境中执行此操作。",
   "abilities.reason.MARKET_SUPPORT_DISABLED": "市场支持功能未启用。",
   "abilities.reason.MARKET_SUPPORT_CAPABILITY_REQUIRED": "您尚未获得此操作所需的市场支持权限。",
+  "abilities.reason.ACTION_RETIRED": "此功能已停用。",
   "pilotForm": {
     "success": {
       "heading": "申请已收到",

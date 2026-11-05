@@ -60,6 +60,7 @@ export const KNOWN_REASON_CODES = [
   'LEGACY_ADMIN_MUTATION_RETIRED',
   'MARKET_SUPPORT_DISABLED',
   'MARKET_SUPPORT_CAPABILITY_REQUIRED',
+  'ACTION_RETIRED',
 ] as const;
 
 /** One evaluated ability as the UI sees it. */
