@@ -280,6 +280,7 @@
   "abilities.reason.LEGACY_ADMIN_MUTATION_RETIRED": "Administrators must use an active Market Support context for this.",
   "abilities.reason.MARKET_SUPPORT_DISABLED": "Market Support is not enabled.",
   "abilities.reason.MARKET_SUPPORT_CAPABILITY_REQUIRED": "You have not been granted the Market Support capability this needs.",
+  "abilities.reason.ACTION_RETIRED": "This feature has been retired.",
   "pilotForm": {
     "success": {
       "heading": "Application Received",
