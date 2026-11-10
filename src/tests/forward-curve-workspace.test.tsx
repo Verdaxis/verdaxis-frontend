@@ -1041,7 +1041,7 @@ describe('ForwardCurveWorkspace', () => {
     } else {
       expect(screen.getAllByText('$1110').length).toBeGreaterThan(0);
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Open Marketplace' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trade this market' }));
     expect(onOpenSlice).toHaveBeenCalledWith({ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' });
   });
 
