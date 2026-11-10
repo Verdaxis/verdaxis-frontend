@@ -23,7 +23,7 @@ export const SkeletonTable: React.FC<{
 }> = ({ rows = 6, columns = 5, className = '' }) => {
   const gridClass = GRID_COLUMNS[columns] ?? GRID_COLUMNS[5];
   return (
-    <div className={className} aria-hidden="true">
+    <div className={className}>
       <div className={`grid ${gridClass} gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-800 lg:px-6`}>
         {Array.from({ length: columns }, (_, index) => (
           <SkeletonBlock key={index} className="h-3 w-3/5" rounded="sm" />

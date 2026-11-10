@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 /**
  * Base building block for layout skeletons: a neutral rounded block that
  * stands in for content that is not loaded yet. It carries no values —
- * only shape — and is always `aria-hidden`; the enclosing `SkeletonRegion`
- * carries the accessible loading status for the whole group.
+ * only shape and no text, so assistive tech skips it; the enclosing
+ * `SkeletonRegion` carries the accessible loading status for the group.
  */
 const ROUNDED: Record<string, string> = {
   sm: 'rounded-sm',
@@ -22,7 +22,7 @@ export const SkeletonBlock: React.FC<{
   /** Corner rounding to match the element being stood in for. */
   rounded?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 }> = ({ className = 'h-4 w-full', rounded = 'md' }) => (
-  <div className={`skeleton-block ${ROUNDED[rounded]} ${className}`} aria-hidden="true" />
+  <div className={`skeleton-block ${ROUNDED[rounded]} ${className}`} />
 );
 
 /**
@@ -35,7 +35,7 @@ export const SkeletonText: React.FC<{
   lines?: number;
   className?: string;
 }> = ({ lines = 3, className = '' }) => (
-  <div className={`space-y-2 ${className}`} aria-hidden="true">
+  <div className={`space-y-2 ${className}`}>
     {Array.from({ length: lines }, (_, index) => (
       <div
         key={index}
@@ -48,7 +48,7 @@ export const SkeletonText: React.FC<{
 /**
  * The single accessible root of a skeleton: `role="status"` plus the
  * translated "Loading" text for screen readers. Blocks inside a region
- * are `aria-hidden` so assistive tech announces one status, not dozens.
+ * hold no text, so assistive tech announces one status, not dozens.
  */
 export const SkeletonRegion: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
@@ -58,7 +58,7 @@ export const SkeletonRegion: React.FC<{ children: React.ReactNode; className?: s
   const { t } = useTranslation('common', { useSuspense: false });
 
   return (
-    <div className={className} role="status" aria-busy="true" aria-live="polite">
+    <div className={className} role="status" aria-busy="true">
       <span className="sr-only">{t('loading')}</span>
       {children}
     </div>

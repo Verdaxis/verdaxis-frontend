@@ -31,13 +31,11 @@ describe('layout skeletons', () => {
     expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
-  it('hides placeholder blocks from assistive technology', () => {
+  it('keeps placeholder blocks free of text so only one status is announced', () => {
     const { container } = render(<MyTradesSkeleton />);
     const blocks = container.querySelectorAll('.skeleton-block');
     expect(blocks.length).toBeGreaterThan(0);
-    blocks.forEach((block) => {
-      expect(block.closest('[aria-hidden="true"]')).not.toBeNull();
-    });
+    blocks.forEach((block) => expect(block.textContent).toBe(''));
   });
 
   it('removes the shimmer under prefers-reduced-motion', () => {

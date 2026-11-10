@@ -104,25 +104,29 @@ export const MyTradesSkeleton: React.FC = () => (
 );
 
 /**
- * Intelligence Map: neutral map area (no map tiles, no data), the top-left
- * layer button, the port/product filter bar and the right insights panel.
+ * Intelligence Map: neutral map area (no map tiles, no data) with the
+ * top-left chrome stacked like the real map (market watch strip, layer
+ * button + product filter bar, port search) and the right insights panel.
  */
 export const BuyerMapSkeleton: React.FC = () => (
   <SkeletonRegion className="relative h-full w-full overflow-hidden">
     {/* Map area: flat neutral surface, deliberately not a map image. */}
     <div className="absolute inset-0 bg-slate-100 dark:bg-[var(--ocean)]" aria-hidden="true" />
-    {/* Top-left chrome: layer button + filter bar placeholders. */}
-    <div className="absolute left-6 top-6 z-[20] flex max-w-[calc(100%-6rem)] flex-wrap items-center gap-2">
-      <SkeletonBlock className="h-10 w-28 rounded-lg" />
-      <SkeletonBlock className="h-11 w-48 rounded-lg" />
-      <SkeletonBlock className="h-11 w-32 rounded-lg" />
+    <div className="absolute left-4 top-4 z-[20] w-[calc(100%-2rem)] space-y-2 md:w-[calc(100%-22rem)]">
+      <SkeletonBlock className="h-11 w-full max-w-2xl rounded-lg" />
+      <div className="flex gap-2">
+        <SkeletonBlock className="h-9 w-24 rounded-lg" />
+        <SkeletonBlock className="h-9 w-full max-w-md rounded-lg" />
+      </div>
+      <SkeletonBlock className="h-9 w-36 rounded-lg" />
     </div>
-    {/* Right insights rail, matching the panel's md:w-80 placement. */}
-    <div className="absolute bottom-0 right-0 top-0 z-[20] hidden w-80 flex-col border-l border-slate-200 bg-white/95 p-5 dark:border-slate-700 dark:bg-slate-900/95 md:flex">
-      <SkeletonBlock className="mb-4 h-3 w-24 rounded-sm" />
-      <SkeletonBlock className="mb-2 h-6 w-40 rounded-lg" />
-      <SkeletonCard className="rounded-xl" lines={4} />
-      <SkeletonCard className="mt-4 rounded-xl" lines={5} />
+    {/* Right insights panel, matching the real panel's md:w-80 placement. */}
+    <div className="absolute bottom-0 right-0 top-0 z-[20] hidden w-80 border-l border-slate-200 bg-white/95 p-5 dark:border-slate-700 dark:bg-slate-900/95 md:block">
+      <SkeletonBlock className="mb-2 h-3 w-28" rounded="sm" />
+      <SkeletonBlock className="mb-5 h-6 w-44 rounded-lg" />
+      <SkeletonBlock className="mb-5 h-7 w-36 rounded-md" />
+      <SkeletonText lines={4} className="mb-6" />
+      <SkeletonText lines={4} />
     </div>
   </SkeletonRegion>
 );
@@ -151,7 +155,6 @@ export const PublicPageSkeleton: React.FC = () => (
       <SkeletonBlock className="mx-auto mb-4 h-6 w-40 rounded-full" />
       <SkeletonBlock className="mx-auto mb-3 h-10 w-full max-w-xl rounded-lg" />
       <SkeletonBlock className="mx-auto h-10 w-2/3 rounded-lg" />
-      <SkeletonText lines={2} className="mx-auto mt-6 max-w-xl" />
     </div>
     <div className="mt-14 space-y-6">
       <SkeletonCard lines={3} />
