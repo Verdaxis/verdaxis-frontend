@@ -17,7 +17,6 @@ export const SkeletonCard: React.FC<{
 }> = ({ heading = true, lines = 3, className = '', children }) => (
   <div
     className={`v-card p-5 ${className}`}
-    aria-hidden="true"
   >
     {heading && <SkeletonBlock className="mb-4 h-5 w-1/3" />}
     {children ?? <SkeletonText lines={lines} />}

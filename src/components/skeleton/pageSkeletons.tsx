@@ -106,7 +106,7 @@ export const MyTradesSkeleton: React.FC = () => (
 /**
  * Intelligence Map: neutral map area (no map tiles, no data) with the
  * top-left chrome stacked like the real map (market watch strip, layer
- * button + product filter bar, port search row) and the right insights panel.
+ * button + product filter bar, port search) and the right insights panel.
  */
 export const BuyerMapSkeleton: React.FC = () => (
   <SkeletonRegion className="relative h-full w-full overflow-hidden">
@@ -118,20 +118,13 @@ export const BuyerMapSkeleton: React.FC = () => (
         <SkeletonBlock className="h-9 w-24 rounded-lg" />
         <SkeletonBlock className="h-9 w-full max-w-md rounded-lg" />
       </div>
-      <div className="flex gap-2">
-        <SkeletonBlock className="h-9 w-36 rounded-lg" />
-        <SkeletonBlock className="h-9 w-20 rounded-lg" />
-        <SkeletonBlock className="h-9 w-20 rounded-lg" />
-      </div>
+      <SkeletonBlock className="h-9 w-36 rounded-lg" />
     </div>
     {/* Right insights panel, matching the real panel's md:w-80 placement. */}
     <div className="absolute bottom-0 right-0 top-0 z-[20] hidden w-80 border-l border-slate-200 bg-white/95 p-5 dark:border-slate-700 dark:bg-slate-900/95 md:block">
       <SkeletonBlock className="mb-2 h-3 w-28" rounded="sm" />
       <SkeletonBlock className="mb-5 h-6 w-44 rounded-lg" />
-      <div className="mb-5 flex gap-2">
-        <SkeletonBlock className="h-7 w-16 rounded-md" />
-        <SkeletonBlock className="h-7 w-20 rounded-md" />
-      </div>
+      <SkeletonBlock className="mb-5 h-7 w-36 rounded-md" />
       <SkeletonText lines={4} className="mb-6" />
       <SkeletonText lines={4} />
     </div>
@@ -162,7 +155,6 @@ export const PublicPageSkeleton: React.FC = () => (
       <SkeletonBlock className="mx-auto mb-4 h-6 w-40 rounded-full" />
       <SkeletonBlock className="mx-auto mb-3 h-10 w-full max-w-xl rounded-lg" />
       <SkeletonBlock className="mx-auto h-10 w-2/3 rounded-lg" />
-      <SkeletonText lines={2} className="mx-auto mt-6 max-w-xl" />
     </div>
     <div className="mt-14 space-y-6">
       <SkeletonCard lines={3} />

@@ -217,7 +217,6 @@
 @media (prefers-reduced-motion: reduce) {
   .skeleton-block::after {
     animation: none;
-    content: none;
   }
 }
 
