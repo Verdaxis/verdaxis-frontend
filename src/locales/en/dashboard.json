@@ -683,7 +683,7 @@
     "tabs": {
       "label": "Intelligence panel sections",
       "estimator": "Estimator",
-      "portIntel": "Port Intel",
+      "portIntel": "ECA Voyage Estimator",
       "news": "News"
     },
     "estimator": {
