@@ -135,7 +135,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showMarketWatch, setShowMarketWatch] = useState(true);
-    const [showMarketWidgets, setShowMarketWidgets] = useState(false);
+    const [showMarketWidgets, setShowMarketWidgets] = useState(true);
     const [showSecaZones, setShowSecaZones] = useState(true);
     const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
     const [recentAsks, setRecentAsks] = useState<MapRecentAsk[]>([]);
