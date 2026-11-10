@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { Outlet, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LoadingScreen } from '../LoadingScreen';
+import { PublicPageSkeleton } from '../skeleton';
 import { isSupportedLang } from '../../i18n';
 
 export default function PublicLanguageWrapper({ invalidLanguageElement }: { invalidLanguageElement: ReactNode }) {
@@ -25,7 +25,7 @@ export default function PublicLanguageWrapper({ invalidLanguageElement }: { inva
   const currentLang = i18n.language?.split('-')[0];
   if (currentLang !== lang) {
     void i18n.changeLanguage(lang);
-    return <LoadingScreen fullScreen />;
+    return <PublicPageSkeleton />;
   }
 
   return <Outlet />;
