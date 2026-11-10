@@ -1058,7 +1058,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 )}
                             </div>
                         </div>
-                        <div className="max-h-[calc(100vh-540px)] min-h-[280px] overflow-auto">
+                        <div className="overflow-auto [@media(min-height:900px)]:max-h-[calc(100vh-540px)] [@media(min-height:900px)]:min-h-[280px]">
                             <div
                                 className="forward-curve-console__body grid gap-px bg-slate-900"
                                 style={{
@@ -1136,7 +1136,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         </section>
                     </div>
 
-                    <div className="flex min-w-0 flex-col gap-3 xl:max-h-[calc(100vh-230px)] xl:overflow-y-auto xl:sticky xl:top-3 xl:self-start">
+                    <div className="flex min-w-0 flex-col gap-3 xl:self-start [@media(min-height:900px)]:xl:max-h-[calc(100vh-230px)] [@media(min-height:900px)]:xl:overflow-y-auto [@media(min-height:900px)]:xl:sticky [@media(min-height:900px)]:xl:top-3">
                         <section data-tour="forward-latest-signals" className="forward-curve-console__panel shrink-0 order-2 min-w-0 overflow-hidden border bg-[#080c13]">
                             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-1.5">
                                 <div className="flex items-center gap-2">
