@@ -97,9 +97,17 @@ const LOCAL_API_PATTERNS = [
 // home grid and its strings add to the command center, and compliance moves
 // above its old ceiling by the shell growth alone. The two raised ceilings are
 // the measured value plus 2 %, rounded up to the next 100 bytes.
+//
+// Layout skeleton loading replaces the oil-drop fallback on route and page
+// loads. The skeleton kit itself is a lazy chunk and so is outside every
+// first load, but the entry must still carry the lazy wrapper, the boot-delay
+// option on the loading screen and the per-route skeleton choice. That moves
+// landing by about +440 gzip bytes locally (347,501 -> 347,941), which the
+// 349,400 ceiling cannot absorb on CI's slightly larger build, so landing is
+// re-baselined to 350,000. No other ceiling moves.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
-  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 349400 },
+  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 350000 },
   // authenticated marketplace workspace
   { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 325000 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)

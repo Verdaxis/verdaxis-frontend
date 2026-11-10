@@ -1,4 +1,4 @@
-import { LoadingScreen } from './LoadingScreen';
+import { LazySkeleton } from './skeleton/LazySkeleton';
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -1012,8 +1012,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             <div className="relative flex h-full w-full overflow-hidden">
                 <div className="relative z-0 flex-1">
                     <div ref={mapContainer} className="verdaxis-buyer-map h-full w-full" />
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                        <LoadingScreen />
+                    <div className="absolute inset-0 z-10 bg-slate-50 dark:bg-slate-900">
+                        <LazySkeleton name="buyerMap" />
                     </div>
                 </div>
             </div>
@@ -1030,7 +1030,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             {/* The Map */}
             <div ref={mapAreaRef} className="flex-1 relative z-0">
                 {webglUnavailable ? (
-                    <React.Suspense fallback={<LoadingScreen />}>
+                    <React.Suspense fallback={<LazySkeleton name="buyerMap" />}>
                         <BasicMarketMap
                             isDark={isDark}
                             ports={basicPortMarkers}

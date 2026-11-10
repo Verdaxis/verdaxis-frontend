@@ -1,4 +1,5 @@
 import { LoadingScreen } from './components/LoadingScreen';
+import { LazySkeleton, preloadSkeletons } from './components/skeleton/LazySkeleton';
 
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -142,6 +143,9 @@ const ScrollToTop: React.FC = () => {
 };
 
 // Protected Route Wrapper
+// Boot checks are usually fast; the oil drop appears only if one takes longer.
+const BOOT_LOADING_DELAY_MS = 300;
+
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     const { user, isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
@@ -150,7 +154,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     }
 
     if (isLoading) {
-        return <LoadingScreen fullScreen />;
+        return <LoadingScreen fullScreen delayMs={BOOT_LOADING_DELAY_MS} />;
     }
 
     if (!isAuthenticated) {
@@ -281,6 +285,19 @@ const pathToPage = (pathname: string): Page => {
 
 const DashboardQueryProvider = lazy(() => import('./lib/query/QueryProvider').then(module => ({ default: module.QueryProvider })));
 
+// The dashboard content Suspense keeps the app shell (sidebar/header) mounted;
+// only the content area swaps to a skeleton shaped like the page being opened.
+// `loading` is undefined while the real page chunk loads, so unknown routes
+// fall back to the generic page skeleton.
+const dashboardSkeleton = (loading: Page | undefined): React.ReactElement => {
+    switch (loading) {
+        case 'DASHBOARD': return <LazySkeleton name="commandCenter" />;
+        case 'WATCHLISTS': return <LazySkeleton name="watchlist" />;
+        case 'TRADES': return <LazySkeleton name="myTrades" />;
+        default: return <LazySkeleton name="page" />;
+    }
+};
+
 const DashboardLayout: React.FC = () => {
   const { user } = useAuth();
   const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
@@ -333,6 +350,9 @@ const DashboardLayout: React.FC = () => {
   }, [isMapActive, dashboardScopeKey]);
 
   useEffect(() => () => cancelDashboardNavigation(), []);
+
+  // Fetch the skeleton chunk ahead of the first route change.
+  useEffect(() => { preloadSkeletons(); }, []);
 
   // Session persistence: the sole writer of the legacy Page value.
   useEffect(() => {
@@ -389,7 +409,7 @@ const DashboardLayout: React.FC = () => {
       ? marketplaceDeepLinkProduct : undefined);
 
   if (isMarketSupportLoading) {
-    return <LoadingScreen fullScreen label={t('marketSupport.restoring')} />;
+    return <LoadingScreen fullScreen label={t('marketSupport.restoring')} delayMs={BOOT_LOADING_DELAY_MS} />;
   }
 
   return (
@@ -416,7 +436,7 @@ const DashboardLayout: React.FC = () => {
           aria-hidden={!isMapActive}
         >
           <ErrorBoundary key={dashboardScopeKey}>
-            <Suspense fallback={<LoadingScreen />}>
+            <Suspense fallback={<LazySkeleton name="buyerMap" />}>
               <BuyerMap
                 active={isMapActive}
                 onPortSelect={openMarketplaceAtPort}
@@ -429,7 +449,7 @@ const DashboardLayout: React.FC = () => {
       )}
       {!isMapActive && (
         <ErrorBoundary key={dashboardScopeKey}>
-          <Suspense fallback={<LoadingScreen />}>
+          <Suspense fallback={dashboardSkeleton(currentPage)}>
             <Outlet context={outletContext} />
           </Suspense>
         </ErrorBoundary>
@@ -561,7 +581,7 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
   const InitialPublicPage = initialPublicPage?.pathname === pathname ? initialPublicPage.Component : undefined;
   const publicPage = (fallback: React.ReactElement) => InitialPublicPage ? <InitialPublicPage /> : fallback;
   return (
-                <Suspense fallback={<LoadingScreen fullScreen />}>
+                <Suspense fallback={<LazySkeleton name="publicPage" />}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />
@@ -647,7 +667,7 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
                             <RequireOrganization>
                                 <RequireProfile>
                                     <MobileDesktopGate>
-                                        <Suspense fallback={<LoadingScreen />}>
+                                        <Suspense fallback={<LazySkeleton name="page" />}>
                                             <DashboardQueryProvider><DashboardLayout /></DashboardQueryProvider>
                                         </Suspense>
                                     </MobileDesktopGate>
