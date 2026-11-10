@@ -27,6 +27,7 @@ import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 import { isWebGLUnavailableError } from '../map/webglSupport';
 import { WebGLHelp } from './map/WebGLHelp';
 import type {
+    BasicInitialView,
     BasicMapCamera,
     BasicPortMarker,
     BasicVesselMarker,
@@ -54,6 +55,12 @@ interface BuyerMapProps {
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
 }
+
+// Camera moves shared by the full map and the basic map (Mapbox zoom levels).
+const PORT_FIT_MAX_ZOOM = 3.6;
+const CAMERA_MOVE_MS = 700;
+const EUROPE_ECA_BOUNDS: LngLatCorners = [[-11, 29], [37, 67]];
+const EUROPE_ECA_MOVE_MS = 850;
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 const resolveApprovedPortName = (
@@ -161,6 +168,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [showWebglHelp, setShowWebglHelp] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
+    // The map's area; the full map and the basic map both fill it.
+    const mapAreaRef = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -300,7 +309,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [visiblePorts]);
 
     const mapPadding = useCallback((panelOpen = isPanelOpen) => {
-        const mapRect = mapContainer.current?.getBoundingClientRect();
+        const mapRect = (mapAreaRef.current ?? mapContainer.current)?.getBoundingClientRect();
         const toolbarRect = toolbarRef.current?.getBoundingClientRect();
         const width = mapRect?.width || window.innerWidth;
         const height = mapRect?.height || window.innerHeight;
@@ -319,12 +328,16 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         popupRef.current?.remove();
         setSelectedPortId(null);
         basicCameraRef.current?.closePopup();
-        basicCameraRef.current?.fitBounds(portBounds as LngLatCorners);
+        basicCameraRef.current?.fitBounds(portBounds as LngLatCorners, {
+            padding: mapPadding(),
+            maxZoom: PORT_FIT_MAX_ZOOM,
+            durationMs: CAMERA_MOVE_MS,
+        });
         mapRef.current?.fitBounds(portBounds, {
             padding: mapPadding(),
             retainPadding: false,
-            duration: 700,
-            maxZoom: 3.6,
+            duration: CAMERA_MOVE_MS,
+            maxZoom: PORT_FIT_MAX_ZOOM,
         });
     }, [mapPadding, portBounds]);
 
@@ -332,13 +345,17 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         setSelectedPortId(port.id);
         setIsPanelOpen(true);
         if (options.flyTo) {
-            basicCameraRef.current?.flyTo(port.location.lng, port.location.lat, 4);
+            basicCameraRef.current?.flyTo(port.location.lng, port.location.lat, {
+                padding: mapPadding(true),
+                minZoom: PORT_FIT_MAX_ZOOM,
+                durationMs: CAMERA_MOVE_MS,
+            });
             mapRef.current?.flyTo({
                 center: [port.location.lng, port.location.lat],
-                zoom: Math.max(mapRef.current.getZoom(), 3.6),
+                zoom: Math.max(mapRef.current.getZoom(), PORT_FIT_MAX_ZOOM),
                 padding: mapPadding(true),
                 retainPadding: false,
-                duration: 700,
+                duration: CAMERA_MOVE_MS,
             });
         }
     }, [mapPadding]);
@@ -355,13 +372,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const focusEuropeanEcaZones = useCallback(() => {
         setShowSecaZones(true);
         setIsLayersMenuOpen(false);
-        basicCameraRef.current?.fitBounds([[-11, 29], [37, 67]], 5);
+        basicCameraRef.current?.fitBounds(EUROPE_ECA_BOUNDS, { padding: mapPadding(), durationMs: EUROPE_ECA_MOVE_MS });
         const map = mapRef.current;
         if (!map) return;
-        map.fitBounds([[-11, 29], [37, 67]], {
+        map.fitBounds(EUROPE_ECA_BOUNDS, {
             padding: mapPadding(),
             retainPadding: false,
-            duration: 850,
+            duration: EUROPE_ECA_MOVE_MS,
         });
     }, [mapPadding]);
 
@@ -474,6 +491,17 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         });
     }, []);
 
+    const getBasicInitialView = useCallback((): BasicInitialView | undefined => (
+        portBounds ? { bounds: portBounds as LngLatCorners, padding: mapPadding(), maxZoom: PORT_FIT_MAX_ZOOM } : undefined
+    ), [portBounds, mapPadding]);
+
+    const basicMapLabels = useMemo(() => ({
+        zoomIn: mapLocale['NavigationControl.ZoomIn'],
+        zoomOut: mapLocale['NavigationControl.ZoomOut'],
+        resetBearing: mapLocale['NavigationControl.ResetBearing'],
+        closePopup: t('buyerMap.popup.close'),
+    }), [mapLocale, t]);
+
     useEffect(() => {
         if (!webglUnavailable) return;
         let cancelled = false;
@@ -565,7 +593,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 projection: 'mercator',
                 language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
                 bounds: portBounds,
-                fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
+                fitBoundsOptions: { padding: mapPadding(), maxZoom: PORT_FIT_MAX_ZOOM, duration: 0, retainPadding: false },
                 attributionControl: false,
                 locale: mapLocale,
             });
@@ -653,8 +681,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [active, isDark, mapLanguage, mapLocale]);
 
     // Keep native navigation below the toolbar when filters wrap or the ticker closes.
+    // Both map engines read the offset from the map area.
     useEffect(() => {
-        const container = mapContainer.current;
+        const container = mapAreaRef.current;
         const toolbar = toolbarRef.current;
         if (!container || !toolbar) return;
         const positionControls = () => {
@@ -999,7 +1028,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     return (
         <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
-            <div className="flex-1 relative z-0">
+            <div ref={mapAreaRef} className="flex-1 relative z-0">
                 {webglUnavailable ? (
                     <React.Suspense fallback={<LazySkeleton name="buyerMap" />}>
                         <BasicMarketMap
@@ -1008,10 +1037,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             vessels={basicVessels}
                             ecaZones={basicEcaZones}
                             showEcaZones={showSecaZones}
-                            initialBounds={portBounds as LngLatCorners | undefined}
+                            getInitialView={getBasicInitialView}
                             onPortClick={handleBasicPortClick}
                             cameraRef={basicCameraRef}
                             ariaLabel={t('buyerMap.mapLabel')}
+                            labels={basicMapLabels}
                         />
                     </React.Suspense>
                 ) : (
