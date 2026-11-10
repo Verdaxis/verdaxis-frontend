@@ -1,0 +1,147 @@
+/*
+ * The basic map (Leaflet, no WebGL), styled like the Mapbox map in
+ * src/index.css. It loads with BasicMarketMap, so the full map and other
+ * pages never download it.
+ */
+
+/* Mapbox's navigation control, as index.css styles it on the full map. */
+.verdaxis-basic-map .mapboxgl-ctrl-group button { width: 44px; height: 44px; }
+.dark .verdaxis-basic-map .mapboxgl-ctrl-group { background: #0f172a; }
+.dark .verdaxis-basic-map .mapboxgl-ctrl-group button + button { border-color: #334155; }
+.dark .verdaxis-basic-map .mapboxgl-ctrl-icon { filter: invert(1); }
+
+.verdaxis-basic-map.leaflet-container {
+  font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+  background: #e5e7eb;
+}
+.dark .verdaxis-basic-map.leaflet-container { background: #1f2937; }
+/* Keep the map below the toolbar, ticker and widgets, as the Mapbox canvas is.
+   The map pane moves with a transform, so it stacks its own layers. */
+.verdaxis-basic-map .leaflet-map-pane { z-index: 0; }
+/* Pop-ups and tooltips stack above the toolbar (20) and ticker (30), as Mapbox pop-ups do. */
+.verdaxis-basic-map .leaflet-verdaxisFloating-pane { z-index: 31; }
+.verdaxis-basic-map .leaflet-verdaxisEca-pane { z-index: 350; }
+.verdaxis-basic-map .leaflet-verdaxisEcaLabels-pane { z-index: 360; }
+.verdaxis-basic-map .leaflet-top,
+.verdaxis-basic-map .leaflet-bottom { z-index: 2; }
+.verdaxis-basic-map .leaflet-top.leaflet-right {
+  top: var(--verdaxis-map-controls-top, 220px);
+  right: var(--verdaxis-map-rail-offset, 24px);
+}
+.verdaxis-basic-map .leaflet-top.leaflet-right .leaflet-control { margin: 0; }
+.verdaxis-basic-map .leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  line-height: 16px;
+}
+.dark .verdaxis-basic-map .leaflet-control-attribution { background: rgba(15, 23, 42, 0.5); color: #94a3b8; }
+.dark .verdaxis-basic-map .leaflet-control-attribution a { color: #cbd5e1; }
+
+/* Pop-up: the HTML brings its own panel; the tip and close button match Mapbox's. */
+.leaflet-popup.verdaxis-port-popup { margin-bottom: 10px; }
+.verdaxis-port-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.verdaxis-port-popup .leaflet-popup-content { margin: 0; font-size: 12px; line-height: 20px; min-height: 0; }
+.verdaxis-port-popup .leaflet-popup-content p { margin: 0 0 10px; }
+.verdaxis-port-popup .leaflet-popup-tip-container { width: 20px; height: 10px; margin-left: -10px; margin-top: 0; }
+.verdaxis-port-popup .leaflet-popup-tip {
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 10px solid transparent;
+  border-bottom: none;
+  border-top-color: #1E293B;
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+.verdaxis-basic-map .verdaxis-port-popup a.leaflet-popup-close-button {
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  color: #94A3B8;
+  font: 18px/1 Arial, Helvetica, sans-serif;
+  z-index: 1;
+}
+.verdaxis-basic-map .verdaxis-port-popup a.leaflet-popup-close-button:hover { color: #F8FAFC; }
+
+/* Tooltips: Mapbox hover pop-ups with a 10px tip. */
+.leaflet-tooltip.verdaxis-port-popup,
+.leaflet-tooltip.verdaxis-vessel-tooltip {
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: #F8FAFC;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 20px;
+}
+.leaflet-tooltip.verdaxis-vessel-tooltip {
+  background: #0F172A;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  padding: 6px 10px;
+  font-size: 11px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.leaflet-tooltip-top.verdaxis-port-popup,
+.leaflet-tooltip-top.verdaxis-vessel-tooltip { margin-top: -10px; }
+.leaflet-tooltip-top.verdaxis-port-popup::before,
+.leaflet-tooltip-top.verdaxis-vessel-tooltip::before {
+  bottom: -10px;
+  margin-bottom: 0;
+  margin-left: -10px;
+  border-width: 10px 10px 0;
+  border-top-color: #1E293B;
+}
+.leaflet-tooltip-top.verdaxis-vessel-tooltip::before { border-top-color: #0F172A; }
+
+/* Vessels: the full map's chevron, sized by zoom (BasicMarketMap sets the variables). */
+.verdaxis-basic-vessel.leaflet-marker-icon { pointer-events: none; background: none; border: 0; }
+.verdaxis-basic-vessel svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--verdaxis-vessel-size, 19px);
+  height: var(--verdaxis-vessel-size, 19px);
+  overflow: visible;
+}
+.verdaxis-basic-vessel path {
+  pointer-events: auto;
+  cursor: pointer;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: var(--verdaxis-vessel-halo, 6.7);
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
+/* ECA labels: the full map's symbol layer. */
+.verdaxis-basic-eca-label-anchor { background: none; border: 0; }
+.verdaxis-basic-eca-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: "DIN Pro", "DIN Next", Roboto, Arial, sans-serif;
+  font-weight: 500;
+  font-size: var(--verdaxis-eca-label-size, 9px);
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+  /* Mapbox wraps symbol text at 10 ems (text-max-width). */
+  width: max-content;
+  max-width: 10em;
+  opacity: 0.9;
+  color: #38BDF8;
+  -webkit-text-stroke: 2.4px #F8FAFC;
+  paint-order: stroke fill;
+}
+.dark .verdaxis-basic-eca-label { -webkit-text-stroke-color: #0F172A; }
+.verdaxis-basic-eca-label--transition { color: #F59E0B; }
+.verdaxis-basic-eca-label--adopted { color: #A78BFA; }
