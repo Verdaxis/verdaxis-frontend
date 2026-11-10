@@ -203,7 +203,7 @@
       "allPorts": "All ports"
     },
     "webgl": {
-      "basicMode": "Basic map: your browser has graphics acceleration off, so zoom is simpler. Turn it on for the full map.",
+      "basicMode": "Basic map: your browser has graphics acceleration off, so place names are less sharp and stay in English. Turn it on for the full map.",
       "how": "How?",
       "hideHow": "Hide",
       "stepRestart": "Quit the browser completely and open it again (on a Mac: Cmd+Q). Browsers turn graphics off for the session after repeated graphics crashes.",
