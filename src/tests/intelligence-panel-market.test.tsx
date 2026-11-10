@@ -58,7 +58,7 @@ const openPanel = (selectedPort?: Port, selectedProduct?: string) => {
   const result = renderWithProviders(
     <IntelligencePanel isOpen onClose={vi.fn()} selectedPort={selectedPort} selectedProduct={selectedProduct} onPortSelect={vi.fn()} />,
   );
-  fireEvent.click(screen.getByRole('tab', { name: selectedPort ? 'Port Intel' : 'Estimator' }));
+  fireEvent.click(screen.getByRole('tab', { name: selectedPort ? 'ECA Voyage Estimator' : 'Estimator' }));
   return result;
 };
 
