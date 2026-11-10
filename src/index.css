@@ -546,3 +546,33 @@ a[href*="github.io/tradingview"] {
     background: #4caf50;
   }
 }
+
+/* Forward curve: thin grey scrollbars instead of the wide default ones. */
+.forward-curve-console,
+.forward-curve-console * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.forward-curve-console ::-webkit-scrollbar,
+.forward-curve-console::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.forward-curve-console ::-webkit-scrollbar-track,
+.forward-curve-console::-webkit-scrollbar-track,
+.forward-curve-console ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.forward-curve-console ::-webkit-scrollbar-thumb,
+.forward-curve-console::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+.forward-curve-console ::-webkit-scrollbar-thumb:hover,
+.forward-curve-console::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.6);
+}
