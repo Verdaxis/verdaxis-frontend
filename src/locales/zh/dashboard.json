@@ -684,7 +684,7 @@
     "tabs": {
       "label": "情报面板分区",
       "estimator": "估算器",
-      "portIntel": "港口情报",
+      "portIntel": "ECA 航程估算器",
       "news": "新闻"
     },
     "estimator": {
