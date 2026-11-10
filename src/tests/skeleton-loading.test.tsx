@@ -12,7 +12,7 @@ import {
   PageSkeleton,
   PublicPageSkeleton,
   WatchlistSkeleton,
-} from '../components/skeleton';
+} from '../components/skeleton/pageSkeletons';
 
 const PAGE_SKELETONS: Array<[string, React.FC]> = [
   ['CommandCenterSkeleton', CommandCenterSkeleton],

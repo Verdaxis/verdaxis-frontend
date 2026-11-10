@@ -1,4 +1,4 @@
-import { CommandCenterSkeleton } from './skeleton';
+import { LazySkeleton } from './skeleton/LazySkeleton';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, FileText, Gavel, HandCoins, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
@@ -301,7 +301,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     };
 
     if (!ready || loading || dashboardLayout.loading) {
-        return <CommandCenterSkeleton />;
+        return <LazySkeleton name="commandCenter" />;
     }
 
     const cta = CTA_CONFIG[viewMode];
