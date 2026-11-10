@@ -80,7 +80,7 @@ describe('IntelligencePanel', () => {
   it.each([
     { name: 'inactive map', props: { active: false }, tab: '估算器' },
     { name: 'closed panel', props: { isOpen: false }, tab: '估算器' },
-    { name: 'selected port', props: { selectedPort: PORTS[0] }, tab: '港口情报' },
+    { name: 'selected port', props: { selectedPort: PORTS[0] }, tab: 'ECA 航程估算器' },
   ])('defers global curves for a $name until global Primary content is visible', async ({ props, tab }) => {
     vi.mocked(api.catalog.products).mockResolvedValue([product]);
     vi.mocked(api.curves.forward).mockResolvedValue(curveResponse(790));
@@ -165,7 +165,7 @@ describe('IntelligencePanel', () => {
     );
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'ECA 航程估算器' }));
     });
     expect((await screen.findAllByText('未知')).length).toBeGreaterThanOrEqual(3);
     expect(screen.queryByText(/Unexpected/)).toBeNull();
