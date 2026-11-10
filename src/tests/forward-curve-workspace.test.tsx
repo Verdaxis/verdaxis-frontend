@@ -744,7 +744,7 @@ describe('ForwardCurveWorkspace', () => {
       expect(screen.getAllByText('e-Methanol · Rotterdam').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /open marketplace/i }));
+    fireEvent.click(screen.getByRole('button', { name: /trade this market/i }));
 
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
     expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Rotterdam');
@@ -1041,7 +1041,7 @@ describe('ForwardCurveWorkspace', () => {
     } else {
       expect(screen.getAllByText('$1110').length).toBeGreaterThan(0);
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Open Marketplace' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trade this market' }));
     expect(onOpenSlice).toHaveBeenCalledWith({ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' });
   });
 

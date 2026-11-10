@@ -1010,6 +1010,11 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             type="button"
                             onClick={openMarketplace}
                             disabled={!activeCell}
+                            title={activeCell
+                                ? t('forwardCurve.openMarketplaceHint', {
+                                    market: `${formatMarketProduct(activeCell.market_product)} · ${activeCell.delivery_point_name}`,
+                                })
+                                : undefined}
                             className="inline-flex h-8 items-center gap-1 bg-emerald-500 px-3 text-xs font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         >
                             {t('forwardCurve.openMarketplace')}
