@@ -1,4 +1,12 @@
-import { LoadingScreen } from './components/LoadingScreen';
+import { DelayedLoadingScreen } from './components/DelayedLoadingScreen';
+import {
+    BuyerMapSkeleton,
+    CommandCenterSkeleton,
+    MyTradesSkeleton,
+    PageSkeleton,
+    PublicPageSkeleton,
+    WatchlistSkeleton,
+} from './components/skeleton';
 
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -110,7 +118,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     }
 
     if (isLoading) {
-        return <LoadingScreen fullScreen />;
+        return <DelayedLoadingScreen fullScreen />;
     }
 
     if (!isAuthenticated) {
@@ -239,6 +247,18 @@ const pathToPage = (pathname: string): Page => {
   }
 };
 
+// The dashboard content Suspense keeps the app shell (sidebar/header) mounted;
+// only the content area swaps to a skeleton shaped like the page being opened.
+// Unknown routes fall back to the generic page skeleton.
+const dashboardSkeleton = (loading: Page | undefined): React.ReactElement => {
+    switch (loading) {
+        case 'DASHBOARD': return <CommandCenterSkeleton />;
+        case 'WATCHLISTS': return <WatchlistSkeleton />;
+        case 'TRADES': return <MyTradesSkeleton />;
+        default: return <PageSkeleton />;
+    }
+};
+
 const DashboardLayout: React.FC = () => {
   const { user } = useAuth();
   const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
@@ -338,7 +358,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   if (isMarketSupportLoading) {
-    return <LoadingScreen fullScreen label={t('marketSupport.restoring')} />;
+    return <DelayedLoadingScreen fullScreen label={t('marketSupport.restoring')} />;
   }
 
   return (
@@ -359,7 +379,7 @@ const DashboardLayout: React.FC = () => {
           aria-hidden={!isMapActive}
         >
           <ErrorBoundary key={dashboardScopeKey}>
-            <Suspense fallback={<LoadingScreen />}>
+            <Suspense fallback={<BuyerMapSkeleton />}>
               <BuyerMap
                 active={isMapActive}
                 onPortSelect={openMarketplaceAtPort}
@@ -372,7 +392,7 @@ const DashboardLayout: React.FC = () => {
       )}
       {!isMapActive && (
         <ErrorBoundary key={dashboardScopeKey}>
-          <Suspense fallback={<LoadingScreen />}>
+          <Suspense fallback={dashboardSkeleton(currentPage)}>
             <Outlet context={outletContext} />
           </Suspense>
         </ErrorBoundary>
@@ -508,7 +528,7 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
   );
 
   return (
-                <Suspense fallback={<LoadingScreen fullScreen />}>
+                <Suspense fallback={<PublicPageSkeleton />}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />
