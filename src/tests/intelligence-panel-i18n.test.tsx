@@ -99,7 +99,7 @@ describe('IntelligencePanel localization', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'ECA 航程估算器' }));
     expect(await screen.findByText('UCOME B100')).toBeTruthy();
     expect(screen.getByText('市场价格')).toBeTruthy();
     expect(screen.getByText('供应情况')).toBeTruthy();
@@ -150,7 +150,7 @@ describe('IntelligencePanel localization', () => {
     ]);
     vi.mocked(api.curves.forward).mockResolvedValue(curveResponse(790));
     renderWithProviders(<IntelligencePanel {...panelProps} selectedPort={selectedPort} selectedProduct="UCOME_B100" />);
-    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: '港口情报' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'ECA 航程估算器' })); });
     expect(await screen.findByText(/\$790/)).toBeTruthy();
     expect(api.curves.forward).toHaveBeenCalledExactlyOnceWith({
       product_id: ucomeProduct.id,
@@ -259,7 +259,7 @@ describe('IntelligencePanel localization', () => {
     );
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'ECA 航程估算器' }));
     });
     expect((await screen.findAllByText('未知')).length).toBeGreaterThanOrEqual(3);
     expect(screen.queryByText(/Unexpected/)).toBeNull();
