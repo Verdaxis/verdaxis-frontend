@@ -1,4 +1,4 @@
-import { LoadingScreen } from './LoadingScreen';
+import { LazySkeleton } from './skeleton/LazySkeleton';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     ArrowUpRight,
@@ -423,7 +423,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         return (
             <div className={containerClass}>
                 {pageHeading}
-                <LoadingScreen label={t('myTrades.loading')} />
+                <LazySkeleton name="myTrades" />
             </div>
         );
     }

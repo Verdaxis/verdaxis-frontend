@@ -1,0 +1,38 @@
+/* ============================================
+   Layout Skeletons
+   ============================================
+   Stand-in blocks for content that is still loading. The base color is
+   theme-driven (border token over card token) so light and dark both read
+   as "empty surface" without new colors; the shimmer is one soft white
+   sweep that works on both themes. Reduced motion keeps the static tone and drops only the sweep. */
+.skeleton-block {
+  background-color: var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: skeleton-shimmer 1.6s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block::after {
+    animation: none;
+  }
+}
