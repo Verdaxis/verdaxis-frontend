@@ -1,4 +1,4 @@
-import { WatchlistSkeleton } from './skeleton';
+import { LazySkeleton } from './skeleton/LazySkeleton';
 import React, { useMemo, useState } from 'react';
 import { BellDot, Pin, Star, Trash2 } from 'lucide-react';
 
@@ -48,7 +48,7 @@ export const WatchlistPage: React.FC = () => {
         }
     };
 
-    if (!ready || loading) return <WatchlistSkeleton />;
+    if (!ready || loading) return <LazySkeleton name="watchlist" />;
 
     return (
         <div className="h-full overflow-y-auto px-4 pb-8 pt-4 lg:px-10 lg:pt-8">

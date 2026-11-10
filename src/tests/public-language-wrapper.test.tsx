@@ -25,7 +25,7 @@ describe('PublicLanguageWrapper', () => {
     sessionStorage.removeItem('verdaxis_ref_code');
   });
 
-  it('shows the shared loading screen while applying a URL language', async () => {
+  it('shows the public page skeleton while applying a URL language', async () => {
     await i18n.changeLanguage('en');
     const changeLanguage = vi.spyOn(i18n, 'changeLanguage').mockReturnValue(new Promise(() => {}));
 
@@ -41,7 +41,7 @@ describe('PublicLanguageWrapper', () => {
       </I18nextProvider>,
     );
 
-    expect(screen.getByRole('status')).toBeTruthy();
+    expect(await screen.findByRole('status')).toBeTruthy();
     expect(screen.queryByText('localized page')).toBeNull();
     expect(changeLanguage).toHaveBeenCalledWith('zh');
     changeLanguage.mockRestore();

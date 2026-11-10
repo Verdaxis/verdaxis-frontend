@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import './skeleton.css';
 
 /**
  * Base building block for layout skeletons: a neutral rounded block that

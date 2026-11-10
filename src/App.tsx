@@ -1,12 +1,5 @@
-import { DelayedLoadingScreen } from './components/DelayedLoadingScreen';
-import {
-    BuyerMapSkeleton,
-    CommandCenterSkeleton,
-    MyTradesSkeleton,
-    PageSkeleton,
-    PublicPageSkeleton,
-    WatchlistSkeleton,
-} from './components/skeleton';
+import { LoadingScreen } from './components/LoadingScreen';
+import { LazySkeleton, preloadSkeletons } from './components/skeleton/LazySkeleton';
 
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -110,6 +103,9 @@ const ScrollToTop: React.FC = () => {
 };
 
 // Protected Route Wrapper
+// Boot checks are usually fast; the oil drop appears only if one takes longer.
+const BOOT_LOADING_DELAY_MS = 300;
+
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     const { user, isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
@@ -118,7 +114,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     }
 
     if (isLoading) {
-        return <DelayedLoadingScreen fullScreen />;
+        return <LoadingScreen fullScreen delayMs={BOOT_LOADING_DELAY_MS} />;
     }
 
     if (!isAuthenticated) {
@@ -252,10 +248,10 @@ const pathToPage = (pathname: string): Page => {
 // Unknown routes fall back to the generic page skeleton.
 const dashboardSkeleton = (loading: Page | undefined): React.ReactElement => {
     switch (loading) {
-        case 'DASHBOARD': return <CommandCenterSkeleton />;
-        case 'WATCHLISTS': return <WatchlistSkeleton />;
-        case 'TRADES': return <MyTradesSkeleton />;
-        default: return <PageSkeleton />;
+        case 'DASHBOARD': return <LazySkeleton name="commandCenter" />;
+        case 'WATCHLISTS': return <LazySkeleton name="watchlist" />;
+        case 'TRADES': return <LazySkeleton name="myTrades" />;
+        default: return <LazySkeleton name="page" />;
     }
 };
 
@@ -309,6 +305,9 @@ const DashboardLayout: React.FC = () => {
 
   useEffect(() => () => cancelDashboardNavigation(), []);
 
+  // Fetch the skeleton chunk ahead of the first route change.
+  useEffect(() => { preloadSkeletons(); }, []);
+
   // Session persistence: the sole writer of the legacy Page value.
   useEffect(() => {
     if (isBareAppPath) return;
@@ -358,7 +357,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   if (isMarketSupportLoading) {
-    return <DelayedLoadingScreen fullScreen label={t('marketSupport.restoring')} />;
+    return <LoadingScreen fullScreen label={t('marketSupport.restoring')} delayMs={BOOT_LOADING_DELAY_MS} />;
   }
 
   return (
@@ -379,7 +378,7 @@ const DashboardLayout: React.FC = () => {
           aria-hidden={!isMapActive}
         >
           <ErrorBoundary key={dashboardScopeKey}>
-            <Suspense fallback={<BuyerMapSkeleton />}>
+            <Suspense fallback={<LazySkeleton name="buyerMap" />}>
               <BuyerMap
                 active={isMapActive}
                 onPortSelect={openMarketplaceAtPort}
@@ -528,7 +527,7 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
   );
 
   return (
-                <Suspense fallback={<PublicPageSkeleton />}>
+                <Suspense fallback={<LazySkeleton name="publicPage" />}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />

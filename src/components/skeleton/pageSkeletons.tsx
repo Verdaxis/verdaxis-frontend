@@ -166,3 +166,20 @@ export const PublicPageSkeleton: React.FC = () => (
     </div>
   </SkeletonRegion>
 );
+
+const SKELETONS = {
+  commandCenter: CommandCenterSkeleton,
+  watchlist: WatchlistSkeleton,
+  myTrades: MyTradesSkeleton,
+  buyerMap: BuyerMapSkeleton,
+  page: PageSkeleton,
+  publicPage: PublicPageSkeleton,
+};
+
+export type SkeletonName = keyof typeof SKELETONS;
+
+/** Picks a skeleton by name so entry code can lazy-load the kit in one import. */
+export const NamedSkeleton: React.FC<{ name: SkeletonName }> = ({ name }) => {
+  const Skeleton = SKELETONS[name];
+  return <Skeleton />;
+};

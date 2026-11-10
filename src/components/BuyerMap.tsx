@@ -1,4 +1,4 @@
-import { BuyerMapSkeleton } from './skeleton';
+import { LazySkeleton } from './skeleton/LazySkeleton';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -941,7 +941,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 <div className="relative z-0 flex-1">
                     <div ref={mapContainer} className="verdaxis-buyer-map h-full w-full" />
                     <div className="absolute inset-0 z-10 bg-slate-50 dark:bg-slate-900">
-                        <BuyerMapSkeleton />
+                        <LazySkeleton name="buyerMap" />
                     </div>
                 </div>
             </div>
@@ -958,7 +958,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 {webglUnavailable ? (
-                    <React.Suspense fallback={<BuyerMapSkeleton />}>
+                    <React.Suspense fallback={<LazySkeleton name="buyerMap" />}>
                         <BasicMarketMap
                             isDark={isDark}
                             ports={basicPortMarkers}
