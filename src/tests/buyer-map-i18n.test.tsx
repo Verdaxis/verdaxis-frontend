@@ -157,7 +157,7 @@ describe('BuyerMap failure localization', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('无法加载情报地图');
     fireEvent.click(screen.getByRole('button', { name: /图层/ }));
     const switches = screen.getAllByRole('switch');
-    fireEvent.click(switches[1]);
+    expect(switches[1].getAttribute('aria-checked')).toBe('true');
     expect(screen.getByText('市场可售量')).toBeTruthy();
     expect(screen.getByText('暂无有效卖单。')).toBeTruthy();
     expect(screen.getByText('暂无有效挂牌指示价。')).toBeTruthy();
@@ -265,7 +265,7 @@ describe('BuyerMap failure localization', () => {
 
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: /图层/ }));
-    fireEvent.click(screen.getAllByRole('switch')[1]);
+    expect(screen.getAllByRole('switch')[1].getAttribute('aria-checked')).toBe('true');
 
     expect(await screen.findByText('1,234 MT')).toBeTruthy();
     expect(screen.getByText('$999')).toBeTruthy();
