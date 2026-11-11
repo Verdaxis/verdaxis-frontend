@@ -111,7 +111,7 @@ const getProductLaneDeliveryPoints = (product: Product | undefined, points: Deli
     point.is_active && (product?.available_delivery_point_ids ?? []).includes(point.id)
 ));
 
-type ModalState = 'form' | 'reviewing' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'outcome_unknown' | 'error';
+type ModalState = 'form' | 'reviewing' | 'support_confirmation' | 'submitting' | 'success' | 'demo_complete' | 'auto_matched' | 'outcome_unknown' | 'error';
 
 interface OrderSnapshot {
     payload: Record<string, any>;
@@ -184,6 +184,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     // Server rule for placing this side. Null when unknown, allowed, or while acting
     // for a customer in an assisted context (the server then judges that organization).
     const placeDenial = useAbilityDenial(PLACE_ORDER_ABILITY[side]);
+    // An administrator account may walk through the whole journey to demo it to
+    // prospects. Nothing is sent: the final confirm shows a demo result instead
+    // of calling the API, and the server would refuse the order anyway.
+    const isAdminDemo = placeDenial?.reasonCode === 'ADMIN_CANNOT_EXECUTE';
+    const submitDenial = isAdminDemo ? null : placeDenial;
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -386,7 +391,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }, [handleClose, isOpen, namespacesReady, supportConfirmationOpen]);
 
     useEffect(() => {
-        if (isOpen && ['reviewing', 'submitting', 'success', 'auto_matched', 'error'].includes(modalState)) {
+        if (isOpen && ['reviewing', 'submitting', 'success', 'demo_complete', 'auto_matched', 'error'].includes(modalState)) {
             dialogRef.current?.focus();
         }
     }, [isOpen, modalState]);
@@ -606,7 +611,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     };
 
     const submitOrder = async (payload: Record<string, any>, supportConfirmation?: MarketSupportConfirmation) => {
-        if (submissionInFlightRef.current) return;
+        if (submissionInFlightRef.current || isAdminDemo) return;
         const submittedProduct = products.find(product => product.id === payload.product_id);
         const submittedDeliveryPoint = deliveryPoints.find(point => point.id === payload.delivery_point_id);
         if (!submittedProduct || !isOrderbookProduct(submittedProduct)) return;
@@ -714,7 +719,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!isOrderValid || placeDenial) return;
+        if (!isOrderValid || submitDenial) return;
         if (isFameOrder) {
             const data = new FormData(e.currentTarget);
             const terms = readFameOrderTerms(data, side);
@@ -767,6 +772,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const confirmReviewedOrder = async () => {
         if (!requireUnchangedExecutionContext()) return;
+        if (isAdminDemo) {
+            setModalState('demo_complete');
+            return;
+        }
         if (orderSnapshot) await submitOrder(orderSnapshot.payload);
     };
 
@@ -780,7 +789,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
 
-    if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'outcome_unknown' || modalState === 'error') {
+    if (modalState === 'success' || modalState === 'demo_complete' || modalState === 'auto_matched' || modalState === 'outcome_unknown' || modalState === 'error') {
         return (
             <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div
@@ -801,6 +810,23 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 {errorMessage && <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>}
                                 {kycBlocked && <KycRequiredNotice className="mb-4" />}
                                 {modalState === 'outcome_unknown' && submissionRef.current && <button type="button" onClick={retrySubmission} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
+                            </>
+                        ) : modalState === 'demo_complete' ? (
+                            <>
+                                <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-amber-100 dark:bg-amber-900/30">
+                                    <CheckCircle2 size={32} className="text-amber-500" />
+                                </div>
+                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                                    {t('orderPlaceModal.demo.title', { side: sideLabel })}
+                                </h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6" data-testid="order-place-demo-result">
+                                    {t('orderPlaceModal.demo.body', {
+                                        side: sideLabel,
+                                        qty: orderSnapshot?.quantityMt.toLocaleString(locale) ?? '',
+                                        product: orderSnapshot?.productName || t('orderPlaceModal.productFallback'),
+                                        price: orderSnapshot?.pricePerMtUsd ?? '',
+                                    })}
+                                </p>
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
@@ -1016,8 +1042,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 type="button"
                                 data-tour="order-final-confirm-button"
                                 onClick={() => { void confirmReviewedOrder(); }}
-                                disabled={modalState === 'submitting' || placeDenial !== null}
-                                title={placeDenial?.message}
+                                disabled={modalState === 'submitting' || submitDenial !== null}
+                                title={submitDenial?.message}
                                 className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 text-white disabled:cursor-not-allowed disabled:opacity-60 ${
                                     side === 'BID' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
                                 }`}
@@ -1458,9 +1484,16 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </p>
                         </div>
 
-                        {placeDenial && (
+                        {submitDenial && (
                             <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-900/20">
-                                <AbilityDenialNote denial={placeDenial} id="order-place-denial" />
+                                <AbilityDenialNote denial={submitDenial} id="order-place-denial" />
+                            </div>
+                        )}
+                        {isAdminDemo && (
+                            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 dark:border-amber-500/40 dark:bg-amber-900/20">
+                                <p className="text-xs text-amber-800 dark:text-amber-300" data-testid="order-place-demo-notice">
+                                    {t('orderPlaceModal.demo.notice')}
+                                </p>
                             </div>
                         )}
                     </div>
@@ -1478,11 +1511,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <button
                             type="submit"
                             data-tour="order-modal-submit-boundary"
-                            disabled={!isValid || modalState === 'submitting' || placeDenial !== null}
-                            title={placeDenial?.message}
-                            aria-describedby={placeDenial ? 'order-place-denial' : undefined}
+                            disabled={!isValid || modalState === 'submitting' || submitDenial !== null}
+                            title={submitDenial?.message}
+                            aria-describedby={submitDenial ? 'order-place-denial' : undefined}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                isValid && modalState !== 'submitting' && !placeDenial
+                                isValid && modalState !== 'submitting' && !submitDenial
                                     ? side === 'BID'
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                                         : 'bg-[#5DADE2] hover:bg-[#4A9BD9] text-white'
