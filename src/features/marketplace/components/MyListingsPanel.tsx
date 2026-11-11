@@ -54,9 +54,8 @@ export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, out
                                 <button
                                     type="button"
                                     onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
-                                    disabled={primaryActionDenial !== null}
                                     title={primaryActionDenial?.message}
-                                    className={`px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm${primaryActionDenial ? ' disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600' : ''}`}
+                                    className={`px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm`}
                                 >
                                     {role === 'SUPPLIER' ? t('marketplace.btn.placeAsk') : t('marketplace.btn.placeBid')}
                                 </button>

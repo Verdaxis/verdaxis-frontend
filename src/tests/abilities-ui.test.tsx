@@ -159,7 +159,7 @@ describe('server abilities in the UI', () => {
   });
 
   describe('sidebar', () => {
-    it('disables the primary action with the reason and keeps the Admin entry hidden for a buyer', async () => {
+    it('keeps the primary action open with the reason and keeps the Admin entry hidden for a buyer', async () => {
       mineMock.mockResolvedValue(abilitiesPayload({
         place_bid_order: { code: 'KYC_REJECTED' },
         view_admin_analytics: { code: 'ADMIN_ROLE_REQUIRED' },
@@ -175,7 +175,8 @@ describe('server abilities in the UI', () => {
       renderSidebar('BUYER');
 
       expect((await screen.findByTestId('ability-denial-note')).textContent).toContain('Your identity verification was rejected.');
-      expect((screen.getByRole('button', { name: 'Post a Bid' }) as HTMLButtonElement).disabled).toBe(true);
+      // The order form opens as a preview; only its submit is disabled.
+      expect((screen.getByRole('button', { name: 'Post a Bid' }) as HTMLButtonElement).disabled).toBe(false);
       expect(screen.queryByRole('link', { name: 'Admin Dashboard' })).toBeNull();
     });
 

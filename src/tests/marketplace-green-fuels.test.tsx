@@ -1451,7 +1451,7 @@ describe('Marketplace green fuels surface', () => {
     const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
     const renderWithAbilities = () => renderWithProviders(<AbilitiesProvider><Marketplace /></AbilitiesProvider>);
 
-    it('disables Place Bid and Lift Ask with the server reason when both are denied', async () => {
+    it('keeps Place Bid open as a preview and disables Lift Ask, with the server reasons, when both are denied', async () => {
       abilitiesMine.mockResolvedValue(abilitiesPayload({
         place_bid_order: { code: 'ACCOUNT_NOT_APPROVED' },
         hit_ask_order: { code: 'ORGANIZATION_PROVENANCE_UNVERIFIED' },
@@ -1462,7 +1462,8 @@ describe('Marketplace green fuels surface', () => {
       const row = await screen.findByRole('row', { name: /Bio Methanol/ });
       await waitFor(() => expect(screen.getAllByTestId('ability-denial-note').length).toBe(2));
       const placeBid = screen.getByRole('button', { name: /Place Bid/ }) as HTMLButtonElement;
-      expect(placeBid.disabled).toBe(true);
+      // The form opens for a preview; the form's own submit stays disabled.
+      expect(placeBid.disabled).toBe(false);
       expect(placeBid.getAttribute('title')).toBe('Your account has not been approved yet.');
       const hit = within(row).getByRole('button', { name: 'Lift Ask' }) as HTMLButtonElement;
       expect(hit.disabled).toBe(true);
@@ -1475,6 +1476,10 @@ describe('Marketplace green fuels surface', () => {
         expect.stringContaining('Your account has not been approved yet.'),
         expect.stringContaining('not yet verified for live market trading'),
       ]));
+      fireEvent.click(placeBid);
+      await waitFor(() => expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({ isOpen: true, side: 'BID' }),
+      ));
     });
 
     it('renders the normal enabled buttons when the server allows both actions', async () => {

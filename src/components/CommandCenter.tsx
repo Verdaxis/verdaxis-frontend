@@ -325,10 +325,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                             <button
                                 data-tour="command-center-primary-action"
                                 onClick={() => setOrderModalOpen(true)}
-                                disabled={placeOrderDenial !== null}
                                 title={placeOrderDenial?.message}
                                 aria-describedby={placeOrderDenial ? 'command-center-place-order-denial' : undefined}
-                                className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
+                                className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                             >
                                 <cta.primary.icon className="h-5 w-5 shrink-0" />
                                 <span className="min-w-0">

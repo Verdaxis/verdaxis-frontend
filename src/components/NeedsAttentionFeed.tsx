@@ -79,9 +79,8 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                 {onPostOrder && (
                     <button
                         onClick={onPostOrder}
-                        disabled={postOrderDenial !== null}
                         title={postOrderDenial?.message}
-                        className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
+                        className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-500 transition-colors text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     >
                         {t(viewMode === 'BUYER' ? 'attention.postBid' : 'attention.postSupply')}
                     </button>

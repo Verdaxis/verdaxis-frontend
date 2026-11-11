@@ -114,10 +114,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     data-tour="sidebar-primary-action"
                     aria-label={viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply')}
                     onClick={() => (onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE'))}
-                    disabled={primaryActionDenial !== null}
                     title={primaryActionDenial?.message}
                     aria-describedby={primaryActionDenial && !isCollapsed ? 'sidebar-primary-action-denial' : undefined}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300 disabled:hover:bg-slate-600 ${isCollapsed ? 'px-2' : 'px-4'}`}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
                 >
                     <Plus size={18} />
                     {!isCollapsed && (viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply'))}
