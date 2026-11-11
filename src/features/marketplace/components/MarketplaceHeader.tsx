@@ -9,7 +9,6 @@ import { AbilityDenialNote } from '../../../components/ui/AbilityDenialNote';
 import type { AbilityDenial } from '../../../types/abilities';
 
 // Added only while the server denies the action, so an allowed button keeps its markup.
-const DENIED_BUTTON_CLASSES = ' disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-500 disabled:hover:shadow-sm';
 
 interface MarketplaceHeaderProps {
     t: TFunction;
@@ -48,10 +47,9 @@ export function MarketplaceHeader({ t, configBase, setOrderModalSide, primaryAct
                                 type="button"
                                 data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                disabled={primaryActionDenial !== null}
                                 title={primaryActionDenial?.message}
                                 aria-describedby={primaryActionDenial ? 'marketplace-primary-action-denial' : undefined}
-                                className={`flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow${primaryActionDenial ? DENIED_BUTTON_CLASSES : ''}`}
+                                className={`flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow`}
                             >
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
