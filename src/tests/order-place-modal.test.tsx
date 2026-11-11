@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from './test-utils';
 import { OrderPlaceModal } from '../components/OrderPlaceModal';
@@ -52,7 +52,60 @@ vi.mock('../context/MarketSupportContext', () => ({
   useMarketSupport: () => marketSupportControl.current,
 }));
 
+// The server's place-order rule for this side; null means allowed or unknown.
+const placeDenialControl = vi.hoisted(() => ({
+  current: null as null | { reasonCode: string; message: string },
+}));
+
+vi.mock('../hooks/useAbilityDenial', async importOriginal => ({
+  ...(await importOriginal<typeof import('../hooks/useAbilityDenial')>()),
+  useAbilityDenial: () => placeDenialControl.current,
+}));
+
 describe('OrderPlaceModal', () => {
+  afterEach(() => {
+    placeDenialControl.current = null;
+  });
+
+  it('lets an administrator complete the journey as a demo without sending an order', async () => {
+    placeDenialControl.current = {
+      reasonCode: 'ADMIN_CANNOT_EXECUTE',
+      message: 'Administrator accounts cannot place or execute market actions.',
+    };
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    expect(screen.getByTestId('order-place-demo-notice').textContent).toContain('nothing will be posted');
+    expect(screen.queryByTestId('ability-denial-note')).toBeNull();
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '540.25' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: /quantity/i }), { target: { value: '750' } });
+    const review = screen.getByRole('button', { name: 'Review Bid' }) as HTMLButtonElement;
+    await waitFor(() => expect(review.disabled).toBe(false));
+    fireEvent.click(review);
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and place Bid' }));
+
+    expect((await screen.findByTestId('order-place-demo-result')).textContent).toContain('was not sent to the orderbook');
+    expect(screen.getByRole('heading', { name: /Demo only/ })).toBeTruthy();
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the submit disabled with the reason for other denied accounts', async () => {
+    placeDenialControl.current = {
+      reasonCode: 'ACCOUNT_NOT_APPROVED',
+      message: 'Your account has not been approved yet.',
+    };
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '540.25' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: /quantity/i }), { target: { value: '750' } });
+    const review = screen.getByRole('button', { name: 'Review Bid' }) as HTMLButtonElement;
+    expect(review.disabled).toBe(true);
+    expect(review.getAttribute('title')).toBe('Your account has not been approved yet.');
+    expect(screen.queryByTestId('order-place-demo-notice')).toBeNull();
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
   beforeEach(async () => {
     await loadNamespace('trading');
     await i18n.changeLanguage('en');

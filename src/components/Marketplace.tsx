@@ -1312,10 +1312,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 type="button"
                                 data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                disabled={primaryActionDenial !== null}
                                 title={primaryActionDenial?.message}
                                 aria-describedby={primaryActionDenial ? 'marketplace-primary-action-denial' : undefined}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-500 disabled:hover:shadow-sm"
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
                             >
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
@@ -1675,9 +1674,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <button
                                     type="button"
                                     onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
-                                    disabled={primaryActionDenial !== null}
                                     title={primaryActionDenial?.message}
-                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600"
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
                                 >
                                     {role === 'SUPPLIER' ? t('marketplace.btn.placeAsk') : t('marketplace.btn.placeBid')}
                                 </button>
