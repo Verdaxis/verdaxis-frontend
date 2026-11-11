@@ -23,7 +23,9 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # Playwright cannot install Chromium on the ubuntu-26.04 image that
+    # ubuntu-latest now selects, so the release job pins the previous image.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: production
     steps:
