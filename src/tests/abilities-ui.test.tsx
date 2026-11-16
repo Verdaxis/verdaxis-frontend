@@ -175,7 +175,8 @@ describe('server abilities in the UI', () => {
       renderSidebar('BUYER');
 
       expect((await screen.findByTestId('ability-denial-note')).textContent).toContain('Your identity verification was rejected.');
-      expect((screen.getByRole('button', { name: 'Post a Bid' }) as HTMLButtonElement).disabled).toBe(true);
+      // The form opens as a preview; the form's own submit stays disabled.
+      expect((screen.getByRole('button', { name: 'Post a Bid' }) as HTMLButtonElement).disabled).toBe(false);
       expect(screen.queryByRole('link', { name: 'Admin Dashboard' })).toBeNull();
     });
 
