@@ -93,12 +93,12 @@ describe('Marketplace selection contract', () => {
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/m/ucome-b100/singapore/spot'));
         expect(mocks.asks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'sg' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     });
-    it.each(['requests', 'history_rfqs', 'history_offers', 'history_my_offers'])('opens a retired history link (%s) as the normal B100 market', async view => {
-        renderWithProviders(<Workspace />, { route: `/app/marketplace?product=UCOME_B100&view=${view}` });
+    it('falls back to Listings for an unknown view and keeps the selected product', async () => {
+        renderWithProviders(<Workspace />, { route: '/app/marketplace?product=UCOME_B100&view=unknown' });
+
         await waitFor(() => expect(mocks.asks).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), expect.anything()));
-        expect(root().getAttribute('data-tour-market-product')).toBe('UCOME_B100');
-        expect(root().getAttribute('data-tour-tab')).toBe('market');
-        expect(screen.queryByText(/Legacy/)).toBeNull();
+        expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('button', { name: /UCOME B100/ }).getAttribute('aria-pressed')).toBe('true');
     });
     it('resets role sort and page without rewriting generic navigation', async () => {
         const view = renderWithProviders(<Workspace />, { route: '/app/marketplace' });

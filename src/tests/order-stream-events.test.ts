@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   OWN_ORDERS_REFRESH_DEBOUNCE_MS,
-  PRIVATE_ORDER_EVENTS,
   announceOwnOrdersChanged,
   eventChangesOwnOrders,
   isPrivateOrderEvent,
@@ -11,12 +10,6 @@ import {
 import { cachedRead, invalidateReadCache, invalidateReadsForEvent } from '../services/readCache';
 
 describe('private order events', () => {
-  it('names the five events the backend sends to the private trades stream', () => {
-    expect([...PRIVATE_ORDER_EVENTS]).toEqual([
-      'order_created', 'order_updated', 'order_cancelled', 'orders_matched', 'order_expired',
-    ]);
-  });
-
   it('does not treat trade events, price alerts or control events as order events', () => {
     for (const event of ['trade_created', 'trade_confirmed', 'price_alert_triggered', 'market_invalidated', 'heartbeat']) {
       expect(isPrivateOrderEvent(event)).toBe(false);
@@ -111,7 +104,9 @@ describe('read cache invalidation for order events', () => {
     return wasCached;
   };
 
-  it.each(PRIVATE_ORDER_EVENTS)('%s invalidates My Orders and nothing else', async (event) => {
+  it.each([
+    'order_created', 'order_updated', 'order_cancelled', 'orders_matched', 'order_expired',
+  ])('%s invalidates My Orders and nothing else', async (event) => {
     await warm();
 
     invalidateReadsForEvent('trades', event);

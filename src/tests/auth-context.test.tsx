@@ -23,6 +23,7 @@ function Probe() {
       <div data-testid="loading">{String(isLoading)}</div>
       <div data-testid="authenticated">{String(isAuthenticated)}</div>
       <div data-testid="email">{user?.email ?? ''}</div>
+      <output data-testid="execution-eligibility">{JSON.stringify(user?.execution_eligibility)}</output>
       <div data-testid="backend-unavailable">{String(isBackendUnavailable)}</div>
       <button type="button" onClick={() => void checkAuth()}>retry</button>
       <button type="button" onClick={logout}>sign out</button>
@@ -140,6 +141,38 @@ describe('AuthProvider token bootstrap', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByTestId('email').textContent).toBe('new@example.com');
+  });
+
+  it('lets a user sign in again after the refresh session has expired', async () => {
+    window.history.replaceState({}, '', '/app');
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({
+        id: 'user-2',
+        role: 'BUYER',
+        email: 'buyer@example.test',
+        execution_eligibility: {
+          eligible: true,
+          reason: 'KYC_GRACE',
+          grace_expires_at: '2027-01-15T00:00:00Z',
+        },
+      }));
+    global.fetch = fetchMock;
+
+    render(<AuthProvider><Probe /></AuthProvider>);
+    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'));
+    expect(screen.getByTestId('authenticated').textContent).toBe('false');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/auth\/refresh$/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'switch account' }));
+    await waitFor(() => expect(screen.getByTestId('email').textContent).toBe('buyer@example.test'));
+    expect(screen.getByTestId('authenticated').textContent).toBe('true');
+    expect(JSON.parse(screen.getByTestId('execution-eligibility').textContent!)).toEqual({
+      eligible: true,
+      reason: 'KYC_GRACE',
+      grace_expires_at: '2027-01-15T00:00:00Z',
+    });
   });
 
   it('uses a login profile without a second request and supersedes the global auth check', async () => {

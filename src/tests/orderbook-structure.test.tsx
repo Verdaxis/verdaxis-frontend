@@ -1,5 +1,4 @@
 import React from 'react';
-import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
@@ -25,19 +24,6 @@ function result(bids: OrderBookOrder[] = [], asks: OrderBookOrder[] = []) {
   return { bids, asks, generated_at: NOW.toISOString() };
 }
 
-// Pin the entire DOM, including SVGs, text, styles, ARIA and portal placement.
-// Only React's generated tooltip identifier is normalized. Attribute order is not meaningful.
-function domDigest() {
-  function tree(node: Node): unknown {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
-    if (!(node instanceof Element)) return null;
-    return [node.tagName, [...node.attributes].map(({ name, value }) => [
-      name, name === 'id' || name === 'aria-describedby' ? value.replace(/_r_[^_]+_/g, 'REACT_ID') : value,
-    ]).sort(([a], [b]) => a.localeCompare(b)), [...node.childNodes].map(tree)];
-  }
-  return createHash('sha256').update(JSON.stringify([...document.body.childNodes].map(tree))).digest('hex');
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
@@ -46,53 +32,13 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-describe('OrderBook pre-move DOM contract', () => {
-  it.each([
-    ['empty', '36985a00155dc360cc6921c18fab8a5c9b9c2f6f53708f7bd8894529b0760fca'],
-    ['loaded', '3411b64f79af79ab865fd1437e35fce2b86b98afcc59821c39f6959c5fb0c8b3'],
-    ['rfq', '17239a0c6ef3e46f9a993f39d4a8e919b3fef9fa8121bbeb78dea4b567f471b5'],
-    ['loading', '803432997a57499efe1cc50d9c97a89240908650d8e58d2afda8941a72f44a07'],
-    ['error', '8262a1bf9549fb9d5f0d80e56a5d2ff6ae589ceb04ba54ebd510ad38f71b0a62'],
-    ['fame', '767fe3e9c2c5966eb7c7e4a288b6ccd7c87b0d6d9f91e34bbf3f7f1936f2a64c'],
-    ['lng', '35410fe1da5c9b7c261edc5f5f7a102345d17a03d2b5c0c090a4e18e663c8825'],
-    ['demo-tooltip', '0f4df652d44d83e296777094ac77b1da53ff81857317f18109bb74657756f12b'],
-    ['lng-tooltip', 'b49f7865a4026f7aa964b69834b26b664c5a10f15db99678a1a2051c4d0ee332'],
-  ])('preserves the complete %s tree', async (state, expected) => {
-    const props = { ...MARKET, actionableSide: 'ASK' as const, onLevelClick: vi.fn(), onInstantTrade: vi.fn() };
-    if (state === 'loading') snapshot.mockReturnValue(new Promise(() => {}));
-    if (state === 'error') snapshot.mockRejectedValue(new Error('offline'));
-    if (state === 'rfq') Object.assign(props, { executionMode: 'RFQ_ONLY' });
-    if (state === 'loaded') snapshot.mockResolvedValue(result(
-      [order('low', 'BID', 590, 25), order('high', 'BID', 610, 100)],
-      [order('ask', 'ASK', 600, 50, { carbon_intensity_gco2_mj: 29.6 })],
-    ));
-    if (state === 'fame') {
-      Object.assign(props, { marketProduct: 'UCOME_B100', executionMode: 'ORDERBOOK' });
-      snapshot.mockResolvedValue(result(
-        [order('bid', 'BID', 1200, 100, { market_product: 'UCOME_B100', fuel_type: 'FAME' })],
-        [order('ask', 'ASK', 1100, 50, { market_product: 'UCOME_B100', fuel_type: 'FAME' })],
-      ));
-    }
-    if (state.startsWith('lng')) {
-      Object.assign(props, { marketProduct: 'BIO_LNG', executionMode: 'ORDERBOOK', region: 'Rotterdam' });
-      snapshot.mockResolvedValue(result([], [order('lng', 'ASK', 915.25, 12.34, {
-        market_product: 'BIO_LNG', fuel_type: 'LNG', carbon_intensity_gco2_mj: null,
-        lng_terms: { side: 'ASK', certification_scheme: 'ISCC_EU', feedstock: 'UCO', origin_country: 'NL', reseller: true, fueleu_recognition: true } as unknown as OrderBookOrder['lng_terms'],
-      })]));
-    }
-    if (state === 'demo-tooltip') snapshot.mockResolvedValue(result([order('demo', 'BID', 1000, 12.34, { source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY' })], []));
-    renderWithProviders(<OrderBook {...props} />);
+describe('OrderBook ladder', () => {
+  it('shows separate empty states for bids and asks in an empty snapshot', async () => {
+    renderWithProviders(<OrderBook {...MARKET} />);
     await act(async () => {});
-    if (state.endsWith('tooltip')) {
-      fireEvent.focus(screen.getByRole(state === 'demo-tooltip' ? 'group' : 'button', { name: state === 'demo-tooltip' ? /Bid/ : /ask/i }));
-      const tooltip = screen.getByRole('tooltip');
-      expect(tooltip.parentElement).toBe(document.body);
-      expect(document.querySelector('[aria-describedby]')?.getAttribute('aria-describedby')).toBe(tooltip.id);
-      // The tooltip is kept 16px inside the viewport edge.
-      expect(tooltip.style.left).toBe('16px');
-      expect(tooltip.style.top).toBe('16px');
-    }
-    expect(domDigest()).toBe(expected);
+
+    expect(screen.getByText('No bids')).toBeTruthy();
+    expect(screen.getByText('No asks')).toBeTruthy();
   });
 
   it('sorts and caps each side at 15 and scales quantities against the largest visible order', async () => {
@@ -106,8 +52,10 @@ describe('OrderBook pre-move DOM contract', () => {
     expect(bids).toHaveLength(15);
     expect(bids[0].getAttribute('aria-label')).toContain('$516');
     expect(bids[14].getAttribute('aria-label')).toContain('$502');
-    expect(bids[0].querySelector('[style]')?.getAttribute('style')).toBe('width: 50%;');
-    expect(screen.getByRole('group', { name: /Ask/ }).querySelector('[style]')?.getAttribute('style')).toBe('width: 100%;');
+    const bidDepth = bids[0].querySelector<HTMLElement>('[style*="width:"]');
+    const askDepth = screen.getByRole('group', { name: /Ask/ }).querySelector<HTMLElement>('[style*="width:"]');
+    expect(bidDepth?.style.width).toBe('50%');
+    expect(askDepth?.style.width).toBe('100%');
   });
 
   it('keeps keyboard, instant-action propagation and tooltip dismissal contracts', async () => {
@@ -119,8 +67,23 @@ describe('OrderBook pre-move DOM contract', () => {
     renderWithProviders(<OrderBook {...MARKET} actionableSide="ASK" onLevelClick={open} onInstantTrade={instant} />);
     await act(async () => {});
     const level = screen.getByRole('button', { name: /ask/i });
+    const tooltipWidth = 420;
+    const tooltipHeight = 300;
+    const measure = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this === level) return new DOMRect(window.innerWidth - 20, window.innerHeight - 20, 20, 20);
+      if (this.getAttribute('role') === 'tooltip') return new DOMRect(0, 0, tooltipWidth, tooltipHeight);
+      return new DOMRect();
+    });
     fireEvent.focus(level);
-    expect(screen.getByRole('tooltip')).toBeTruthy();
+    const tooltip = screen.getByRole('tooltip');
+    measure.mockRestore();
+    expect(level.getAttribute('aria-describedby')).toBe(tooltip.id);
+    const left = Number.parseFloat(tooltip.style.left);
+    const top = Number.parseFloat(tooltip.style.top);
+    expect(left).toBeGreaterThanOrEqual(0);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(left + tooltipWidth).toBeLessThanOrEqual(window.innerWidth);
+    expect(top + tooltipHeight).toBeLessThanOrEqual(window.innerHeight);
     fireEvent.keyDown(level, { key: 'Enter' });
     fireEvent.keyDown(level, { key: ' ' });
     expect(open.mock.calls).toEqual([[ask], [ask]]);

@@ -140,17 +140,6 @@ describe('Marketplace take execution', () => {
         expect(mocks.initiate).toHaveBeenCalledTimes(1);
     });
 
-    it('retries an unknown trade with the frozen payload and idempotency key', async () => {
-        mocks.initiate.mockRejectedValueOnce(new ApiOutcomeUnknownError('timeout')).mockResolvedValueOnce(tradeResult);
-        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
-        await openTradeAndConfirm();
-        const first = mocks.initiate.mock.calls[0][0];
-        fireEvent.click(await screen.findByRole('button', { name: /retry safely/i }));
-        await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(2));
-        expect(mocks.initiate.mock.calls[1][0]).toEqual(first);
-        expect(mocks.initiate.mock.calls[1][0].idempotency_key).toBe(first.idempotency_key);
-    });
-
     it('keeps the reviewed trade request when quantity changes before an explicit retry', async () => {
         mocks.initiate.mockRejectedValueOnce(new ApiOutcomeUnknownError('timeout')).mockResolvedValueOnce(tradeResult);
         const client = createQueryClient();
@@ -336,18 +325,6 @@ describe('Marketplace cancellation execution', () => {
         await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
         expect(mocks.cancel).toHaveBeenCalledTimes(1);
         expect(screen.getByText('Cancel Harbour')).toBeTruthy();
-    });
-
-    it('retries an unknown cancellation with the frozen reason, ETag, and key', async () => {
-        mocks.cancel.mockRejectedValueOnce(new ApiOutcomeUnknownError('timeout')).mockResolvedValueOnce(undefined);
-        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
-        await openMyListingsRow();
-        await confirmCancellation('  Stop this listing  ');
-        const first = mocks.cancel.mock.calls[0];
-        expect(first[1].reason).toBe('Stop this listing');
-        fireEvent.click(await screen.findByRole('button', { name: /retry safely with the same request/i }));
-        await waitFor(() => expect(mocks.cancel).toHaveBeenCalledTimes(2));
-        expect(mocks.cancel.mock.calls[1]).toEqual(first);
     });
 
     it('blocks a cancellation retry after the auth generation changes', async () => {

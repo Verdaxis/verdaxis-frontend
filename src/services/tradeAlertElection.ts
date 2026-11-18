@@ -21,7 +21,7 @@
 // apart AND a third tab claims between them, two tabs can both alert. Streams
 // of one user deliver within milliseconds, so this is not expected.
 
-export const TRADE_ALERT_ELECTION_CHANNEL = 'verdaxis-trade-alert-election';
+const TRADE_ALERT_ELECTION_CHANNEL = 'verdaxis-trade-alert-election';
 /** Long enough for a claim to cross tabs on one machine; short enough that an alert feels instant. */
 export const CLAIM_WINDOW_MS = 200;
 /** How long a decided key is remembered, so a replayed event is not alerted twice. */

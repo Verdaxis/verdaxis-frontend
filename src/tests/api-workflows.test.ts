@@ -86,3 +86,51 @@ describe('client error contracts', () => {
     expect(fetchMock.mock.calls[0][1]?.method).toBe('PUT');
   });
 });
+
+describe('saved preferences', () => {
+  it('loads saved values and writes only the selected namespace', async () => {
+    const saved = { marketplace: { product: 'B30' }, radar: { products: ['B100', 'BIO_LNG'] } };
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json(saved))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await expect(api.preferences.getAll()).resolves.toEqual(saved);
+    await api.preferences.put('marketplace', { product: 'B100' });
+
+    const [read, write] = fetchMock.mock.calls;
+    expect(String(read[0])).toMatch(/\/users\/me\/preferences$/);
+    expect(read[1]?.method ?? 'GET').toBe('GET');
+    expect(String(write[0])).toMatch(/\/users\/me\/preferences\/marketplace$/);
+    expect(write[1]?.method).toBe('PUT');
+    expect(JSON.parse(String(write[1]?.body))).toEqual({ product: 'B100' });
+  });
+});
+
+describe('workflow response contracts', () => {
+  it('returns the expiry information used by notification reminders', async () => {
+    const notification = {
+      id: 'notice-1', type: 'ORDER', title: 'Order expiring', message: 'One order expires soon',
+      data: { event: 'order_expiring', expires_at: '2026-10-20T00:00:00Z' }, is_read: false,
+    };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([notification]));
+
+    await expect(api.notifications.list()).resolves.toEqual([notification]);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/notifications$/);
+  });
+
+  it('preserves an unpriced allowance instead of displaying zero cost', async () => {
+    const pricing = { ets_cost_eur: null, pricing_status: 'UNPRICED', adjustment_usd: 0 };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(pricing));
+
+    await expect(api.compliance.scenario('vessel-1', { B30: '100' }, 2027)).resolves.toEqual(pricing);
+
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/compliance\/scenario$/);
+    expect(request?.method).toBe('POST');
+    expect(JSON.parse(String(request?.body))).toEqual({
+      vessel_id: 'vessel-1',
+      fuel_mix: { B30: '100' },
+      year: 2027,
+    });
+  });
+});

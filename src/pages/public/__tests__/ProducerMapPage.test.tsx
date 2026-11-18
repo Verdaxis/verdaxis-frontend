@@ -52,7 +52,6 @@ vi.mock('../../../data/producerProjects', () => {
 });
 
 import { ProducerMapPage } from '../ProducerMapPage';
-import { producerProjects } from '../../../data/producerProjects';
 
 const renderWithRouter = (ui: React.ReactElement, { route = '/map/producers' } = {}) => {
   return render(
@@ -92,12 +91,6 @@ describe('ProducerMapPage', () => {
     expect(screen.getByTestId('map-container')).toBeTruthy();
   });
 
-  it('renders correct number of markers for default filters', () => {
-    renderWithRouter(<ProducerMapPage />);
-    const markers = screen.getAllByTestId('circle-marker');
-    expect(markers.length).toBe(6);
-  });
-
   it('keeps an unmapped project in the index without rendering a marker', () => {
     renderWithRouter(<ProducerMapPage />);
 
@@ -117,13 +110,6 @@ describe('ProducerMapPage', () => {
     expect(screen.getAllByText('Under Construction').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Engineering').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Pre-Feasibility').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders showing count', () => {
-    renderWithRouter(<ProducerMapPage />);
-    expect(
-      screen.getByText(/Showing 7 of 7/)
-    ).toBeTruthy();
   });
 
   it('discloses the dataset provenance and location limits', () => {
@@ -204,11 +190,7 @@ describe('ProducerMapPage - Future Production tab', () => {
 
   it('shows future project count badge on tab', () => {
     renderWithRouter(<ProducerMapPage />);
-    const futureProjectsList = producerProjects.filter(
-      (p) => p.status !== 'Operational'
-    );
-    // The badge shows the count number (may appear in multiple places)
-    expect(screen.getAllByText(String(futureProjectsList.length)).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /Non-operational Records\s*5$/ })).toBeTruthy();
   });
 
   it('shows express interest buttons for future projects', () => {

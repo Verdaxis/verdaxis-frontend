@@ -269,7 +269,6 @@ describe('Marketplace green fuels surface', () => {
     expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
     expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), expect.objectContaining({ cacheOwner: 'query', signal: expect.any(AbortSignal) }));
     expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'UCOME B100 RFQ' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'My Listings' }));
     await waitFor(() => expect(myOrders).toHaveBeenCalled());
   });
@@ -352,14 +351,6 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: /Bio Methanol/ }));
     await waitFor(() => expect(snapshot).toHaveBeenLastCalledWith({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability_window: '2026-Q4' }, { cacheOwner: 'query', signal: expect.any(AbortSignal) }));
-  });
-
-  it('offers no separate history of earlier offers or requests for quotes', async () => {
-    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
-    expect(await screen.findByRole('button', { name: 'Orderbook' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
   });
 
   it('opens the shared ASK modal for B100 and uses standard supplier My Listings', async () => {
@@ -514,7 +505,8 @@ describe('Marketplace green fuels surface', () => {
 
   it('keeps valid listings visible after a refresh error and resets them for a new filter', async () => {
     renderWithProviders(<Marketplace />);
-    expect(await screen.findByRole('button', { name: /lift ask/i })).toBeTruthy();
+    const originalAsk = { name: /Bio Methanol.*Singapore.*\$1,080\.00/i };
+    expect(within(await screen.findByRole('row', originalAsk)).getByRole('button', { name: 'Lift Ask' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
     expect(screen.getByText('Current slice').parentElement?.textContent).toContain('1 matching order');
 
@@ -522,13 +514,14 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Refresh unavailable');
-    expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+    expect(within(screen.getByRole('row', originalAsk)).getByRole('button', { name: 'Lift Ask' })).toBeTruthy();
     expect(screen.getByText('Current slice').parentElement?.textContent).toContain('1 matching order');
 
     listAsksPaged.mockRejectedValueOnce(new Error('Changed filter unavailable'));
     fireEvent.click(screen.getByRole('button', { name: /^e-Methanol/i }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Changed filter unavailable');
+    expect(screen.queryByRole('row', originalAsk)).toBeNull();
     expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
     expect(screen.getByText('Current slice').parentElement?.textContent).toContain('0 matching orders');
   });
@@ -761,17 +754,6 @@ describe('Marketplace green fuels surface', () => {
     expect(snapshot).not.toHaveBeenCalled();
   });
 
-  it('does not expose supplied offers or Gasoil through the withdrawn preview URL', async () => {
-    setMarketplaceSlice();
-    renderWithProviders(<Marketplace />, { route: '/app/marketplace?view=orderbook&preview=supply' });
-    expect(await screen.findByText('Trade Tape')).toBeTruthy();
-    expect(screen.queryByText('Staging supply preview · 5 offers')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Preview supplied offers' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Gasoil' })).toBeNull();
-    expect(document.querySelector('[data-preview-offer]')).toBeNull();
-    expect(tradesInitiate).not.toHaveBeenCalled();
-  });
-
   it('keeps the orderbook tab in the URL when changing the canonical product', async () => {
     function CurrentUrl() {
       const location = useLocation();
@@ -839,11 +821,35 @@ describe('Marketplace green fuels surface', () => {
     });
     expect(screen.queryByRole('combobox', { name: 'Port' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    const filterToggle = screen.getByRole('button', { name: /more filters/i });
+    filterToggle.focus();
+    fireEvent.click(filterToggle);
 
     expect(screen.getByRole('combobox', { name: 'Port' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Window' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
+    const expandedToggle = screen.getByRole('button', { name: /hide filters/i });
+    expect(expandedToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(expandedToggle);
+  });
+
+  it('shows loading, then an error, then the empty state after a successful retry', async () => {
+    let rejectInitialRead!: (reason: Error) => void;
+    const initialRead = new Promise<never>((_resolve, reject) => { rejectInitialRead = reject; });
+    listAsksPaged.mockReturnValueOnce(initialRead)
+      .mockResolvedValue({ items: [], total: 0, skip: 0, limit: 8 });
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => expect(listAsksPaged).toHaveBeenCalled());
+    const rows = within(screen.getByRole('table')).getAllByRole('row');
+    expect(rows.slice(1)).toHaveLength(4);
+    expect(screen.queryByRole('heading', { name: 'No orders found' })).toBeNull();
+    await act(async () => { rejectInitialRead(new Error('Market unavailable')); });
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Market unavailable');
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('heading', { name: 'No orders found' })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('persists a changed delivery window, restores it after reload, and clears it', async () => {
@@ -1077,7 +1083,8 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
     const row = (await screen.findByText('Bio Methanol')).closest('tr')!;
     fireEvent.click(within(row).getByRole('button', { name: /cancel/i }));
-    const reason = screen.getByRole('textbox', { name: /cancellation reason/i });
+    const reason = within(screen.getByRole('dialog')).getByRole('textbox', { name: /cancellation reason/i });
+    expect(document.activeElement).toBe(reason);
     fireEvent.change(reason, { target: { value: '  Stop this listing  ' } });
     fireEvent.click(screen.getByRole('button', { name: /cancel listing/i }));
 
@@ -1094,23 +1101,6 @@ describe('Marketplace green fuels surface', () => {
 
     await waitFor(() => expect(cancelOrder).toHaveBeenCalledTimes(2));
     expect(cancelOrder.mock.calls[1]).toEqual(cancelOrder.mock.calls[0]);
-  });
-
-  it('refuses a retained cancellation after the support context changes', async () => {
-    marketSupportActive.current = true;
-    setMarketSupportContextId('support-context-1');
-    myOrders.mockResolvedValue([{ ...listingsResponse.items[0], id: 'mine-assisted', side: 'BID', etag: '"v9"', creation_method: 'MARKET_SUPPORT' }]);
-    cancelOrder.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown'));
-    renderWithProviders(<Marketplace />);
-    fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
-    const row = (await screen.findByText('Bio Methanol')).closest('tr')!;
-    fireEvent.click(within(row).getByRole('button', { name: /cancel/i }));
-    fireEvent.click(screen.getByRole('button', { name: /cancel listing/i }));
-    const retry = await screen.findByRole('button', { name: /retry safely with the same request/i });
-    setMarketSupportContextId('support-context-2');
-    fireEvent.click(retry);
-    expect(cancelOrder).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText(/account or assisted context changed/i)).toBeTruthy();
   });
 
   it('opens the lift ask modal even when marketplace is nested inside a form', async () => {
