@@ -66,14 +66,8 @@ export function renderWithProviders(
 ) {
   const { route, path, queryClient = createQueryClient(), ...renderOptions } = options ?? {};
   const view = render(ui, { wrapper: makeAllProviders({ route, path, queryClient }), ...renderOptions });
-  const disposeQueries = async () => {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    pendingClients.delete(queryClient);
-  };
   pendingClients.set(queryClient, view.unmount);
-  return { ...view, queryClient, disposeQueries };
-
+  return { ...view, queryClient };
 }
 
 export * from '@testing-library/react';

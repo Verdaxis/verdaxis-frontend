@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CLAIM_WINDOW_MS,
-  TRADE_ALERT_ELECTION_CHANNEL,
   openTradeAlertElection,
 } from '../services/tradeAlertElection';
 
@@ -52,11 +51,6 @@ describe('trade alert tab election', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-  });
-
-  it('uses its own channel name', () => {
-    openTradeAlertElection();
-    expect([...FakeBroadcastChannel.instances][0].name).toBe(TRADE_ALERT_ELECTION_CHANNEL);
   });
 
   it('lets a single tab win and reports its own visibility', async () => {

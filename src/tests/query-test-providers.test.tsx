@@ -36,14 +36,4 @@ describe('feature test Query providers', () => {
         view.unmount();
         expect(fixture.client.getQueryCache().getAll()).toHaveLength(0);
     });
-
-    it('supplies a composable wrapper with explicit client and clears it after unmount', async () => {
-        const fixture = createQueryTestWrapper();
-        fixture.client.setQueryData(['public', 'test'], 'value');
-        const view = renderWithProviders(<Probe seen={new Set()} />, { queryClient: fixture.client });
-        expect(view.queryClient).toBe(fixture.client);
-        view.unmount();
-        await view.disposeQueries();
-        expect(fixture.client.getQueryCache().getAll()).toHaveLength(0);
-    });
 });

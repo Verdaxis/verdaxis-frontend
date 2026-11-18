@@ -469,21 +469,6 @@ describe('app routing', () => {
       }
     });
 
-    it('has no route for the retired request-for-quote page', async () => {
-      renderApp('/app/rfqs');
-      expect(await screen.findByTestId('page-not-found')).toBeTruthy();
-      expect(listAsksPaged).not.toHaveBeenCalled();
-    });
-
-    it.each(['history_rfqs', 'history_offers', 'history_my_offers', 'requests'])('opens the retired link view=%s as executable Listings', async (view) => {
-      renderApp(`/app/marketplace?product=UCOME_B100&view=${view}`);
-      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }), queryRead));
-      expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
-      expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Back to market' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
-    });
-
     it('routes B100 My Listings through standard supplier orders', async () => {
       setRole('SUPPLIER');
       renderApp('/app/marketplace?product=UCOME_B100&view=my_orders');

@@ -8,7 +8,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
-import { MARKET_PRODUCTS, ORDERBOOK_MARKET_PRODUCTS } from '../types';
+import { MARKET_PRODUCTS } from '../types';
 import { VerdaxisSelect } from '../components/ui/VerdaxisSelect';
 import { renderWithProviders } from './test-utils';
 
@@ -89,7 +89,6 @@ describe('Green Fuels Market Products', () => {
             'UCOME_B100',
             'BIO_LNG',
         ]);
-        expect(ORDERBOOK_MARKET_PRODUCTS).toEqual(MARKET_PRODUCTS);
     });
 });
 

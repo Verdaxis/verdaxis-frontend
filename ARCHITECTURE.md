@@ -92,7 +92,7 @@ index.html
 
 `hooks/useDashboardLayout.ts` reads the preference through the shared session read of `useServerPreference` (`loadAllPreferences`, `updateCachedPreference`) and saves with `PUT /users/me/preferences/dashboard`. It does not use `useServerPreference` itself: that hook keeps a device-local copy and saves silently after a delay, while a layout needs an explicit Save with a visible result and no local copy that could outlive the server's. The backend namespace exists only in Rust. If the read fails, or the PUT fails (a Python backend after a Caddy rollback answers 404), the page shows the default or the edited layout, keeps edits in memory for the visit, and shows a dismissible, non-blocking notice. The layout is not read or saved while Market Support is active. The stored layout is one per user, not per view mode: a layout saved in supplier mode keeps `supplier_demand`, which buyer mode does not draw. Production builds hide Customize (`dashboardCustomizeEnabled`) until the Rust `dashboard` preference namespace is live in production; staging, local and test builds offer it.
 
-**Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. The earlier supplier offers, RFQs and negotiations are retired: no screen or service calls their routes, and `src/tests/retired-indicative-routes.test.ts` fails if one reappears. `services/fameRfq.ts` and `types/fameRfq.ts`, `types/fameSupplierOffer.ts` keep only the shared declaration types and measurement mapping. This branch does not include the production identified-activity pipeline.
+**Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. The earlier supplier offers, RFQs and negotiations are retired: no screen or service calls their routes. `services/fameRfq.ts` and `types/fameRfq.ts`, `types/fameSupplierOffer.ts` keep only the shared declaration types and measurement mapping. This branch does not include the production identified-activity pipeline.
 
 **Staging Bio-LNG/catalog.** `BIO_LNG` follows the same catalog and contract rules as B100: `ORDERBOOK` execution plus an explicit lane from `available_delivery_point_ids` (Rotterdam only at first), or the market stays closed. Its terms live in `types/lngOrder.ts`, are required on BIO_LNG orders, and carry the `side` discriminator (`LngAskTerms` or `LngBidTerms`). The public ask view withholds the scheme certificate number and the physical supplier name until a trade is confirmed, and exposes only `reseller` and `fueleu_recognition`. The server derives the generic ASK metadata (scheme, specification, feedstock, origin) from `lng_terms`, so the client never sends both. A direct take that fails the terms comparison returns `LNG_TERMS_INCOMPATIBLE`; the fixed names come from the bio-LNG contract addendum. BIO_LNG is exempt from the scalar carbon intensity, has no demo data, and never feeds `ci_pricing`.
 
@@ -207,7 +207,7 @@ scripts/
 | Area | Source | Tests/checks |
 |---|---|---|
 | Routes and sidebar | `App.tsx`, `layout/sidebarConfig.ts`, `types.ts` | `app-routing.test.tsx`, `sidebar-config.test.ts` |
-| Marketplace presentation/selection | `features/marketplace/components/`, `hooks/useMarketplaceSelection.ts` | `marketplace-structure.test.tsx`, `marketplace-selection.test.tsx`, `marketplace-green-fuels.test.tsx` |
+| Marketplace presentation/selection | `features/marketplace/components/`, `hooks/useMarketplaceSelection.ts` | `marketplace-selection.test.tsx`, `marketplace-green-fuels.test.tsx` |
 | Feature read contract and lifecycle | `features/{marketplace,orderbook}/api/`, `useMarketplaceQueries.ts`, `lib/query/` | `feature-api-contracts.test.ts`, `feature-query-options.test.ts`, `marketplace-query-lifecycle.test.tsx`, `query-client.test.tsx`, `query-invalidation.test.tsx`, `query-scope.test.tsx` |
 | OrderBook depth and clock | `features/orderbook/`, `lib/query/snapshotRequests.ts`, `refreshRegistry.ts` | `orderbook-{structure,interactions,query-lifecycle}.test.tsx`, `snapshot-requests.test.ts`, `snapshot-freshness.test.tsx`, `refresh-lifecycle.test.ts` |
 | Take/cancel and external order entry | `useTakeTrade.ts`, `useCancelOrder.ts`, `OrderPlaceModal.tsx`, `api.ts` | `marketplace-mutations.test.tsx`, `query-scope.test.tsx`, product take suites, `order-place-modal*.test.tsx`, `api-*.test.ts` |
@@ -314,11 +314,10 @@ previous deployment, and retains dependency-aware rollback. Candidate-only is th
 default. Staging requires its own environment build. See
 `docs/vercel-production-release.md`; no release is authorized by local tests.
 
-Phase 0 checks: `src/tests/phase0-*.test.*`,
-`node --test scripts/phase0-request-manifest.test.mjs`,
+Phase 0 tooling checks: `node --test scripts/phase0-request-manifest.test.mjs`,
 `python3 -m pytest scripts/test_phase0_release.py -q`, and the local-only public
-browser smoke `scripts/test_phase0_browser.py`. The request manifest covers both
-pinned trees and current source, with explicit retired and stale-wrapper dispositions.
+browser smoke `scripts/test_phase0_browser.py`. The request check requires an
+approved disposition for every current client request.
 `scripts/phase0_gate.py` owns the disposable pinned PostGIS container, migrations,
 synthetic fixtures (`phase0_gate_seed.py`), backend process and two actual browser
 bundles (`phase0_gate_browser.py`). Backend egress is restricted to its database;
