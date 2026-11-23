@@ -544,6 +544,9 @@ const ForwardCurveChart: React.FC<{
                     ))}
                 </div>
             </div>
+            {curveRow?.market_product === 'UCOME_B100' && (
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-amber-700 dark:text-amber-300">{t('forwardCurve.specificationScope')}</p>
+            )}
             {selectionOutsideHorizon && (
                 <p className="forward-curve-console__muted mt-1" role="status">{t('forwardCurve.chart.outsideHorizon')}</p>
             )}
@@ -1085,6 +1088,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             <h2 className="forward-curve-console__ink mt-1 break-words text-xl font-semibold leading-7">
                                 {activeCell ? `${formatMarketProduct(activeCell.market_product)} · ${activeCell.delivery_point_name}` : t('forwardCurve.noPeriodSelected')}
                             </h2>
+                            {activeCell?.market_product === 'UCOME_B100' && (
+                                <p className="mt-1 text-xs leading-relaxed text-amber-700 dark:text-amber-300">{t('forwardCurve.specificationScope')}</p>
+                            )}
                             <div className="mt-3">
                                 <SelectedPeriodSummary
                                     cell={activeCell}
