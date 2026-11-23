@@ -331,13 +331,13 @@ const ForwardCurvePointTooltip: React.FC<{
                 </div>
                 <span className={`shrink-0 font-semibold ${marketActivityTextClass(tone.tone)}`}>{tone.label}</span>
             </div>
-            <div className="mt-2 flex items-end gap-4">
+            <div className="mt-2 flex flex-wrap items-end gap-4">
                 <div className="min-w-0">
                     <div className="flex items-baseline gap-1.5">
                         <span className="text-lg font-bold leading-6 tabular-nums">{price(value)}</span>
                         <span className="forward-curve-console__dim">USD/MT</span>
                     </div>
-                    <div className="forward-curve-console__dim whitespace-nowrap">{priceSource}</div>
+                    <div className="forward-curve-console__dim sm:whitespace-nowrap">{priceSource}</div>
                 </div>
                 <dl className="forward-curve-console__rule grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 border-l pl-4">
                     {[
@@ -1053,20 +1053,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                 </div>
             ) : (
                 <>
-                    {/* The chart comes first in the document; on wide screens the selected period sits in the left margin. */}
+                    {/* The selected period comes first, in reading and keyboard order; on wide screens it is the left column. */}
                     <div className="forward-curve-console__gutter forward-curve-console__rule grid gap-x-12 gap-y-6 border-t pb-5 pt-4 xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]">
-                        <div className="min-w-0 xl:order-2">
-                            <ForwardCurveChart
-                                table={table}
-                                columns={table.columns}
-                                selectedCell={selectedCell}
-                                selectedKey={selectedKey}
-                                onSelectCell={selectCell}
-                                onOpenCell={openMarketplaceForCell}
-                            />
-                        </div>
-
-                        <aside data-tour="forward-focus-panel" className="min-w-0 xl:order-1">
+                        <aside data-tour="forward-focus-panel" className="min-w-0">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="forward-curve-console__muted">{t('forwardCurve.selectedPeriod')}</div>
                                 <div className="flex shrink-0 items-center gap-1">
@@ -1146,6 +1135,17 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 })}
                             </div>
                         </aside>
+
+                        <div className="min-w-0">
+                            <ForwardCurveChart
+                                table={table}
+                                columns={table.columns}
+                                selectedCell={selectedCell}
+                                selectedKey={selectedKey}
+                                onSelectCell={selectCell}
+                                onOpenCell={openMarketplaceForCell}
+                            />
+                        </div>
                     </div>
 
                     <section data-tour="forward-market-matrix" className="forward-curve-console__rule min-w-0 border-t pt-4">
@@ -1189,6 +1189,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                         }`}
                                     >
                                         {formatAvailabilityWindowPeriod(column.availability_window, locale)}
+                                        <div className="forward-curve-console__dim text-[11px] font-normal">
+                                            {t(`forwardCurve.group.${column.group.toLowerCase()}`, { defaultValue: t('forwardCurve.group.other') })}
+                                        </div>
                                     </div>
                                 ))}
                                 {table.rows.map(row => {
@@ -1227,8 +1230,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                         <div className="flex items-center justify-end gap-1.5">
                                                             {tone && tone.tone !== 'empty' && (
                                                                 <span className={`inline-flex items-center ${marketActivityTextClass(tone.tone)}`}>
-                                                                    {showCellSourceDots && <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />}
-                                                                    <span className="sr-only">{tone.shortLabel}</span>
+                                                                    {/* Mixed sources: show the label as text, so it never depends on colour alone. */}
+                                                                    <span className={showCellSourceDots ? 'text-[10px] font-bold uppercase tracking-wide' : 'sr-only'}>{tone.shortLabel}</span>
                                                                 </span>
                                                             )}
                                                             <span className={`text-sm font-bold tabular-nums ${empty ? 'forward-curve-console__dim' : 'forward-curve-console__ink'}`}>

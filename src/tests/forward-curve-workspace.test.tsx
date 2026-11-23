@@ -948,6 +948,14 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('Reference').length).toBeGreaterThan(0);
     expect(screen.queryByText('Unknown')).toBeNull();
     expect(screen.queryByText('Unverified signal')).toBeNull();
+
+    // With mixed sources, each matrix cell shows its source as visible text, not a colour-only dot.
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    const cellSourceLabels = ['Live', 'Trade', 'Reference']
+      .flatMap(label => within(matrix).getAllByText(label))
+      .filter(element => element.closest('button'));
+    expect(cellSourceLabels).toHaveLength(3);
+    cellSourceLabels.forEach(element => expect(element.className).not.toContain('sr-only'));
   });
 
   it.each(['CONVENTIONAL_METHANOL'])('filters %s out of forward rows and latest signals even on approved ports', async (unsupportedProduct) => {

@@ -195,11 +195,11 @@ export function describeForwardCurveSignal(signal: ForwardCurveSignalInput | nul
 }
 
 export function marketActivityTextClass(tone: MarketActivityTone): string {
-    if (tone === 'live') return 'text-emerald-600 dark:text-emerald-300';
+    if (tone === 'live') return 'text-emerald-700 dark:text-emerald-300';
     if (tone === 'demo') return 'text-amber-700 dark:text-amber-300';
     if (tone === 'mixed') return 'text-orange-700 dark:text-orange-300';
     if (tone === 'reference') return 'text-blue-700 dark:text-blue-300';
-    if (tone === 'signal') return 'text-cyan-600 dark:text-cyan-300';
+    if (tone === 'signal') return 'text-cyan-700 dark:text-cyan-300';
     if (tone === 'empty') return 'text-slate-500 dark:text-slate-400';
     return 'text-slate-500 dark:text-slate-400';
 }
