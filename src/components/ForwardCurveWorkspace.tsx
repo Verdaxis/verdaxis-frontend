@@ -16,7 +16,7 @@ import type {
     Page,
 } from '../types';
 import { formatAvailabilityWindow, formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '../utils/availabilityWindow';
-import { getForwardCurveHorizon, getForwardCurveTicks, type ForwardCurveHorizon } from '../utils/forwardCurveAxis';
+import { getForwardCurveHorizon, getForwardCurveTicks, getPriceTicks, type ForwardCurveHorizon } from '../utils/forwardCurveAxis';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { writeMarketplaceSlice } from '../utils/marketplaceSelection';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
@@ -64,20 +64,8 @@ const REFRESH_INTERVAL_MS = 30_000;
 const CHART_MARGIN = { top: 12, right: 16, bottom: 44, left: 60 };
 // Used until the chart container is measured (and in tests, where it never is).
 const DEFAULT_CHART_HEIGHT = 300;
-// Aim for at most this many horizontal price lines, so the chart stays open.
-const MAX_PRICE_TICKS = 5;
-const PRICE_TICK_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
 const MATRIX_LABEL_WIDTH = 176;
 const MATRIX_PERIOD_MIN_WIDTH = 92;
-
-/** Round price levels inside [min, max] for the chart's horizontal lines. */
-const getPriceTicks = (min: number, max: number) => {
-    const step = PRICE_TICK_STEPS.find(candidate => (max - min) / candidate <= MAX_PRICE_TICKS)
-        ?? PRICE_TICK_STEPS[PRICE_TICK_STEPS.length - 1];
-    const ticks: number[] = [];
-    for (let value = Math.ceil(min / step) * step; value <= max; value += step) ticks.push(value);
-    return ticks;
-};
 
 const getForwardCurveTableWindows = () => getAvailabilityWindowOptions().map(option => option.value);
 
