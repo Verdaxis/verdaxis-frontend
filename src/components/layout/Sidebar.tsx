@@ -119,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {!isCollapsed && (viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply'))}
                 </button>
                 {primaryActionDenial && !isCollapsed && (
-                    <AbilityDenialNote denial={primaryActionDenial} id="sidebar-primary-action-denial" className="mt-2 !text-amber-300" />
+                    <AbilityDenialNote denial={primaryActionDenial} id="sidebar-primary-action-denial" className="mt-1.5 !items-center !text-slate-400 [&>span]:min-w-0 [&>span]:truncate" />
                 )}
             </div>
 
