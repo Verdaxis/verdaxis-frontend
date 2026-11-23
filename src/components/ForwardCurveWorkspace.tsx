@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import './ForwardCurveWorkspace.css';
 import { createPortal } from 'react-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
