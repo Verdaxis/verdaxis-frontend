@@ -83,3 +83,35 @@ export function getForwardCurveTicks(
     });
     return ticks;
 }
+
+/** Aim for at most this many horizontal price lines, so the chart stays open. */
+export const MAX_PRICE_TICKS = 5;
+/** Prices are quoted in whole USD per tonne, so a price line is never finer than 1. */
+const MIN_PRICE_STEP = 1;
+/** "Nice" multipliers for a step size within one power of ten. */
+const NICE_STEP_FACTORS = [1, 2, 2.5, 5, 10];
+
+/**
+ * Round price levels inside [min, max] for the chart's horizontal lines.
+ * The step comes from the range itself, so the number of lines stays at
+ * MAX_PRICE_TICKS + 1 or fewer for any finite range.
+ */
+export function getPriceTicks(min: number, max: number): number[] {
+    const range = max - min;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(range) || range <= 0) {
+        return [];
+    }
+    const roughStep = range / MAX_PRICE_TICKS;
+    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+    const niceFactor = NICE_STEP_FACTORS.find(factor => factor * magnitude >= roughStep) ?? 10;
+    const step = Math.max(niceFactor * magnitude, MIN_PRICE_STEP);
+
+    const firstIndex = Math.ceil(min / step);
+    const lastIndex = Math.floor(max / step);
+    const ticks: number[] = [];
+    for (let index = firstIndex; index <= lastIndex && ticks.length <= MAX_PRICE_TICKS; index += 1) {
+        // toPrecision removes floating-point noise such as 0.6000000000000001.
+        ticks.push(Number((index * step).toPrecision(12)));
+    }
+    return ticks;
+}

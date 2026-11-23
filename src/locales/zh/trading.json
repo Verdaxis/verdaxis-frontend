@@ -662,6 +662,7 @@
   "forwardCurve.chart.outsideHorizon": "所选期限不在当前范围内。选择“全部”可显示该期限。",
   "forwardCurve.matrix.title": "市场矩阵",
   "forwardCurve.matrix.subtitle": "单击或按回车键查看；使用“交易此市场”在交易市场中打开",
+  "forwardCurve.matrix.singleSource": "全部标记：{{source}}",
   "forwardCurve.matrix.dimensions": "{{rows}} 行 · {{periods}} 个期限",
   "forwardCurve.matrix.hidden_one": "已隐藏 {{count}} 个无信号期限",
   "forwardCurve.matrix.hidden_other": "已隐藏 {{count}} 个无信号期限",

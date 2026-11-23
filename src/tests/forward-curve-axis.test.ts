@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
-import { getForwardCurveHorizon, getForwardCurveTicks } from '../utils/forwardCurveAxis';
+import { getForwardCurveHorizon, getForwardCurveTicks, getPriceTicks, MAX_PRICE_TICKS } from '../utils/forwardCurveAxis';
 
 const now = new Date('2026-09-14T12:00:00Z');
 const windows = getAvailabilityWindowOptions({ now }).map(option => option.value);
@@ -59,5 +59,27 @@ describe('forward curve axis', () => {
     const january = new Date('2027-01-01T00:00:00Z');
     const ladder = getAvailabilityWindowOptions({ now: january }).map(option => option.value);
     expect(getForwardCurveHorizon(ladder, '1Y', january).at(-1)).toBe('2028-Q1');
+  });
+});
+
+describe('forward curve price ticks', () => {
+  it('picks round price levels inside the visible range', () => {
+    expect(getPriceTicks(1033, 1217)).toEqual([1050, 1100, 1150, 1200]);
+    expect(getPriceTicks(10, 30010)).toEqual([10000, 20000, 30000]);
+    // Prices are whole dollars per tonne, so lines never fall on cents.
+    expect(getPriceTicks(1064.5, 1066.5)).toEqual([1065, 1066]);
+  });
+
+  it('never makes more than the maximum number of lines, even for a huge range', () => {
+    for (const [min, max] of [[0, 1e9], [-5e12, 5e12], [1, 1e300], [100, 100.0000001]]) {
+      expect(getPriceTicks(min, max).length).toBeLessThanOrEqual(MAX_PRICE_TICKS + 1);
+    }
+  });
+
+  it('returns no lines for an empty, reversed or non-finite range', () => {
+    expect(getPriceTicks(1100, 1100)).toEqual([]);
+    expect(getPriceTicks(1200, 1100)).toEqual([]);
+    expect(getPriceTicks(Number.NaN, 1100)).toEqual([]);
+    expect(getPriceTicks(0, Number.POSITIVE_INFINITY)).toEqual([]);
   });
 });
