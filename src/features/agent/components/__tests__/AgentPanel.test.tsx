@@ -43,12 +43,12 @@ it('focuses the composer, keeps pasted content separate, and locks a pending sen
     expect(document.activeElement).toBe(message());
     expect(api.agent.createConversation).not.toHaveBeenCalled();
     await typeMessage();
-    fireEvent.paste(message(), { clipboardData: { getData: () => 'forwarded text' } });
+    fireEvent.paste(message(), { clipboardData: { getData: () => 'forwarded\ntext' } });
     expect((message() as HTMLTextAreaElement).value).toBe('Check this');
     fireEvent.keyDown(message(), { key: 'Enter', shiftKey: true });
     expect(api.agent.sendMessage).not.toHaveBeenCalled();
     fireEvent.keyDown(message(), { key: 'Enter' });
-    await waitFor(() => expect(api.agent.sendMessage).toHaveBeenCalledWith('c', { text: 'Check this', untrusted: [{ label: 'Forwarded requirement', text: 'forwarded text' }] }));
+    await waitFor(() => expect(api.agent.sendMessage).toHaveBeenCalledWith('c', { text: 'Check this', untrusted: [{ label: 'Forwarded requirement', text: 'forwarded\ntext' }] }));
     expect(send().disabled).toBe(true); expect(screen.getByText('Waiting for the assistant…')).toBeTruthy();
     await act(async () => finish(turn));
     expect(screen.getByText('<b>12.00</b>')).toBeTruthy();
@@ -82,4 +82,52 @@ it.each([
 ] as const)('shows the %s refusal', async (kind, text) => {
     vi.mocked(api.agent.sendMessage).mockRejectedValue(new AgentError(kind, 42));
     show(); await typeMessage(); fireEvent.click(send()); expect((await screen.findByRole('alert')).textContent).toBe(text);
+});
+
+it('shows a question only once before its options', async () => {
+    vi.mocked(api.agent.sendMessage).mockResolvedValue({ ...turn, reply: 'Which port?',
+        question: { question: 'Which port?', options: ['Singapore'] } });
+    show(); await typeMessage(); fireEvent.click(send());
+    await screen.findByText('Singapore');
+    expect(screen.getAllByText('Which port?')).toHaveLength(1);
+});
+it('shows the buyer before the pending row and rolls back on failure', async () => {
+    let fail!: (error: Error) => void;
+    vi.mocked(api.agent.sendMessage).mockReturnValue(new Promise((_, reject) => { fail = reject; }));
+    show(); await typeMessage(); fireEvent.click(send());
+    const log = screen.getByRole('log');
+    expect(log.textContent).toMatch(/You.*Check this.*Waiting for the assistant/);
+    expect(screen.getByText('Waiting for the assistant…').getAttribute('aria-live')).toBe('polite');
+    await act(async () => fail(new AgentError('busy')));
+    expect(log.textContent).not.toContain('Check this');
+    expect((message() as HTMLTextAreaElement).value).toBe('Check this');
+    expect(screen.getByRole('alert').textContent).toContain('busy');
+});
+it.each(['paste', 'drop'] as const)('uses native %s for one line up to 200 characters, and isolates longer or multiline text', async action => {
+    show(); await typeMessage();
+    function transfer(text: string) {
+        const data = { getData: () => text };
+        return action === 'paste' ? fireEvent.paste(message(), { clipboardData: data }) : fireEvent.drop(message(), { dataTransfer: data });
+    }
+    const short = '5'.repeat(200);
+    expect(transfer(short)).toBe(true); // Not cancelled: the browser inserts at the caret.
+    fireEvent.change(message(), { target: { value: short } });
+    expect(screen.queryByLabelText('Forwarded text')).toBeNull();
+    expect(transfer('buyer\nnotes')).toBe(false);
+    expect(transfer('a'.repeat(201))).toBe(false);
+    fireEvent.click(send());
+    await waitFor(() => expect(api.agent.sendMessage).toHaveBeenCalledWith('c', { text: short,
+        untrusted: [{ label: 'Forwarded requirement', text: 'buyer\nnotes\n' + 'a'.repeat(201) }] }));
+});
+it.each(['list', 'history'])('recovers from a %s load failure without creating a conversation', async failure => {
+    vi.mocked(api.agent.listConversations).mockResolvedValue([conversation]);
+    const history = vi.spyOn(api.agent, 'history').mockResolvedValue({ ...conversation, drafts: [], messages: [
+        { role: 'user', seq: 1, createdAt: '', content: { text: 'Recovered' } },
+    ] });
+    if (failure === 'list') vi.mocked(api.agent.listConversations).mockRejectedValueOnce(new AgentError('unavailable'));
+    else history.mockRejectedValueOnce(new AgentError('unavailable'));
+    show(); await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Recovered')).toBeTruthy();
+    await typeMessage(); expect(api.agent.createConversation).not.toHaveBeenCalled();
 });
