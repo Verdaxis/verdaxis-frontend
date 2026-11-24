@@ -1,6 +1,8 @@
+import { useNamespace } from '../../hooks/useNamespace';
 
 import React, { useState } from 'react';
 import {
+    MessageSquare,
     Menu,
     UserCircle,
     ChevronDown,
@@ -16,14 +18,25 @@ import { NotificationBell } from '../notifications/NotificationBell';
 import LanguageSelector from '../LanguageSelector';
 import { StreamStatusIndicator } from './StreamStatusIndicator';
 
+type AgentButtonProps = { ref: React.Ref<HTMLButtonElement>; open: boolean; toggle: () => void };
+function AgentButton({ ref, open, toggle }: AgentButtonProps) {
+    const { t, ready } = useNamespace('agent');
+    if (!ready) return null;
+    return <button ref={ref} type="button" onClick={toggle} aria-expanded={open} aria-controls={open ? 'agent-panel' : undefined}
+        aria-label={t('title')} title={t('title')} className="rounded-md p-2 text-slate-300 hover:text-white focus-visible:ring-2">
+        <MessageSquare size={18} />
+    </button>;
+}
+
 interface HeaderProps {
+    agentButton?: AgentButtonProps;
     viewMode: ViewMode;
     onSwitchView: (mode: ViewMode) => void;
     onOpenMobileSidebar: () => void;
     isMarketSupportActive?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar, isMarketSupportActive = false }) => {
+export const Header: React.FC<HeaderProps> = ({ agentButton, viewMode, onSwitchView, onOpenMobileSidebar, isMarketSupportActive = false }) => {
     const { user, logout } = useAuth();
     const { start: startTutorial } = useTutorial();
     const { t } = useTranslation();
@@ -46,6 +59,8 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
             <div className="flex items-center space-x-3 md:space-x-6 ml-4">
                 {/* Live-connection state of the SSE streams */}
                 <StreamStatusIndicator />
+
+                {agentButton && <AgentButton {...agentButton} />}
 
                 {/* Language Selector */}
                 <LanguageSelector />

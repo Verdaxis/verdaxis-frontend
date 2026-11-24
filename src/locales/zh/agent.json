@@ -1,0 +1,31 @@
+{
+  "title": "买方助手",
+  "close": "关闭助手",
+  "notice": "助手只准备草稿。草稿不是订单。",
+  "message": "消息",
+  "paste": "粘贴转发的文本",
+  "forwarded": "转发的文本",
+  "send": "发送",
+  "pending": "正在等待助手回复…",
+  "retry": "重试",
+  "resend": "重新发送消息",
+  "cancel": "取消",
+  "retryWarning": "之前的草稿仍会保留。重新发送可能会创建更多草稿。",
+  "saved_one": "本轮已保存 {{count}} 份草稿。",
+  "saved_other": "本轮已保存 {{count}} 份草稿。",
+  "wait": "消息过多。请在 {{seconds}} 秒后重试。",
+  "stop": {
+    "tool_limit": "助手需要执行的步骤过多，请每次只提一个要求。",
+    "contract_errors": "助手未能给出有效答复，请重试或换一种说法。",
+    "timeout": "助手响应超时，请重试。",
+    "model_failure": "助手服务未响应，请稍后重试。"
+  },
+  "error": {
+    "paused": "助手已暂停。",
+    "rate_limited": "消息过多，请稍后重试。",
+    "daily_budget": "已达到助手的每日使用上限。",
+    "busy": "助手正忙，请稍后重试。",
+    "unavailable": "助手暂不可用，请稍后重试。",
+    "invalid": "请检查消息和转发文本的长度及内容。"
+  }
+}

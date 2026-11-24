@@ -1,0 +1,31 @@
+{
+  "title": "Buyer assistant",
+  "close": "Close assistant",
+  "notice": "The assistant prepares drafts. A draft is not an order.",
+  "message": "Message",
+  "paste": "Paste forwarded text",
+  "forwarded": "Forwarded text",
+  "send": "Send",
+  "pending": "Waiting for the assistant…",
+  "retry": "Try again",
+  "resend": "Resend message",
+  "cancel": "Cancel",
+  "retryWarning": "The previous drafts stay saved. Resending may create more drafts.",
+  "saved_one": "{{count}} draft saved in this turn.",
+  "saved_other": "{{count}} drafts saved in this turn.",
+  "wait": "Too many messages. Try again in {{seconds}} seconds.",
+  "stop": {
+    "tool_limit": "The assistant needed too many steps; ask for one thing at a time.",
+    "contract_errors": "The assistant could not give a valid answer; try again or rephrase your request.",
+    "timeout": "The assistant took too long; try again.",
+    "model_failure": "The assistant service did not answer; try again in a moment."
+  },
+  "error": {
+    "paused": "The assistant is paused.",
+    "rate_limited": "Too many messages. Try again shortly.",
+    "daily_budget": "The daily assistant limit has been reached.",
+    "busy": "The assistant is busy. Try again shortly.",
+    "unavailable": "The assistant is unavailable. Try again later.",
+    "invalid": "Check the length and content of your message and forwarded text."
+  }
+}

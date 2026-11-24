@@ -53,6 +53,7 @@ i18n.on('languageChanged', applyDocumentLanguage);
 
 const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
   en: {
+    agent: () => import('./locales/en/agent.json'),
     public: () => import('./locales/en/public.json'),
     auth: () => import('./locales/en/auth.json'),
     trading: () => import('./locales/en/trading.json'),
@@ -66,6 +67,7 @@ const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
     tutorial: () => import('./locales/en/tutorial.json'),
   },
   zh: {
+    agent: () => import('./locales/zh/agent.json'),
     public: () => import('./locales/zh/public.json'),
     auth: () => import('./locales/zh/auth.json'),
     trading: () => import('./locales/zh/trading.json'),
