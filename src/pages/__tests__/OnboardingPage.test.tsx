@@ -27,3 +27,13 @@ it.each([
   expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer synthetic-session');
   expect(JSON.parse(String(options?.body))).toEqual({ first_name: 'Test', last_name: 'Member', role: 'BUYER' });
 });
+
+it('uses themed surfaces for both name fields and the profile card', async () => {
+  await loadNamespace('auth');
+  renderWithProviders(<OnboardingPage />);
+  for (const name of ['First Name', 'Last Name']) {
+    const field = screen.getByRole('textbox', { name });
+    expect(field.classList.contains('v-input')).toBe(true);
+    expect(field.closest('.bg-verdaxis-card')).not.toBeNull();
+  }
+});

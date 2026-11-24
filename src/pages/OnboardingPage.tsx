@@ -64,11 +64,11 @@ export const OnboardingPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-700">
+        <div className="min-h-screen bg-verdaxis-bg dark:bg-slate-900 flex items-center justify-center p-4">
+            <div className="max-w-md w-full bg-verdaxis-card dark:bg-slate-800 rounded-xl shadow-2xl p-8 border border-verdaxis-border dark:border-slate-700">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">{t('onboarding.title')}</h1>
-                    <p className="text-slate-400">{t('onboarding.subtitle')}</p>
+                    <h1 className="text-3xl font-bold text-verdaxis-text dark:text-white mb-2">{t('onboarding.title')}</h1>
+                    <p className="text-verdaxis-text-muted dark:text-slate-400">{t('onboarding.subtitle')}</p>
                 </div>
 
                 {error && (
@@ -80,26 +80,26 @@ export const OnboardingPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label htmlFor="onboarding-first-name" className="text-sm font-medium text-slate-300">{t('onboarding.firstName')}</label>
+                            <label htmlFor="onboarding-first-name" className="text-sm font-medium text-verdaxis-text dark:text-slate-300">{t('onboarding.firstName')}</label>
                             <input
                                 id="onboarding-first-name"
                                 autoComplete="given-name"
                                 type="text"
                                 required
-                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                className="v-input py-2.5"
                                 placeholder={t('onboarding.firstNamePlaceholder')}
                                 value={formData.first_name}
                                 onChange={e => setFormData({...formData, first_name: e.target.value})}
                             />
                         </div>
                         <div className="space-y-2">
-                            <label htmlFor="onboarding-last-name" className="text-sm font-medium text-slate-300">{t('onboarding.lastName')}</label>
+                            <label htmlFor="onboarding-last-name" className="text-sm font-medium text-verdaxis-text dark:text-slate-300">{t('onboarding.lastName')}</label>
                             <input
                                 id="onboarding-last-name"
                                 autoComplete="family-name"
                                 type="text"
                                 required
-                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                className="v-input py-2.5"
                                 placeholder={t('onboarding.lastNamePlaceholder')}
                                 value={formData.last_name}
                                 onChange={e => setFormData({...formData, last_name: e.target.value})}
@@ -108,7 +108,7 @@ export const OnboardingPage: React.FC = () => {
                     </div>
 
                     <fieldset className="space-y-3">
-                        <legend className="text-sm font-medium text-slate-300">{t('onboarding.selectRole')}</legend>
+                        <legend className="text-sm font-medium text-verdaxis-text dark:text-slate-300">{t('onboarding.selectRole')}</legend>
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 type="button"
@@ -116,8 +116,8 @@ export const OnboardingPage: React.FC = () => {
                                 aria-pressed={formData.role === 'BUYER'}
                                 className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 ${
                                     formData.role === 'BUYER'
-                                        ? 'border-blue-500 bg-blue-500/10 text-white'
-                                        : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
+                                        ? 'border-blue-500 bg-blue-500/10 text-verdaxis-text dark:text-white'
+                                        : 'border-verdaxis-border bg-verdaxis-input text-verdaxis-text-muted hover:border-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400'
                                 }`}
                             >
                                 <LayoutDashboard size={24} />
@@ -129,8 +129,8 @@ export const OnboardingPage: React.FC = () => {
                                 aria-pressed={formData.role === 'SUPPLIER'}
                                 className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 ${
                                     formData.role === 'SUPPLIER'
-                                        ? 'border-emerald-500 bg-emerald-500/10 text-white'
-                                        : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
+                                        ? 'border-emerald-500 bg-emerald-500/10 text-verdaxis-text dark:text-white'
+                                        : 'border-verdaxis-border bg-verdaxis-input text-verdaxis-text-muted hover:border-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400'
                                 }`}
                             >
                                 <Briefcase size={24} />
