@@ -59,16 +59,18 @@ const Stat: React.FC<{ value: number; suffix: string; label: string }> = ({ valu
 };
 
 /* ── Section wrapper with motion inView ── */
-const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = ({ children, delay = 0 }) => {
+const RevealSection: React.FC<{ children: React.ReactNode; delay?: number; reducedMotion: boolean }> = ({
+  children, delay = 0, reducedMotion,
+}) => {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-60px' });
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
+      initial={reducedMotion ? false : { opacity: 0, y: 40 }}
+      animate={reducedMotion || isInView ? { opacity: 1, y: 0 } : {}}
+      transition={reducedMotion ? { duration: 0 } : { duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
@@ -81,14 +83,25 @@ export const LandingPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
   const localePath = useLocalePath();
   const howSectionRef = useRef<HTMLElement>(null);
+  const [reducedMotion, setReducedMotion] = React.useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setReducedMotion(preference.matches);
+    updatePreference();
+    preference.addEventListener('change', updatePreference);
+    return () => preference.removeEventListener('change', updatePreference);
+  }, []);
 
   useEffect(() => {
     const section = howSectionRef.current;
-    if (!section) return;
+    if (!section || reducedMotion) return;
 
     const mm = gsap.matchMedia();
 
-    mm.add('(min-width: 769px)', () => {
+    mm.add('(min-width: 769px) and (prefers-reduced-motion: no-preference)', () => {
       const track = section.querySelector('.how-track') as HTMLElement;
       if (!track) return;
 
@@ -107,7 +120,7 @@ export const LandingPage: React.FC = () => {
     });
 
     return () => mm.revert();
-  }, []);
+  }, [ready, reducedMotion]);
 
   if (!ready) return null;
 
@@ -227,7 +240,7 @@ export const LandingPage: React.FC = () => {
           }}
         />
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <RevealSection>
+          <RevealSection reducedMotion={reducedMotion}>
             <div style={{ textAlign: 'center', marginBottom: 56 }}>
               <p
                 style={{
@@ -273,7 +286,7 @@ export const LandingPage: React.FC = () => {
             }}
           >
             {whyCards.map(({ icon: Icon, title, body }, i) => (
-              <RevealSection key={title} delay={i * 0.1}>
+              <RevealSection reducedMotion={reducedMotion} key={title} delay={i * 0.1}>
                 <motion.div
                   whileHover={{ y: -6, boxShadow: '0 12px 40px rgba(76,175,80,0.1)' }}
                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -333,7 +346,7 @@ export const LandingPage: React.FC = () => {
         <div
           className="how-track"
           style={{
-            display: 'flex',
+            display: reducedMotion ? 'none' : 'flex',
             alignItems: 'center',
             minHeight: '100vh',
             padding: '0 100px',
@@ -464,8 +477,8 @@ export const LandingPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Mobile fallback: vertical stack */}
-        <div className="how-mobile-fallback" style={{ display: 'none', padding: '80px 24px' }}>
+        {/* Static steps for mobile and reduced motion */}
+        <div className="how-mobile-fallback" style={{ display: reducedMotion ? 'block' : 'none', padding: '80px 24px' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <p style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#5DADE2', marginBottom: 12 }}>
               {t('landing.how.eyebrow')}
@@ -507,7 +520,7 @@ export const LandingPage: React.FC = () => {
         }}
       >
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <RevealSection>
+          <RevealSection reducedMotion={reducedMotion}>
             <div style={{ textAlign: 'center', marginBottom: 56 }}>
               <p
                 style={{
@@ -553,7 +566,7 @@ export const LandingPage: React.FC = () => {
             }}
           >
             {roleCards.map(({ icon: Icon, title, path, bullets }, i) => (
-              <RevealSection key={title} delay={i * 0.1}>
+              <RevealSection reducedMotion={reducedMotion} key={title} delay={i * 0.1}>
                 <motion.div
                   whileHover={{ y: -6, boxShadow: '0 12px 40px rgba(15,23,42,0.08)' }}
                   transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -648,7 +661,7 @@ export const LandingPage: React.FC = () => {
         }}
       >
         <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-          <RevealSection>
+          <RevealSection reducedMotion={reducedMotion}>
             <p
               style={{
                 fontSize: 13,
@@ -662,7 +675,7 @@ export const LandingPage: React.FC = () => {
               {t('landing.frameworks.label')}
             </p>
           </RevealSection>
-          <RevealSection delay={0.15}>
+          <RevealSection reducedMotion={reducedMotion} delay={0.15}>
             <div
               style={{
                 display: 'flex',
@@ -720,7 +733,7 @@ export const LandingPage: React.FC = () => {
           }}
         />
         <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <RevealSection>
+          <RevealSection reducedMotion={reducedMotion}>
             <p
               style={{
                 fontSize: 13,
@@ -734,7 +747,7 @@ export const LandingPage: React.FC = () => {
               {t('landing.cta.eyebrow')}
             </p>
           </RevealSection>
-          <RevealSection delay={0.1}>
+          <RevealSection reducedMotion={reducedMotion} delay={0.1}>
             <h2
               style={{
                 fontFamily: '"DM Serif Display", serif',
@@ -747,7 +760,7 @@ export const LandingPage: React.FC = () => {
               {t('landing.cta.title')}
             </h2>
           </RevealSection>
-          <RevealSection delay={0.2}>
+          <RevealSection reducedMotion={reducedMotion} delay={0.2}>
             <p
               style={{
                 fontSize: 16,
@@ -759,7 +772,7 @@ export const LandingPage: React.FC = () => {
               {t('landing.cta.subtitle')}
             </p>
           </RevealSection>
-          <RevealSection delay={0.3}>
+          <RevealSection reducedMotion={reducedMotion} delay={0.3}>
             <div
               style={{
                 display: 'flex',
@@ -768,7 +781,7 @@ export const LandingPage: React.FC = () => {
                 flexWrap: 'wrap',
               }}
             >
-              <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+              <motion.div whileTap={reducedMotion ? undefined : { scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <Link
                   to={localePath('/pilot')}
                   onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'landing_bottom', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
@@ -790,7 +803,7 @@ export const LandingPage: React.FC = () => {
                   <ArrowRight size={16} />
                 </Link>
               </motion.div>
-              <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+              <motion.div whileTap={reducedMotion ? undefined : { scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <a
                   href="mailto:info@verdaxis.exchange"
                   onClick={() => analytics.track('landing_cta_clicked', { cta: 'register_interest', placement: 'landing_bottom', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
@@ -826,11 +839,6 @@ export const LandingPage: React.FC = () => {
           }
           .how-mobile-fallback {
             display: block !important;
-          }
-        }
-        @media (min-width: 769px) {
-          .how-mobile-fallback {
-            display: none !important;
           }
         }
       `}</style>
