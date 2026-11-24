@@ -160,6 +160,24 @@ describe('admin onboarding review', () => {
     expect(screen.queryByText(/needs outreach/i)).toBeNull();
   });
 
+  it('uses primary ink on the selected status and invitation mode', async () => {
+    render(<MemoryRouter initialEntries={['/app/admin/users']}><AdminDashboard /></MemoryRouter>);
+    const pending = await screen.findByRole('button', { name: 'Pending' });
+    const approved = screen.getByRole('button', { name: 'Approved' });
+    const primaryInk = 'text-[#07101E]';
+    expect(pending.classList.contains(primaryInk)).toBe(true);
+    fireEvent.click(approved);
+    expect(pending.classList.contains(primaryInk)).toBe(false);
+    expect(approved.classList.contains(primaryInk)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Invite user' }));
+    const existing = await screen.findByRole('button', { name: 'Existing organization' });
+    const create = screen.getByRole('button', { name: 'New organization' });
+    expect(existing.classList.contains(primaryInk)).toBe(true);
+    fireEvent.click(create);
+    expect(existing.classList.contains(primaryInk)).toBe(false);
+    expect(create.classList.contains(primaryInk)).toBe(true);
+  });
+
   it('shows the requested organization and blocks approval on email verification', async () => {
     render(
       <MemoryRouter initialEntries={['/app/admin/users']}>

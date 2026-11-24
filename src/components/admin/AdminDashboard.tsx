@@ -662,7 +662,7 @@ const UsersTab: React.FC = () => {
             }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
               filter === value
-                ? 'bg-verdaxis text-white'
+                ? 'bg-verdaxis text-[#07101E]'
                 : 'bg-verdaxis-border/40 text-verdaxis-text-muted hover:text-verdaxis-text'
             }`}
           >
@@ -965,7 +965,7 @@ const UsersTab: React.FC = () => {
                     })}
                     className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
                       inviteForm.organizationMode === mode
-                        ? 'bg-verdaxis text-white'
+                        ? 'bg-verdaxis text-[#07101E]'
                         : 'text-verdaxis-text-muted hover:text-verdaxis-text'
                     }`}
                     aria-pressed={inviteForm.organizationMode === mode}
