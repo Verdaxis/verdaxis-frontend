@@ -21,8 +21,7 @@ import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
 import { PublicMarketSync } from './components/PublicMarketSync';
 import { analytics } from './services/analytics';
-import { Layout } from './components/Layout';
-import { OrderPlaceModal } from './components/OrderPlaceModal';
+import type { Layout as DashboardShell } from './components/Layout';
 import { ViewMode, Page, PAGE_SLUGS, Port, AvailabilityWindow } from './types';
 import { MarketSlice, parseSlicePath, sliceToPath } from './utils/sliceUrl';
 import { isOrderbookMarketProduct } from './utils/marketProduct';
@@ -298,7 +297,15 @@ const dashboardSkeleton = (loading: Page | undefined): React.ReactElement => {
     }
 };
 
-const DashboardLayout: React.FC = () => {
+const OrderPlaceModal = lazyWithRetry(() => import('./components/OrderPlaceModal').then(
+  ({ OrderPlaceModal }) => ({ default: OrderPlaceModal }),
+));
+
+const DashboardRoute = lazyWithRetry(() => import('./components/Layout').then(({ Layout }) => ({
+  default: () => <DashboardLayout Shell={Layout} />,
+})));
+
+const DashboardLayout: React.FC<{ Shell: typeof DashboardShell }> = ({ Shell }) => {
   const { user } = useAuth();
   const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
   const { isRunning: isTutorialRunning } = useTutorial();
@@ -413,7 +420,7 @@ const DashboardLayout: React.FC = () => {
   }
 
   return (
-    <Layout
+    <Shell
       viewMode={effectiveViewMode}
       onSwitchView={handleSwitchView}
       currentPage={currentPage}
@@ -454,15 +461,19 @@ const DashboardLayout: React.FC = () => {
           </Suspense>
         </ErrorBoundary>
       )}
-      <OrderPlaceModal
-        isOpen={sidebarModalSide !== null}
-        onClose={() => setSidebarModalSide(null)}
-        side={sidebarModalSide || 'BID'}
-        prefillMarketProduct={sidebarPrefillProduct}
-        prefillRegion={sidebarMarketSlice?.port}
-        prefillAvailabilityWindow={sidebarMarketSlice?.window}
-      />
-    </Layout>
+      {sidebarModalSide && (
+        <Suspense fallback={null}>
+          <OrderPlaceModal
+            isOpen
+            onClose={() => setSidebarModalSide(null)}
+            side={sidebarModalSide}
+            prefillMarketProduct={sidebarPrefillProduct}
+            prefillRegion={sidebarMarketSlice?.port}
+            prefillAvailabilityWindow={sidebarMarketSlice?.window}
+          />
+        </Suspense>
+      )}
+    </Shell>
   );
 };
 
@@ -668,7 +679,7 @@ export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
                                 <RequireProfile>
                                     <MobileDesktopGate>
                                         <Suspense fallback={<LazySkeleton name="page" />}>
-                                            <DashboardQueryProvider><DashboardLayout /></DashboardQueryProvider>
+                                            <DashboardQueryProvider><DashboardRoute /></DashboardQueryProvider>
                                         </Suspense>
                                     </MobileDesktopGate>
                                 </RequireProfile>
