@@ -50,6 +50,24 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
         return allQtys.length > 0 ? Math.max(...allQtys) : 1;
     }, [bids, asks]);
 
+    const headingRef = React.useRef<HTMLHeadingElement>(null);
+    const focusedLevel = React.useRef<EventTarget | null>(null);
+    const [orderRemoved, setOrderRemoved] = React.useState(false);
+
+    React.useLayoutEffect(() => {
+        const level = focusedLevel.current;
+        if (!(level instanceof HTMLElement) || document.activeElement !== document.body) return;
+        // Moving an existing grid item can blur it in the browser.
+        if (level.isConnected) {
+            level.focus({ preventScroll: true });
+        } else {
+            focusedLevel.current = null;
+            headingRef.current?.focus();
+            setHoverTooltip(null);
+            setOrderRemoved(true);
+        }
+    }, [bids, asks, setHoverTooltip]);
+
     const maxRows = Math.max(bids.length, asks.length);
     const livePriceCrossState = React.useMemo(
         () => getLivePriceCrossState(bids, asks),
@@ -62,12 +80,13 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
         <>
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-4 dark:border-slate-700">
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                <h2 ref={headingRef} tabIndex={-1} data-orderbook-heading className="text-lg font-bold text-slate-800 dark:text-slate-100">
                     {marketProduct ? formatMarketProduct(marketProduct) : t('orderBook.title')}
                     {region && <span> · {region}</span>}
                     {availability && <span> · {formatAvailabilityWindow(availability, locale)}</span>}
                 </h2>
                 <div className="flex items-center gap-2">
+                    <span role="status" className="sr-only">{orderRemoved && t('orderBook.focusedOrderRemoved')}</span>
                     <SnapshotFreshness generatedAt={generatedAt} refreshing={refreshing} error={error} />
                     <button type="button" onClick={() => void fetchData(true)} aria-label={t('orderBook.refresh')}
                         disabled={refreshing}
@@ -103,184 +122,188 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                 </div>
             </div>
 
-            {/* Unified rows — bid and ask per row for perfect vertical alignment */}
+            {/* A shared grid aligns both sides without tying an order to its rank. */}
             <div className="relative flex-1 overflow-y-auto" onMouseLeave={() => setHoverTooltip(null)}>
-                {maxRows === 0 ? (
-                    <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
+                <div className="grid grid-cols-2">
+                    {maxRows === 0 && <>
                         <div className="px-4 py-8 text-center text-xs text-slate-400">{t('orderBook.noBids')}</div>
-                        <div className="px-4 py-8 text-center text-xs text-slate-400">{t('orderBook.noAsks')}</div>
-                    </div>
-                ) : (
-                    Array.from({ length: maxRows }).map((_, i) => {
-                        const bid = bids[i] ?? null;
-                        const ask = asks[i] ?? null;
+                        <div className="border-l border-slate-200 px-4 py-8 text-center text-xs text-slate-400 dark:border-slate-700">{t('orderBook.noAsks')}</div>
+                    </>}
+                    {bids.map((bid, index) => {
                         const bidIsDemo = isDemoMarketActivity(bid);
-                        const askIsDemo = isDemoMarketActivity(ask);
-                        const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
-                        const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
-                        const bidCrossed = bid ? livePriceCrossState.bidIds.has(bid.id) : false;
-                        const askCrossed = ask ? livePriceCrossState.askIds.has(ask.id) : false;
-
+                        const bidDepth = (bid.remaining_quantity_mt / maxQty) * 100;
+                        const bidCrossed = livePriceCrossState.bidIds.has(bid.id);
                         const bidInteractive = actionableSide === 'BID' && Boolean(onLevelClick);
-                        const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
-
                         return (
-                            <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
-                                {/* BID cell */}
-                                {bid ? (
-                                    <div
-                                        onMouseEnter={(event) => showTooltipFromElement(bid, event.currentTarget)}
-                                        onFocus={(event) => showTooltipFromElement(bid, event.currentTarget)}
-                                        onBlur={() => setHoverTooltip(null)}
-                                        onClick={() => { if (bidInteractive) onLevelClick?.(bid); }}
-                                        data-tour={bidInteractive ? 'orderbook-actionable-level' : undefined}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Escape') setHoverTooltip(null);
-                                            if (event.target !== event.currentTarget) return;
-                                            if (!bidInteractive) return;
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                event.preventDefault();
-                                                onLevelClick?.(bid);
-                                            }
-                                        }}
-                                        role={bidInteractive ? 'button' : 'group'}
-                                        tabIndex={0}
-                                        aria-label={t(bidInteractive ? 'orderBook.openBid' : 'orderBook.inspectBid', { price: formatPrice(bid.price_per_mt_usd), quantity: formatQty(bid.remaining_quantity_mt, locale) })}
-                                        aria-describedby={hoverTooltip?.order.id === bid.id ? tooltipId : undefined}
-                                        className={`relative flex items-center justify-between min-h-11 px-4 py-3 border-b border-slate-100 dark:border-slate-800 group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${bidInteractive ? 'cursor-pointer' : 'cursor-default'} ${
-                                            bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
-                                        }`}
+                            <div
+                                key={bid.id}
+                                style={{ gridColumn: 1, gridRow: index + 1 }}
+                                onMouseEnter={(event) => showTooltipFromElement(bid, event.currentTarget)}
+                                onFocus={(event) => {
+                                    focusedLevel.current = event.target;
+                                    setOrderRemoved(false);
+                                    showTooltipFromElement(bid, event.currentTarget);
+                                }}
+                                onBlur={(event) => {
+                                    if (event.relatedTarget) focusedLevel.current = null;
+                                    setHoverTooltip(null);
+                                }}
+                                onClick={() => { if (bidInteractive) onLevelClick?.(bid); }}
+                                data-tour={bidInteractive ? 'orderbook-actionable-level' : undefined}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Escape') setHoverTooltip(null);
+                                    if (event.target !== event.currentTarget) return;
+                                    if (!bidInteractive) return;
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        onLevelClick?.(bid);
+                                    }
+                                }}
+                                role={bidInteractive ? 'button' : 'group'}
+                                tabIndex={0}
+                                aria-label={t(bidInteractive ? 'orderBook.openBid' : 'orderBook.inspectBid', { price: formatPrice(bid.price_per_mt_usd), quantity: formatQty(bid.remaining_quantity_mt, locale) })}
+                                aria-describedby={hoverTooltip?.order.id === bid.id ? tooltipId : undefined}
+                                className={`relative flex items-center justify-between min-h-11 px-4 py-3 border-b border-slate-100 dark:border-slate-800 group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${bidInteractive ? 'cursor-pointer' : 'cursor-default'} ${
+                                    bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
+                                }`}
+                            >
+                                {bidIsDemo && (
+                                    <span
+                                        className="absolute left-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
+                                        aria-hidden="true"
                                     >
-                                        {bidIsDemo && (
-                                            <span
-                                                className="absolute left-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
-                                                aria-hidden="true"
-                                            >
-                                                <AlertTriangle size={10} />
-                                            </span>
-                                        )}
-                                        <div
-                                            className={`absolute inset-y-0 right-0 pointer-events-none ${
-                                                bidCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-emerald-100/60 dark:bg-emerald-900/20'
-                                            }`}
-                                            style={{ width: `${bidDepth}%` }}
-                                        />
-                                        {onInstantTrade && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
-                                                className="relative z-10 mr-1 px-1.5 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
-                                            >
-                                                {t('orderBook.sell')}
-                                            </button>
-                                        )}
-                                        <span className="relative z-10 text-sm tabular-nums font-mono text-slate-500 dark:text-slate-400">
-                                            {formatQty(bid.remaining_quantity_mt, locale)}
-                                        </span>
-                                        <span className={`relative z-10 text-sm tabular-nums font-mono font-bold text-right ${
-                                            bidCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'
-                                        }`}>
-                                            {bidCrossed && (
-                                                <span className="mr-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                    <Zap size={8} className="mr-0.5" />{t(bid.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
-                                                </span>
-                                            )}
-                                            {formatPrice(bid.price_per_mt_usd)}
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div className="min-h-11 px-4 py-3" />
+                                        <AlertTriangle size={10} />
+                                    </span>
                                 )}
-
-                                {/* ASK cell */}
-                                {ask ? (
-                                    <div
-                                        onMouseEnter={(event) => showTooltipFromElement(ask, event.currentTarget)}
-                                        onFocus={(event) => showTooltipFromElement(ask, event.currentTarget)}
-                                        onBlur={() => setHoverTooltip(null)}
-                                        onClick={() => { if (askInteractive) onLevelClick?.(ask); }}
-                                        data-tour={askInteractive ? 'orderbook-actionable-level' : undefined}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Escape') setHoverTooltip(null);
-                                            if (event.target !== event.currentTarget) return;
-                                            if (!askInteractive) return;
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                event.preventDefault();
-                                                onLevelClick?.(ask);
-                                            }
-                                        }}
-                                        role={askInteractive ? 'button' : 'group'}
-                                        tabIndex={0}
-                                        aria-label={t(askInteractive ? 'orderBook.openAsk' : 'orderBook.inspectAsk', { price: formatPrice(ask.price_per_mt_usd), quantity: formatQty(ask.remaining_quantity_mt, locale) })}
-                                        aria-describedby={hoverTooltip?.order.id === ask.id ? tooltipId : undefined}
-                                        className={`relative flex items-center justify-between min-h-11 px-4 py-3 border-b border-slate-100 dark:border-slate-800 group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70 ${askInteractive ? 'cursor-pointer' : 'cursor-default'} ${
-                                            askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
-                                        }`}
+                                <div
+                                    className={`absolute inset-y-0 right-0 pointer-events-none ${
+                                        bidCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-emerald-100/60 dark:bg-emerald-900/20'
+                                    }`}
+                                    style={{ width: `${bidDepth}%` }}
+                                />
+                                {onInstantTrade && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
+                                        className="relative z-10 mr-1 px-1.5 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                     >
-                                        <div
-                                            className={`absolute inset-y-0 left-0 pointer-events-none ${
-                                                askCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-red-100/60 dark:bg-red-900/20'
-                                            }`}
-                                            style={{ width: `${askDepth}%` }}
-                                        />
-                                        {askIsDemo && (
-                                            <span
-                                                className="absolute right-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
-                                                aria-hidden="true"
-                                            >
-                                                <AlertTriangle size={10} />
-                                            </span>
-                                        )}
-                                        <span className={`relative z-10 text-sm tabular-nums font-mono font-bold ${
-                                            askCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                                        {t('orderBook.sell')}
+                                    </button>
+                                )}
+                                <span className="relative z-10 text-sm tabular-nums font-mono text-slate-500 dark:text-slate-400">
+                                    {formatQty(bid.remaining_quantity_mt, locale)}
+                                </span>
+                                <span className={`relative z-10 text-sm tabular-nums font-mono font-bold text-right ${
+                                    bidCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'
+                                }`}>
+                                    {bidCrossed && (
+                                        <span className="mr-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
+                                            <Zap size={8} className="mr-0.5" />{t(bid.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
+                                        </span>
+                                    )}
+                                    {formatPrice(bid.price_per_mt_usd)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                    {asks.map((ask, index) => {
+                        const askIsDemo = isDemoMarketActivity(ask);
+                        const askDepth = (ask.remaining_quantity_mt / maxQty) * 100;
+                        const askCrossed = livePriceCrossState.askIds.has(ask.id);
+                        const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
+                        return (
+                            <div
+                                key={ask.id}
+                                style={{ gridColumn: 2, gridRow: index + 1 }}
+                                onMouseEnter={(event) => showTooltipFromElement(ask, event.currentTarget)}
+                                onFocus={(event) => {
+                                    focusedLevel.current = event.target;
+                                    setOrderRemoved(false);
+                                    showTooltipFromElement(ask, event.currentTarget);
+                                }}
+                                onBlur={(event) => {
+                                    if (event.relatedTarget) focusedLevel.current = null;
+                                    setHoverTooltip(null);
+                                }}
+                                onClick={() => { if (askInteractive) onLevelClick?.(ask); }}
+                                data-tour={askInteractive ? 'orderbook-actionable-level' : undefined}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Escape') setHoverTooltip(null);
+                                    if (event.target !== event.currentTarget) return;
+                                    if (!askInteractive) return;
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        onLevelClick?.(ask);
+                                    }
+                                }}
+                                role={askInteractive ? 'button' : 'group'}
+                                tabIndex={0}
+                                aria-label={t(askInteractive ? 'orderBook.openAsk' : 'orderBook.inspectAsk', { price: formatPrice(ask.price_per_mt_usd), quantity: formatQty(ask.remaining_quantity_mt, locale) })}
+                                aria-describedby={hoverTooltip?.order.id === ask.id ? tooltipId : undefined}
+                                className={`relative flex items-center justify-between min-h-11 px-4 py-3 border-b border-slate-100 dark:border-slate-800 group hover:bg-red-50/60 dark:hover:bg-red-950/20 border-l border-l-slate-200 dark:border-l-slate-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70 ${askInteractive ? 'cursor-pointer' : 'cursor-default'} ${
+                                    askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
+                                }`}
+                            >
+                                <div
+                                    className={`absolute inset-y-0 left-0 pointer-events-none ${
+                                        askCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-red-100/60 dark:bg-red-900/20'
+                                    }`}
+                                    style={{ width: `${askDepth}%` }}
+                                />
+                                {askIsDemo && (
+                                    <span
+                                        className="absolute right-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
+                                        aria-hidden="true"
+                                    >
+                                        <AlertTriangle size={10} />
+                                    </span>
+                                )}
+                                <span className={`relative z-10 text-sm tabular-nums font-mono font-bold ${
+                                    askCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                                }`}>
+                                    {formatPrice(ask.price_per_mt_usd)}
+                                    {askCrossed && (
+                                        <span className="ml-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
+                                            <Zap size={8} className="mr-0.5" />{t(ask.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
+                                        </span>
+                                    )}
+                                    {ask.carbon_intensity_gco2_mj != null && (
+                                        <span className={`ml-1.5 inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full ${
+                                            ask.carbon_intensity_gco2_mj < 30
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+                                                : ask.carbon_intensity_gco2_mj <= 60
+                                                ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+                                                : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                                         }`}>
-                                            {formatPrice(ask.price_per_mt_usd)}
-                                            {askCrossed && (
-                                                <span className="ml-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                    <Zap size={8} className="mr-0.5" />{t(ask.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
-                                                </span>
-                                            )}
-                                            {ask.carbon_intensity_gco2_mj != null && (
-                                                <span className={`ml-1.5 inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full ${
-                                                    ask.carbon_intensity_gco2_mj < 30
-                                                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
-                                                        : ask.carbon_intensity_gco2_mj <= 60
-                                                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
-                                                        : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
-                                                }`}>
-                                                    {t('orderBook.ci')} {Math.round(ask.carbon_intensity_gco2_mj)}
-                                                </span>
-                                            )}
-                                            {ask.lng_terms?.side === 'ASK' && Number.isFinite(ask.lng_terms.wtt_ghg_gco2e_mj) && (
-                                                <span className="ml-1.5 inline-flex flex-col items-start">
-                                                    <span className="inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">
-                                                        {t('lngTerms.summary.wtt', { value: ask.lng_terms.wtt_ghg_gco2e_mj.toLocaleString(locale, { maximumFractionDigits: 2 }) })}
-                                                    </span>
-                                                    {/* The caveat qualifies the value, so it is read, not hovered. */}
-                                                    <span className="text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                                        {t('lngTerms.wttNote')}
-                                                    </span>
-                                                </span>
-                                            )}
+                                            {t('orderBook.ci')} {Math.round(ask.carbon_intensity_gco2_mj)}
                                         </span>
-                                        <span className="relative z-10 text-sm tabular-nums font-mono text-slate-500 dark:text-slate-400 text-right">
-                                            {formatQty(ask.remaining_quantity_mt, locale)}
+                                    )}
+                                    {ask.lng_terms?.side === 'ASK' && Number.isFinite(ask.lng_terms.wtt_ghg_gco2e_mj) && (
+                                        <span className="ml-1.5 inline-flex flex-col items-start">
+                                            <span className="inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">
+                                                {t('lngTerms.summary.wtt', { value: ask.lng_terms.wtt_ghg_gco2e_mj.toLocaleString(locale, { maximumFractionDigits: 2 }) })}
+                                            </span>
+                                            {/* The caveat qualifies the value, so it is read, not hovered. */}
+                                            <span className="text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                                {t('lngTerms.wttNote')}
+                                            </span>
                                         </span>
-                                        {onInstantTrade && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
-                                                className="relative z-10 ml-1 px-1.5 py-0.5 text-[11px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
-                                            >
-                                                {t('orderBook.buy')}
-                                            </button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="min-h-11 px-4 py-3" />
+                                    )}
+                                </span>
+                                <span className="relative z-10 text-sm tabular-nums font-mono text-slate-500 dark:text-slate-400 text-right">
+                                    {formatQty(ask.remaining_quantity_mt, locale)}
+                                </span>
+                                {onInstantTrade && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
+                                        className="relative z-10 ml-1 px-1.5 py-0.5 text-[11px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
+                                    >
+                                        {t('orderBook.buy')}
+                                    </button>
                                 )}
                             </div>
                         );
-                    })
-                )}
+                    })}
+                </div>
 
                 {hoverTooltip && <OrderBookTooltip
                     hoverTooltip={hoverTooltip} tooltipId={tooltipId} marketProduct={marketProduct} locale={locale} t={t}

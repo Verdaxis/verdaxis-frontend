@@ -126,6 +126,39 @@ describe('orderbook inspection', () => {
       }], []));
   });
 
+  it.each(['BID', 'ASK'] as const)('keeps focus on the same %s through insertion and reordering', async side => {
+    const order = (id: string, price: number) => ({ id, side, market_product: 'BIO_METHANOL',
+      price_per_mt_usd: price, remaining_quantity_mt: 100, availability_window: 'SPOT', certifications: [] });
+    const original = order('original', 600);
+    const better = order('new', side === 'BID' ? 620 : 580);
+    const depth = (...orders: ReturnType<typeof order>[]) => side === 'BID' ? makeSnapshot(orders) : makeSnapshot([], orders);
+    const openTrade = vi.fn();
+    snapshot.mockResolvedValue(depth(original));
+    renderWithProviders(<OrderBook {...MARKET} actionableSide={side} onLevelClick={openTrade} />);
+    const quote = await screen.findByRole('button', { name: /600/ });
+    act(() => quote.focus());
+    const refresh = () => fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+
+    snapshot.mockResolvedValue(depth(original, better));
+    refresh();
+    await screen.findByRole('button', { name: /620|580/ });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /600/ }));
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    expect(openTrade).toHaveBeenLastCalledWith(expect.objectContaining({ id: original.id }));
+
+    snapshot.mockResolvedValue(depth({ ...original, price_per_mt_usd: side === 'BID' ? 640 : 560 }, better));
+    refresh();
+    const reordered = await screen.findByRole('button', { name: /640|560/ });
+    expect(document.activeElement).toBe(reordered);
+    fireEvent.keyDown(reordered, { key: 'Enter' });
+    expect(openTrade).toHaveBeenLastCalledWith(expect.objectContaining({ id: original.id }));
+
+    snapshot.mockResolvedValue(depth(better));
+    refresh();
+    await screen.findByText('The focused order is no longer in the orderbook.');
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: /Bio Methanol/ }));
+  });
+
   it('allows keyboard inspection without making the other side executable', async () => {
     const openTrade = vi.fn();
     renderWithProviders(<OrderBook {...MARKET} actionableSide="ASK" onLevelClick={openTrade} />);

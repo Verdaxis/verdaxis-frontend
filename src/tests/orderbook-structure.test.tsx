@@ -48,15 +48,15 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('OrderBook pre-move DOM contract', () => {
   it.each([
-    ['empty', '36985a00155dc360cc6921c18fab8a5c9b9c2f6f53708f7bd8894529b0760fca'],
-    ['loaded', '3411b64f79af79ab865fd1437e35fce2b86b98afcc59821c39f6959c5fb0c8b3'],
+    ['empty', '8fee055f6f387154b465d5c5435cd074c72e88f33110939f01afc99676a34798'],
+    ['loaded', '0fa8e6b1ead270de295977b878a5b124ee7d9bbd1eb0b958cb072d8eaf97f76f'],
     ['rfq', '17239a0c6ef3e46f9a993f39d4a8e919b3fef9fa8121bbeb78dea4b567f471b5'],
     ['loading', '803432997a57499efe1cc50d9c97a89240908650d8e58d2afda8941a72f44a07'],
     ['error', '8262a1bf9549fb9d5f0d80e56a5d2ff6ae589ceb04ba54ebd510ad38f71b0a62'],
-    ['fame', '767fe3e9c2c5966eb7c7e4a288b6ccd7c87b0d6d9f91e34bbf3f7f1936f2a64c'],
-    ['lng', '35410fe1da5c9b7c261edc5f5f7a102345d17a03d2b5c0c090a4e18e663c8825'],
-    ['demo-tooltip', '0f4df652d44d83e296777094ac77b1da53ff81857317f18109bb74657756f12b'],
-    ['lng-tooltip', 'b49f7865a4026f7aa964b69834b26b664c5a10f15db99678a1a2051c4d0ee332'],
+    ['fame', 'e5daf53f667a2c6b6300ce82fa73dd8c8e7167193156f9b36009eda3948b22f2'],
+    ['lng', 'febc76cf1e392c62d68a0adbbee00fcf654f6374267281409de8b3ef655ec4de'],
+    ['demo-tooltip', '2657726c4708b3decdce2a80a4b0168ed41850098f1db3d8a50c46a4eaa05012'],
+    ['lng-tooltip', '5d8796ea80cd882c813be140ed6e6eb782f5f372aa9f8fde67c5828806bc2807'],
   ])('preserves the complete %s tree', async (state, expected) => {
     const props = { ...MARKET, actionableSide: 'ASK' as const, onLevelClick: vi.fn(), onInstantTrade: vi.fn() };
     if (state === 'loading') snapshot.mockReturnValue(new Promise(() => {}));
