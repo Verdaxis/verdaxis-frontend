@@ -952,7 +952,7 @@ describe('Marketplace green fuels surface', () => {
       ]);
       renderWithProviders(<Marketplace />);
       fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
-      expect(await screen.findByText('$7,771')).toBeTruthy();
+      expect(await screen.findByText('$7,771.00')).toBeTruthy();
       myOrders.mockClear();
       let finishReload!: (orders: unknown[]) => void;
       myOrders.mockReturnValueOnce(new Promise((resolve) => { finishReload = resolve; }));
@@ -964,14 +964,14 @@ describe('Marketplace green fuels surface', () => {
       expect(myOrders).toHaveBeenCalledWith(expect.objectContaining({ signal: expect.any(AbortSignal) }));
       // The old list stays on screen while the new one loads.
       expect(screen.queryByText('Loading your listings...')).toBeNull();
-      expect(screen.getByText('$7,771')).toBeTruthy();
+      expect(screen.getByText('$7,771.00')).toBeTruthy();
       await act(async () => {
         finishReload([
           { ...listingsResponse.items[0], id: 'mine-2', side: 'BID', price_per_mt_usd: 8882, status: 'OPEN' },
         ]);
       });
-      expect(await screen.findByText('$8,882')).toBeTruthy();
-      expect(screen.queryByText('$7,771')).toBeNull();
+      expect(await screen.findByText('$8,882.00')).toBeTruthy();
+      expect(screen.queryByText('$7,771.00')).toBeNull();
     });
 
     it('keeps the visible list when a background reload fails', async () => {

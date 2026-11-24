@@ -1,4 +1,4 @@
-import { formatQuantity } from '../../../utils/numberFormat';
+import { formatQuantity, formatUsd } from '../../../utils/numberFormat';
 import { Loader2, RefreshCw, ClipboardList, Trash2 } from 'lucide-react';
 import { OrderBookOrder, ViewMode } from '../../../types';
 import { getStatusConfig, formatDeliveryWindow } from '../../../utils/fuel';
@@ -130,7 +130,7 @@ export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, has
                                                         {order.delivery_point_name || order.region}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                                        ${order.price_per_mt_usd.toLocaleString(locale)}
+                                                        ${formatUsd(order.price_per_mt_usd)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
                                                         {formatQuantity(order.quantity_mt, locale)}
