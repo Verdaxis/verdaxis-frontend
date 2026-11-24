@@ -4,6 +4,15 @@ import type { AgentMessageInput } from '../api/agentTypes';
 
 // Long or multiline pasted text comes from another source. Send it as untrusted content.
 const MAX_INLINE_PASTE_CHARACTERS = 200;
+function requiresForwardedField(value: string) {
+    let count = 0;
+    for (const character of value) {
+        count += 1;
+        if (count > MAX_INLINE_PASTE_CHARACTERS || /[\r\n\u2028\u2029]/u.test(character)) return true;
+    }
+    return false;
+}
+
 const fieldStyle = [
     'mt-1 w-full resize-y rounded-md border border-slate-300 bg-white p-2',
     'focus-visible:ring-2 focus-visible:ring-verdaxis dark:border-slate-600 dark:bg-slate-900',
@@ -26,8 +35,7 @@ export function AgentComposer({ disabled, pending, send }: ComposerProps) {
     const [expanded, setExpanded] = useState(false);
 
     function handleTransfer(event: SyntheticEvent, value: string) {
-        const multiline = /[\r\n\u2028\u2029]/u.test(value);
-        if (!multiline && [...value].length <= MAX_INLINE_PASTE_CHARACTERS) return;
+        if (!requiresForwardedField(value)) return;
         event.preventDefault();
         if (pending) return;
         setExpanded(true);
