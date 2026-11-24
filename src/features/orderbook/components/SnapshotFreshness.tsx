@@ -12,6 +12,7 @@ const STALE_AFTER_SECONDS = 20;
 
 export const SnapshotFreshness = ({ generatedAt, refreshing, error }: SnapshotFreshnessProps) => {
     const { t } = useTranslation('trading');
+    const [announcement, setAnnouncement] = useState<'stale' | 'failed' | 'recovered' | null>(null);
     const [, setClock] = useState(() => Date.now());
 
     useEffect(() => {
@@ -24,6 +25,16 @@ export const SnapshotFreshness = ({ generatedAt, refreshing, error }: SnapshotFr
         ? Math.max(0, Math.floor((Date.now() - generatedAtMs) / 1_000))
         : null;
     const snapshotIsStale = snapshotAgeSeconds !== null && snapshotAgeSeconds > STALE_AFTER_SECONDS;
+    const hasAge = snapshotAgeSeconds !== null;
+    useEffect(() => {
+        // Starting a retry clears the request error, but does not recover the snapshot.
+        if (error) setAnnouncement('failed');
+        else if (!refreshing) {
+            if (snapshotIsStale) setAnnouncement('stale');
+            else if (hasAge) setAnnouncement(previous => previous ? 'recovered' : null);
+        }
+    }, [error, refreshing, snapshotIsStale, hasAge]);
+
     const age = snapshotAgeSeconds ?? 0;
     const freshnessText = refreshing
         ? t('orderBook.refreshing', { age })
@@ -39,12 +50,13 @@ export const SnapshotFreshness = ({ generatedAt, refreshing, error }: SnapshotFr
             : 'text-slate-400';
 
     return (
-        <span
-            role={error ? 'alert' : 'status'}
-            data-testid="orderbook-freshness"
-            className={`text-[11px] font-medium ${freshnessTone}`}
-        >
-            {freshnessText}
-        </span>
+        <>
+            <span data-testid="orderbook-freshness" className={`text-[11px] font-medium ${freshnessTone}`}>
+                {freshnessText}
+            </span>
+            <span role="status" className="sr-only">
+                {announcement && t(`orderBook.freshnessStatus.${announcement}`)}
+            </span>
+        </>
     );
 };

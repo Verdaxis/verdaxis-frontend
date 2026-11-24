@@ -43,13 +43,12 @@ describe('isolated snapshot freshness', () => {
     [20, 'Updated 20s ago', 'text-slate-400'],
     [21, 'Stale · 21s old', 'text-amber-600'],
   ])('renders server age %i without changing the strict stale threshold', async (age, text, tone) => {
-    const view = await freshness({ generatedAt: new Date(NOW.getTime() - age * 1000).toISOString(), refreshing: false, error: null });
+    await freshness({ generatedAt: new Date(NOW.getTime() - age * 1000).toISOString(), refreshing: false, error: null });
     const span = screen.getByTestId('orderbook-freshness');
     expect(span.tagName).toBe('SPAN');
-    expect(span.getAttribute('role')).toBe('status');
+    expect(span.closest('[aria-live], [role="alert"], [role="status"]')).toBeNull();
     expect(span.textContent).toBe(text);
     expect(span.className).toContain(tone);
-    expect(view.container.children).toHaveLength(1);
   });
 
   it.each([null, 'invalid', new Date(NOW.getTime() + 60_000).toISOString()])('keeps missing, invalid and future dates at age zero: %s', async generatedAt => {
@@ -57,15 +56,36 @@ describe('isolated snapshot freshness', () => {
     expect(screen.getByTestId('orderbook-freshness').textContent).toBe('Updated 0s ago');
   });
 
-  it('prioritizes refreshing text while preserving the failure tone and alert role', async () => {
+  it('prioritizes refreshing text while preserving the failure tone', async () => {
     const view = await freshness({ generatedAt: new Date(NOW.getTime() - 30_000).toISOString(), refreshing: true, error: 'offline' });
     const span = screen.getByTestId('orderbook-freshness');
     expect(span.textContent).toBe('Refreshing · 30s old');
-    expect(span.getAttribute('role')).toBe('alert');
+    expect(span.closest('[aria-live], [role="alert"], [role="status"]')).toBeNull();
     expect(span.className).toBe('text-[11px] font-medium text-red-600 dark:text-red-400');
     const { SnapshotFreshness } = await import('../features/orderbook/components/SnapshotFreshness');
     view.rerender(<SnapshotFreshness generatedAt={new Date(NOW.getTime() - 30_000).toISOString()} refreshing={false} error="offline" />);
     expect(span.textContent).toBe('Stale · refresh failed · 30s old');
+  });
+
+  it('announces stale, failed and recovered snapshots without announcing age or refresh cycles', async () => {
+    const generatedAt = new Date(NOW.getTime() - 20_000).toISOString();
+    const view = await freshness({ generatedAt, refreshing: false, error: null });
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('');
+
+    act(() => vi.advanceTimersByTime(1000));
+    expect(status.textContent).toBe('Orderbook snapshot is stale.');
+    act(() => vi.advanceTimersByTime(3000));
+    expect(status.textContent).toBe('Orderbook snapshot is stale.');
+    expect(screen.getByText('Stale · 24s old')).toBeTruthy();
+
+    const { SnapshotFreshness } = await import('../features/orderbook/components/SnapshotFreshness');
+    view.rerender(<SnapshotFreshness generatedAt={generatedAt} refreshing={false} error="offline" />);
+    expect(status.textContent).toBe('Orderbook refresh failed.');
+    view.rerender(<SnapshotFreshness generatedAt={generatedAt} refreshing error={null} />);
+    expect(status.textContent).toBe('Orderbook refresh failed.');
+    view.rerender(<SnapshotFreshness generatedAt={new Date().toISOString()} refreshing={false} error={null} />);
+    expect(status.textContent).toBe('Orderbook snapshot is up to date.');
   });
 
   it('updates each second, reads the current time on a new snapshot and clears its timer', async () => {

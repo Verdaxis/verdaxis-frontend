@@ -88,7 +88,7 @@ describe('orderbook pre-Query re-entry contract', () => {
         if (scenario === 'failed refresh') {
           snapshot.mockRejectedValueOnce(new Error('refresh unavailable'));
           fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
-          await screen.findByRole('alert');
+          await screen.findByText('Orderbook refresh failed.');
           expect(screen.getByRole('group', { name: /Ask.*915/ })).toBeTruthy();
         }
       }
@@ -274,7 +274,7 @@ describe('orderbook inspection', () => {
     snapshot.mockRejectedValueOnce(new Error('network unavailable'));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('refresh failed'));
+    await screen.findByText('Orderbook refresh failed.');
     expect(screen.getByRole('group', { name: /Bid.*600/ })).toBeTruthy();
     expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
   });
