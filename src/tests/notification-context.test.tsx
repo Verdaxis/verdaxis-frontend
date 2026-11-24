@@ -1,4 +1,4 @@
-import { act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { renderWithProviders, screen, waitFor } from './test-utils';
@@ -75,6 +75,29 @@ describe('NotificationProvider', () => {
     await act(async () => finish([]));
     expect(listMock).toHaveBeenCalledTimes(2);
     expect(unreadCountMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the context for equal poll results but shows notification edits', async () => {
+    vi.useFakeTimers();
+    const item = {
+      id: 'notification-1', title: 'Order update', message: 'A bid was updated',
+      type: 'ORDER_UPDATE', is_read: false, created_at: '2026-04-08T10:00:00Z',
+      data: { order_id: 'first-order' },
+    };
+    listMock.mockImplementation(async () => [{ ...item, data: { ...item.data } }]);
+    unreadCountMock.mockResolvedValue(1);
+    const { result } = renderHook(useNotifications, { wrapper: NotificationProvider });
+    await act(async () => {});
+    const before = result.current;
+    expect(before.notifications).toHaveLength(1);
+
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(result.current).toBe(before);
+
+    listMock.mockResolvedValue([{ ...item, data: { order_id: 'second-order' } }]);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(result.current.notifications[0].data?.order_id).toBe('second-order');
+    expect(result.current.markAsRead).toBe(before.markAsRead);
   });
 
   it('keeps notification list updates even if unread-count fetch fails', async () => {

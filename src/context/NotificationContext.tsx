@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
+import { replaceEqualDeep } from '@tanstack/react-query';
 import { Notification } from '../types';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -35,7 +36,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         ]).then(([listResult, countResult]) => {
             if (readScope.current !== scope) return;
             if (listResult.status === 'fulfilled') {
-                setNotifications(listResult.value);
+                setNotifications(previous => replaceEqualDeep(previous, listResult.value));
             } else {
                 console.error("Failed to fetch notifications", listResult.reason);
             }
@@ -50,7 +51,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         return read;
     }, []);
 
-    const markAsRead = async (id: string) => {
+    const markAsRead = useCallback(async (id: string) => {
         if (isMarketSupportActive) return;
         try {
             await api.notifications.markRead(id);
@@ -59,9 +60,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         } catch (error) {
             console.error("Failed to mark notification as read", error);
         }
-    };
+    }, [isMarketSupportActive]);
 
-    const markAllAsRead = async () => {
+    const markAllAsRead = useCallback(async () => {
         if (isMarketSupportActive) return;
         try {
             await api.notifications.markAllRead();
@@ -70,7 +71,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         } catch (error) {
             console.error("Failed to mark all as read", error);
         }
-    };
+    }, [isMarketSupportActive]);
 
     const addNotification = useCallback((notification: Notification) => {
         setNotifications(prev => [notification, ...prev].slice(0, 100));
@@ -108,8 +109,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         };
     }, [userId, isMarketSupportActive, fetchNotifications]);
 
+    const value = useMemo(() => ({
+        notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification,
+    }), [notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification]);
+
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification }}>
+        <NotificationContext.Provider value={value}>
             {children}
         </NotificationContext.Provider>
     );
