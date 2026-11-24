@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Shield } from 'lucide-react';
+import i18n from '../../i18n';
+import { formatUsd } from '../../utils/numberFormat';
 import { Port, Product, ForwardCurvePoint } from '../../types';
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
@@ -92,8 +94,9 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     const deliveryPointId = selectedPort?.catalogDeliveryPointId;
     const curveProduct = isOrderbookMarketProduct(selectedProduct) ? selectedProduct : undefined;
 
+    const locale = i18n.resolvedLanguage ?? i18n.language;
     const marketPriceLabel = selectedPort && selectedPort.priceMethanol > 0
-        ? `$${selectedPort.priceMethanol}`
+        ? `$${formatUsd(selectedPort.priceMethanol, locale)}`
         : '--';
     const availabilityValue = selectedPort && selectedPort.methanolSupply !== 'Unknown'
         ? selectedPort.methanolSupply
@@ -168,7 +171,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         if (item.status === 'unavailable') return t('intelligencePanel.curveUnavailable');
         if (item.status === 'empty') return t('intelligencePanel.noCurveData');
         if (item.spotPrice === null) return t('intelligencePanel.noSpotReference');
-        return `${t('intelligencePanel.spotReference')} $${item.spotPrice.toFixed(0)}/MT`;
+        return `${t('intelligencePanel.spotReference')} $${formatUsd(item.spotPrice, locale)}/MT`;
     };
 
     const forwardReferences = (

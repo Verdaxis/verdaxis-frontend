@@ -251,6 +251,15 @@ describe('ForwardCurveWorkspace', () => {
     });
   });
 
+  it('keeps distinct cent prices in the matrix and chart point name', async () => {
+    const table = makeTable();
+    table.rows[0].cells.SPOT = { ...singaporeSpot, primary_value: 1109.25, best_bid: 1109.1, best_ask: 1109.4 };
+    tableMock.mockResolvedValue(table);
+    renderWithProviders(<ForwardCurveWorkspace />);
+    expect(await screen.findByText('1,109.10 / 1,109.40')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Spot $1,109.25' })).toBeTruthy();
+  });
+
   it('renders the forward curve above the matrix with a selected-period quote summary', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
@@ -471,7 +480,7 @@ describe('ForwardCurveWorkspace', () => {
     });
     expect(screen.getByText('5.0k MT available')).toBeTruthy();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    const point = within(chart).getByRole('button', { name: 'Spot $1015' });
+    const point = within(chart).getByRole('button', { name: 'Spot $1,015.00' });
     act(() => point.focus());
     expect(screen.getByRole('tooltip')).toBeTruthy();
     fireEvent.mouseLeave(point);
@@ -501,7 +510,7 @@ describe('ForwardCurveWorkspace', () => {
     });
     expect(screen.getByText('Curve mark')).toBeTruthy();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $980' }));
+    fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $980.25' }));
     const tooltip = screen.getByRole('tooltip');
     expect(within(tooltip).getAllByText('$980.25')).toHaveLength(2);
     expect(within(tooltip).getAllByText('Best bid')).toHaveLength(2);
@@ -524,7 +533,7 @@ describe('ForwardCurveWorkspace', () => {
     });
     try {
       const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-      fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $1015' }));
+      fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $1,015.00' }));
       const tooltip = screen.getByRole('tooltip');
       expect(tooltip.style.left).toBe('522px');
       expect(tooltip.style.top).toBe('117.5px');
@@ -616,7 +625,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getByText('Curve mark')).toBeTruthy();
     await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
-    await act(async () => { fireEvent.click(within(matrix).getByText('$1250').closest('button')!); });
+    await act(async () => { fireEvent.click(within(matrix).getByText('$1,250.00').closest('button')!); });
     tableMock.mockClear();
     sliceMock.mockClear();
 
@@ -712,8 +721,8 @@ describe('ForwardCurveWorkspace', () => {
     sliceMock.mockImplementation(({ market_product }) => market_product === 'E_METHANOL'
       ? pendingRotterdam.promise : pendingSingapore.promise);
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
-    fireEvent.click(within(matrix).getByText('$1250').closest('button')!);
-    fireEvent.click(within(matrix).getByText('$1015').closest('button')!);
+    fireEvent.click(within(matrix).getByText('$1,250.00').closest('button')!);
+    fireEvent.click(within(matrix).getByText('$1,015.00').closest('button')!);
     await act(async () => pendingSingapore.resolve(makeSlice(singaporeSpot)));
     await act(async () => pendingRotterdam.resolve(makeSlice(rotterdamQuarter)));
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
@@ -735,7 +744,7 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
     await screen.findByText('Market Matrix');
-    const rotterdamButton = screen.getByText('$1250').closest('button');
+    const rotterdamButton = screen.getByText('$1,250.00').closest('button');
     expect(rotterdamButton).toBeTruthy();
 
     fireEvent.click(rotterdamButton as HTMLButtonElement);
@@ -760,7 +769,7 @@ describe('ForwardCurveWorkspace', () => {
 
     await screen.findByText('Market Matrix');
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
-    const rotterdamButton = within(matrix).getByText('$1250').closest('button');
+    const rotterdamButton = within(matrix).getByText('$1,250.00').closest('button');
     expect(rotterdamButton).toBeTruthy();
 
     fireEvent.doubleClick(rotterdamButton as HTMLButtonElement);
@@ -778,7 +787,7 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
     await screen.findByText('Latest Monitored Signals');
-    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1015/i }))[0];
+    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1,015\.00/i }))[0];
     expect(chartPoint).toBeTruthy();
 
     fireEvent.doubleClick(chartPoint);
@@ -795,7 +804,7 @@ describe('ForwardCurveWorkspace', () => {
     const onNavigate = vi.fn();
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
-    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1015/i }))[0];
+    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1,015\.00/i }))[0];
 
     fireEvent.keyDown(chartPoint, { key: 'Enter' });
 
@@ -1045,9 +1054,9 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText(/UCOME B100/).length).toBeGreaterThan(0);
     if (price == null) {
       expect(screen.getByText('No forward curve evidence is available for this product and port yet.')).toBeTruthy();
-      expect(screen.queryByText('$1110')).toBeNull();
+      expect(screen.queryByText('$1,110.00')).toBeNull();
     } else {
-      expect(screen.getAllByText('$1110').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('$1,110.00').length).toBeGreaterThan(0);
     }
     fireEvent.click(screen.getByRole('button', { name: 'Trade this market' }));
     expect(onOpenSlice).toHaveBeenCalledWith({ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' });
@@ -1075,7 +1084,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
 
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
-    const rotterdamButton = within(matrix).getByText('$1250').closest('button');
+    const rotterdamButton = within(matrix).getByText('$1,250.00').closest('button');
     expect(rotterdamButton).toBeTruthy();
     fireEvent.click(rotterdamButton as HTMLButtonElement);
 
@@ -1204,7 +1213,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getByText('仅用于监控，不是可执行报价。')).toBeTruthy();
     expect(screen.queryByText('Latest Monitored Signals')).toBeNull();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    fireEvent.mouseEnter(within(chart).getByRole('button', { name: '现货 $1015' }));
+    fireEvent.mouseEnter(within(chart).getByRole('button', { name: '现货 $1,015.00' }));
     const tooltip = screen.getByRole('tooltip');
     expect(within(tooltip).getByText('最高买价')).toBeTruthy();
     expect(within(tooltip).getByText('最低卖价')).toBeTruthy();

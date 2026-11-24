@@ -29,6 +29,10 @@ const QUANTITY_CASES: Array<[string, number, string]> = [
 ];
 
 describe('formatUsd', () => {
+    it('uses the requested locale for USD', () => {
+        expect(formatUsd(1109.1, 'de-DE')).toBe('1.109,10');
+    });
+
     it.each(USD_CASES)('renders "%s" as %s', (_spelling, value, text) => {
         expect(formatUsd(value)).toBe(text);
     });

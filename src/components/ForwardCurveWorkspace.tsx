@@ -27,6 +27,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import type { TFunction } from 'i18next';
+import { formatUsd } from '../utils/numberFormat';
 import i18n from '../i18n';
 
 interface ForwardCurveWorkspaceProps {
@@ -76,6 +77,11 @@ const getForwardCurveTableWindows = () => getAvailabilityWindowOptions().map(opt
 const currency = (value: number | null | undefined) => {
     if (value == null || !Number.isFinite(value)) return '--';
     return `$${value.toFixed(0)}`;
+};
+
+const quoteCurrency = (value: number | null | undefined, locale: string) => {
+    const amount = formatUsd(value, locale);
+    return amount ? '$' + amount : '--';
 };
 
 const preciseCurrency = (value: number | null | undefined, locale = 'en') => {
@@ -597,7 +603,7 @@ const ForwardCurveChart: React.FC<{
                                     role="button"
                                     tabIndex={0}
                                     aria-pressed={selected}
-                                    aria-label={`${formatAvailabilityWindow(point.cell.availability_window, locale)} ${currency(point.value)}`}
+                                    aria-label={`${formatAvailabilityWindow(point.cell.availability_window, locale)} ${quoteCurrency(point.value, locale)}`}
                                     aria-describedby={tooltip?.key === pointKey ? tooltipId : undefined}
                                     aria-description={t('forwardCurve.chart.pointHint')}
                                     data-tooltip-active={tooltip?.key === pointKey || undefined}
@@ -1294,15 +1300,15 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                                     </span>
                                                                 )}
                                                                 <span className={`text-sm font-bold tabular-nums ${empty ? 'forward-curve-console__dim' : 'forward-curve-console__ink'}`}>
-                                                                    {currency(cell?.primary_value)}
+                                                                    {quoteCurrency(cell?.primary_value, locale)}
                                                                 </span>
                                                             </div>
                                                             <div className="forward-curve-console__dim tabular-nums">
                                                                 {empty && bid == null && ask == null ? (
                                                                     <span>{cell ? markSourceLabel(cell.public_source_label, t) : t('marketActivity.empty.label')}</span>
                                                                 ) : (
-                                                                    <span aria-label={`${t('forwardCurve.layer.bid')} ${currency(cell?.best_bid)}, ${t('forwardCurve.layer.ask')} ${currency(cell?.best_ask)}`}>
-                                                                        {bid?.toFixed(0) ?? '--'} / {ask?.toFixed(0) ?? '--'}
+                                                                    <span aria-label={`${t('forwardCurve.layer.bid')} ${quoteCurrency(bid, locale)}, ${t('forwardCurve.layer.ask')} ${quoteCurrency(ask, locale)}`}>
+                                                                        {formatUsd(bid, locale) || '--'} / {formatUsd(ask, locale) || '--'}
                                                                     </span>
                                                                 )}
                                                                 {stale && !empty && cell?.observed_at && (
