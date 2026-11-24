@@ -18,6 +18,7 @@
  * response families; see the drift record for the resolved order metadata.
  */
 
+import type { AgentDraft, AgentDraftSummary, WireAgentDraft, WireAgentDraftSummary } from '../features/agent/api/agentTypes';
 import { parseWireDecimal, requireWireDecimal } from './decimals';
 import type {
     WireAggregatedOrderbook,
@@ -599,3 +600,17 @@ export const toForwardCurveSlice = (wire: WireForwardCurveSlice): ForwardCurveSl
         ? wire.evidence_points.map(toForwardCurveSliceEvidencePoint)
         : [],
 });
+
+export function mapAgentDraftSummary(raw: WireAgentDraftSummary): AgentDraftSummary {
+    return {
+        id: raw.id, side: raw.side, status: raw.status,
+        marketProduct: raw.market_product, deliveryPoint: raw.delivery_point,
+        availabilityWindow: raw.availability_window, expiresAt: raw.expires_at,
+        quantityMt: requireWireDecimal(raw.quantity_mt), limitPriceUsd: parseWireDecimal(raw.limit_price_usd),
+        createdAt: raw.created_at, updatedAt: raw.updated_at,
+    };
+}
+
+export function mapAgentDraft(raw: WireAgentDraft): AgentDraft {
+    return { ...mapAgentDraftSummary(raw), conversationId: raw.conversation_id, termsDigest: raw.terms_digest, sourceText: raw.source_text };
+}

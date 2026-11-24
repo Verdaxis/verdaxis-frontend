@@ -1,3 +1,5 @@
+import { createAgentApi } from '../features/agent/api/agentApi';
+import { AgentError } from '../features/agent/api/agentTypes';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { AggregatedOrderbook, MapCompactMarket, OrderBookOrder, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot, OrderCreateInput, Trade, TradeCreateInput } from '../types';
 import { mapOrderbookTermsResponse, mapTradeTermsResponse } from './orderTerms';
@@ -307,10 +309,10 @@ const classifyMutationFailure = (error: unknown, isMutation: boolean): unknown =
 };
 
 // Helper to fetch from API and handle response
-const fetchApi = async (path: string, options?: RequestInit, onResponse?: (response: Response) => void) => {
+const fetchApi = async (path: string, options?: RequestInit, onResponse?: (response: Response) => void, timeoutMs?: number) => {
     // Mutations get a longer timeout (30s) since they must not be silently dropped
     const isMutation = options?.method && options.method !== 'GET';
-    const timeout = isMutation ? 30000 : 15000;
+    const timeout = timeoutMs ?? (isMutation ? 30000 : 15000);
     const url = `${API_URL}${path}`;
     const method = options?.method || 'GET';
     const isPublicMarketRead = isPublicMarketReadRequest(path, method);
@@ -904,7 +906,32 @@ const mapReassignResult = (raw: any): AdminReassignResult => ({
     reassigned_at: optionalString(raw?.reassigned_at),
 });
 
+const agent = createAgentApi(async (path, options, timeoutMs) => {
+    try {
+        return await fetchApi(path, { ...options, headers: getHeaders(), cache: 'no-store' }, undefined, timeoutMs);
+    } catch (error) {
+        // The transport wraps mutation 5xx responses. Only translate known HTTP
+        // refusals; preserve unknown outcomes, auth changes and other errors.
+        const cause = error instanceof ApiOutcomeUnknownError ? error.cause : error;
+        if (cause instanceof ApiError) {
+            switch (cause.status) {
+                case 423: throw new AgentError('paused');
+                case 422: throw new AgentError('invalid');
+                case 503: throw new AgentError(cause.code === 'AGENT_BUSY' ? 'busy' : 'unavailable');
+                case 429:
+                    // The daily budget response has no code or Retry-After on the wire.
+                    if (cause.code === 'AGENT_DAILY_BUDGET_EXCEEDED' || (!cause.code && cause.message === 'Daily assistant limit reached.')) {
+                        throw new AgentError('daily_budget');
+                    }
+                    throw new AgentError('rate_limited', cause.retryAfterSeconds ?? undefined);
+            }
+        }
+        throw error;
+    }
+});
+
 export const api = {
+    agent,
     abilities: {
         // What the signed-in user may do, and why not (UI hints only). Bypasses the
         // read cache: the answer changes with account, organization, and KYC state.

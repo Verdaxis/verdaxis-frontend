@@ -29,6 +29,9 @@ export const queryKeys = {
     }] as const,
     snapshot: (product?: string | null, deliveryPointId?: string | null, window?: string | null) =>
         ['public', 'orderbook', 'snapshot', absent(product), absent(deliveryPointId), absent(window)] as const,
+    agentConversations: (scope: QueryScope) => ['private', scope, 'agent', 'conversations'] as const,
+    agentHistory: (scope: QueryScope, id: string) => ['private', scope, 'agent', 'history', id] as const,
+    agentDraft: (scope: QueryScope, id: string) => ['private', scope, 'agent', 'draft', id] as const,
     myOrders: (scope: QueryScope) => ['private', scope, 'orderbook', 'my'] as const,
     overlay: (scope: QueryScope, askIds: readonly string[]) =>
         ['private', scope, 'compliance', 'pricing-overlay', [...new Set(askIds)].sort()] as const,
