@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -146,6 +146,18 @@ describe('admin onboarding review', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approved' }));
     await screen.findByText('approved1@example.com');
     expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
+
+  it('retries a failed outreach read without hiding accounts and hides an empty queue', async () => {
+    mocks.onboardingAttention.mockRejectedValueOnce(new Error('unavailable'));
+    render(<MemoryRouter initialEntries={['/app/admin/users']}><AdminDashboard /></MemoryRouter>);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Could not load the outreach queue.');
+    expect(await screen.findByText('Hapag-Lloyd AG')).toBeTruthy();
+    await act(async () => { fireEvent.click(within(alert).getByRole('button', { name: 'Retry' })); });
+    expect(mocks.onboardingAttention).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/needs outreach/i)).toBeNull();
   });
 
   it('shows the requested organization and blocks approval on email verification', async () => {

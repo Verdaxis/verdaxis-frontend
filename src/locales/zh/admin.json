@@ -481,6 +481,7 @@
   "users.journey.approved": "已批准",
   "users.journey.loggedIn": "已登录",
   "users.journey.ordered": "已下单",
+  "users.outreach.loadError": "无法加载待跟进用户列表。",
   "users.outreach.summary": "需要跟进——{{count}} 位用户停滞在入驻流程",
   "users.outreach.stalled": "已停滞 {{time}}",
   "users.outreach.stage.rejected": "已拒绝",

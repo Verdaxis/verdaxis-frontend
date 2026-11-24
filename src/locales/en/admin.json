@@ -481,6 +481,7 @@
   "users.journey.approved": "Approved",
   "users.journey.loggedIn": "Logged in",
   "users.journey.ordered": "Ordered",
+  "users.outreach.loadError": "Could not load the outreach queue.",
   "users.outreach.summary": "Needs outreach — {{count}} stalled in onboarding",
   "users.outreach.stalled": "{{time}} stalled",
   "users.outreach.stage.rejected": "Rejected",

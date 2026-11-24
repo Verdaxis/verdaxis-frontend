@@ -204,18 +204,27 @@ const fmtSince = (iso: string, t: TFunction) => {
 const OutreachPanel: React.FC = () => {
   const { t } = useTranslation('admin');
   const [items, setItems] = useState<OnboardingAttentionItem[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     api.admin.onboardingAttention()
       .then(response => { if (!cancelled) setItems(response.items); })
-      .catch(() => { /* panel is best-effort; the users table still loads */ })
-      .finally(() => { if (!cancelled) setLoaded(true); });
+      .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
 
-  if (!loaded || items.length === 0) return null;
+  if (failed) return (
+    <div role="alert" className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm">
+      <span>{t('users.outreach.loadError')}</span>
+      <button type="button" className="font-semibold text-verdaxis underline" onClick={() => {
+        setFailed(false);
+        setAttempt(value => value + 1);
+      }}>{t('error.retry')}</button>
+    </div>
+  );
+  if (items.length === 0) return null;
   return (
     <details className="rounded-lg border border-amber-500/30 bg-amber-500/5" data-testid="outreach-panel">
       <summary className="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-wide text-amber-500">
