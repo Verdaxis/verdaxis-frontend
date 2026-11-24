@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { AgentPanel } from '../AgentPanel';
@@ -12,10 +13,15 @@ beforeEach(async () => {
     vi.restoreAllMocks();
     await loadNamespace('agent');
     vi.spyOn(api.agent, 'listConversations').mockResolvedValue([]);
+    vi.spyOn(api.agent, 'draft').mockImplementation(() => new Promise(() => {}));
     vi.spyOn(api.agent, 'createConversation').mockResolvedValue(conversation);
     vi.spyOn(api.agent, 'sendMessage').mockResolvedValue(turn);
 });
-const show = (paused = false, close = vi.fn()) => render(<AgentPanel paused={paused} onClose={close} />);
+const show = (paused = false, close = vi.fn()) => render(
+    <QueryClientProvider client={new QueryClient()}>
+        <AgentPanel scope={[1, 'buyer', null, null]} paused={paused} onClose={close} />
+    </QueryClientProvider>
+);
 const message = () => screen.getByRole('textbox', { name: 'Message' });
 const send = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Send' });
 async function typeMessage() {

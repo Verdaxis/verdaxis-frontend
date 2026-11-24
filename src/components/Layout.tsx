@@ -1,3 +1,4 @@
+import { getAuthGeneration } from '../services/authToken';
 import { useAbilities } from '../context/AbilitiesContext';
 import { getAgentAccess } from '../features/agent/agentAccess';
 
@@ -120,7 +121,16 @@ export const Layout: React.FC<LayoutProps> = ({
                     {children}
                 </main>
 
-                {panelOpen && <Suspense fallback={null}><AgentPanel key={userOrgKey} paused={access === 'paused'} onClose={closeAgent} /></Suspense>}
+                {panelOpen && user && (
+                    <Suspense fallback={null}>
+                        <AgentPanel
+                            key={userOrgKey}
+                            paused={access === 'paused'}
+                            scope={[getAuthGeneration(), user.id, user.organization_id ?? null, context?.id ?? null]}
+                            onClose={closeAgent}
+                        />
+                    </Suspense>
+                )}
                 </div>
                 <FeedbackButton />
                 <Suspense fallback={null}><TradeAlertPrompt /></Suspense>

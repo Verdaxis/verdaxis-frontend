@@ -1,3 +1,4 @@
+import type { QueryScope } from '../../../lib/query/keys';
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -23,11 +24,11 @@ function ErrorLine({ error, retryLoad }: { error: AgentError; retryLoad?: () => 
     );
 }
 
-function Conversation() {
+function Conversation({ scope }: { scope: QueryScope }) {
     const { rows, pending, error, ready, send, retryLoad } = useAgentConversation();
     return (
         <>
-            <AgentMessageList rows={rows} pending={pending} retry={send} />
+            <AgentMessageList scope={scope} rows={rows} pending={pending} retry={send} />
             {error && <ErrorLine error={error} retryLoad={ready ? undefined : retryLoad} />}
             <AgentComposer send={send} pending={pending} disabled={!ready || pending || error?.kind === 'paused'} />
         </>
@@ -40,11 +41,17 @@ const panelStyle = [
     'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
 ].join(' ');
 
-export function AgentPanel({ paused, onClose }: { paused: boolean; onClose: () => void }) {
+interface PanelProps {
+    paused: boolean;
+    onClose: () => void;
+    scope: QueryScope;
+}
+
+export function AgentPanel({ paused, onClose, scope }: PanelProps) {
     const { t } = useTranslation('agent');
     useEffect(() => {
         function closeOnEscape(event: KeyboardEvent) {
-            if (event.key !== 'Escape') return;
+            if (event.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return;
             event.preventDefault();
             onClose();
         }
@@ -67,7 +74,7 @@ export function AgentPanel({ paused, onClose }: { paused: boolean; onClose: () =
                 </div>
                 <p className="mt-1 text-slate-600 dark:text-slate-300">{t('notice')}</p>
             </div>
-            {paused ? <p role="status" className="p-4">{t('error.paused')}</p> : <Conversation />}
+            {paused ? <p role="status" className="p-4">{t('error.paused')}</p> : <Conversation scope={scope} />}
         </aside>
     );
 }

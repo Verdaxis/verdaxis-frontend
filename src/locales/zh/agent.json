@@ -29,5 +29,34 @@
     "busy": "助手正忙，请稍后重试。",
     "unavailable": "助手暂不可用，请稍后重试。",
     "invalid": "请检查消息和转发文本的长度及内容。"
+  },
+  "draft": {
+    "title": "买入草稿：未进入订单簿",
+    "side": "方向",
+    "BID": "买入",
+    "ASK": "卖出",
+    "product": "产品",
+    "port": "交付地点",
+    "window": "可交付时段",
+    "quantity": "数量（公吨）",
+    "price": "限价（美元/公吨）",
+    "expiry": "到期时间",
+    "noLimit": "未指定限价",
+    "noExpiry": "无到期时间",
+    "source": "查看原文",
+    "close": "关闭",
+    "discard": "丢弃",
+    "discardTitle": "丢弃这份草稿？",
+    "discardMessage": "这份草稿将被标记为已丢弃。",
+    "discardError": "无法丢弃这份草稿。",
+    "later": "后续版本将支持使用通行密钥确认。",
+    "loading": "正在加载草稿…",
+    "loadError": "无法加载这份草稿。",
+    "status": {
+      "draft": "草稿",
+      "confirmed": "已确认",
+      "rejected": "已丢弃",
+      "expired": "已过期"
+    }
   }
 }

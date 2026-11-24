@@ -1,20 +1,12 @@
+import type { QueryScope } from '../../../lib/query/keys';
+import { DraftCard } from './DraftCard';
+import { QuestionCard } from './QuestionCard';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AgentRow } from '../hooks/useAgentConversation';
-import type { AgentMessageInput, AgentQuestion, AgentTurn } from '../api/agentTypes';
+import type { AgentMessageInput, AgentTurn } from '../api/agentTypes';
 
 type Retry = (input: AgentMessageInput) => Promise<boolean>;
-
-function Question({ question }: { question: AgentQuestion }) {
-    return (
-        <>
-            <p className="whitespace-pre-wrap">{question.question}</p>
-            <ul className="list-disc pl-5">
-                {question.options.map((option, index) => <li key={index}>{option}</li>)}
-            </ul>
-        </>
-    );
-}
 
 interface RetryProps {
     hasDrafts: boolean;
@@ -53,25 +45,34 @@ function RetryAction({ hasDrafts, pending, resend }: RetryProps) {
 }
 
 interface ListProps {
+    scope: QueryScope;
     rows: AgentRow[];
     pending: boolean;
     retry: Retry;
 }
-interface ReplyProps extends Pick<ListProps, 'pending' | 'retry'> {
+interface ReplyProps extends Pick<ListProps, 'pending' | 'retry' | 'scope'> {
+    newest: boolean;
     turn: AgentTurn;
     input?: AgentMessageInput;
 }
 
-function Reply({ turn, input, retry, pending }: ReplyProps) {
+function Reply({ turn, input, retry, pending, scope, newest }: ReplyProps) {
     const { t } = useTranslation('agent');
     const draftCount = turn.draftIds.length;
     return (
         <div className="mr-8 space-y-2 rounded-lg bg-slate-100 p-3 dark:bg-slate-800">
             <span className="sr-only">{t('assistantRow')}</span>
             {turn.reply !== turn.question?.question && <p className="whitespace-pre-wrap">{turn.reply}</p>}
-            {turn.question && <Question question={turn.question} />}
+            {turn.question && (
+                <QuestionCard
+                    question={turn.question}
+                    active={newest && !pending}
+                    answer={text => void retry({ text, untrusted: [] })}
+                />
+            )}
             {turn.stopped && <p>{t(`stop.${turn.stopped}`)}</p>}
-            {draftCount > 0 && <p>{t('saved', { count: draftCount })}</p>}
+            {turn.stopped && draftCount > 0 && <p>{t('saved', { count: draftCount })}</p>}
+            {turn.draftIds.map(id => <DraftCard key={id} id={id} scope={scope} />)}
             {turn.stopped && input && (
                 <RetryAction hasDrafts={draftCount > 0} pending={pending} resend={() => void retry(input)} />
             )}
@@ -79,7 +80,7 @@ function Reply({ turn, input, retry, pending }: ReplyProps) {
     );
 }
 
-export function AgentMessageList({ rows, pending, retry }: ListProps) {
+export function AgentMessageList({ rows, pending, retry, scope }: ListProps) {
     const { t } = useTranslation('agent');
     const log = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -98,7 +99,15 @@ export function AgentMessageList({ rows, pending, retry }: ListProps) {
                     <p className="whitespace-pre-wrap">{row.text}</p>
                 </div>
             ) : (
-                <Reply key={index} turn={row.turn} input={row.input} retry={retry} pending={pending} />
+                <Reply
+                    key={index}
+                    turn={row.turn}
+                    input={row.input}
+                    retry={retry}
+                    pending={pending}
+                    scope={scope}
+                    newest={index === rows.length - 1 && !row.hasLaterMessage}
+                />
             ))}
             {pending && <p aria-live="polite">{t('pending')}</p>}
         </div>

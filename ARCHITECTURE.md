@@ -136,7 +136,7 @@ src/
     admin/OffboardingTrades.tsx     admin-only confirmed/delivered trade list and responsible-person reassignment
     market-support/                 acting banner and final order confirmation
     public/                         localized public shell and components
-  features/agent/components/         ability-gated buyer assistant panel below the Header; useAgentConversation resumes history and sends separate forwarded text
+  features/agent/components/         ability-gated buyer assistant panel below the Header; useAgentConversation resumes history and sends separate forwarded text. AgentMessageList renders scoped Query-backed draft cards and enables only the newest unanswered question
   features/agent/api/                private buyer assistant client, conversation/draft types and scoped query keys
   features/marketplace/             Marketplace composition and unchanged presentation components; old component path is a re-export shim
     hooks/                          useMarketplaceSelection, useMarketplaceQueries, useTakeTrade, useCancelOrder
