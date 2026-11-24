@@ -29,5 +29,34 @@
     "busy": "The assistant is busy. Try again shortly.",
     "unavailable": "The assistant is unavailable. Try again later.",
     "invalid": "Check the length and content of your message and forwarded text."
+  },
+  "draft": {
+    "title": "Draft bid: not on the order book",
+    "side": "Side",
+    "BID": "Bid",
+    "ASK": "Ask",
+    "product": "Product",
+    "port": "Delivery point",
+    "window": "Availability window",
+    "quantity": "Quantity (MT)",
+    "price": "Limit price (USD/MT)",
+    "expiry": "Expiry",
+    "noLimit": "No limit stated",
+    "noExpiry": "No expiry",
+    "source": "View source text",
+    "close": "Close",
+    "discard": "Discard",
+    "discardTitle": "Discard this draft?",
+    "discardMessage": "This draft will be marked as discarded.",
+    "discardError": "Could not discard this draft.",
+    "later": "Confirmation with a passkey comes in a later release.",
+    "loading": "Loading draft…",
+    "loadError": "Could not load this draft.",
+    "status": {
+      "draft": "Draft",
+      "confirmed": "Confirmed",
+      "rejected": "Discarded",
+      "expired": "Expired"
+    }
   }
 }

@@ -4,16 +4,21 @@ import { AgentError, type AgentHistory, type AgentMessageInput, type AgentTurn }
 
 export type AgentRow =
     | { role: 'user'; text: string }
-    | { role: 'assistant'; turn: AgentTurn; input?: AgentMessageInput };
+    | { role: 'assistant'; turn: AgentTurn; hasLaterMessage?: boolean; input?: AgentMessageInput };
 
 function historyRows(history: AgentHistory) {
     const rows: AgentRow[] = [];
+    const lastSequence = history.messages.reduce((last, row) => Math.max(last, row.seq), 0);
     for (const row of [...history.messages].sort((a, b) => a.seq - b.seq)) {
         if (row.role === 'user') {
             if (row.content.text !== null) rows.push({ role: 'user', text: row.content.text });
         } else if (row.content.reply !== null) {
             // History omits untrusted blocks. Never reconstruct a resend from partial input.
-            rows.push({ role: 'assistant', turn: { ...row.content, reply: row.content.reply } });
+            rows.push({
+                role: 'assistant',
+                turn: { ...row.content, reply: row.content.reply },
+                hasLaterMessage: row.seq < lastSequence,
+            });
         }
     }
     return rows;
