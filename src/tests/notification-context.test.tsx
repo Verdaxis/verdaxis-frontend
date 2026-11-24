@@ -20,10 +20,8 @@ vi.mock('../services/api', () => ({
   },
 }));
 
-vi.mock('../context/AuthContext', () => {
-  const user = { id: 'user-1' };
-  return { useAuth: () => ({ user }) };
-});
+const auth = vi.hoisted(() => ({ user: { id: 'user-1' } }));
+vi.mock('../context/AuthContext', () => ({ useAuth: () => auth }));
 
 function NotificationProbe() {
   const { notifications, unreadCount } = useNotifications();
@@ -37,6 +35,7 @@ function NotificationProbe() {
 
 describe('NotificationProvider', () => {
   beforeEach(() => {
+    auth.user = { id: 'user-1' };
     listMock.mockReset();
     unreadCountMock.mockReset();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -75,6 +74,30 @@ describe('NotificationProvider', () => {
     await act(async () => finish([]));
     expect(listMock).toHaveBeenCalledTimes(2);
     expect(unreadCountMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the previous account’s notifications and does not wait for its pending read', async () => {
+    vi.useFakeTimers();
+    let finish!: (items: unknown[]) => void;
+    const oldItem = { id: 'old' };
+    const newItem = { id: 'new' };
+    listMock.mockResolvedValueOnce([oldItem])
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+      .mockResolvedValueOnce([newItem]);
+    unreadCountMock.mockResolvedValueOnce(1).mockResolvedValue(0);
+    const { result, rerender } = renderHook(useNotifications, { wrapper: NotificationProvider });
+    await act(async () => {});
+    expect(result.current.notifications).toEqual([oldItem]);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+
+    auth.user = { id: 'user-2' };
+    rerender();
+    expect(result.current.notifications).toEqual([]);
+    expect(result.current.unreadCount).toBe(0);
+    await act(async () => {});
+    expect(result.current.notifications).toEqual([newItem]);
+    await act(async () => finish([oldItem]));
+    expect(result.current.notifications).toEqual([newItem]);
   });
 
   it('preserves the context for equal poll results but shows notification edits', async () => {
