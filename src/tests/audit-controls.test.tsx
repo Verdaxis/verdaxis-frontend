@@ -81,3 +81,13 @@ describe('audited UI controls', () => {
     expect(screen.getByRole('button', { name: 'Profile' }).getAttribute('aria-expanded')).toBe('true');
   });
 });
+
+it('uses dark ink for the active Settings link and its icon', () => {
+  renderWithProviders(<Sidebar viewMode="BUYER" currentPage="SETTINGS" onNavigate={vi.fn()}
+    isCollapsed={false} onToggleCollapse={vi.fn()} isMobileOpen={false} onMobileClose={vi.fn()} />,
+    { route: '/app/settings' });
+  const link = screen.getByRole('link', { name: 'Settings' });
+  expect(link.classList.contains('bg-verdaxis')).toBe(true);
+  expect(link.classList.contains('text-slate-900')).toBe(true);
+  expect(link.querySelector('svg')?.classList.contains('text-white')).toBe(false);
+});
