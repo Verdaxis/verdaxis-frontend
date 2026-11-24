@@ -1,5 +1,7 @@
+import { useAbilities } from '../context/AbilitiesContext';
+import { getAgentAccess } from '../features/agent/agentAccess';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ViewMode, Page } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +18,8 @@ import { useTranslation } from 'react-i18next';
 // The notification card needs the alert code, which loads after the shell.
 const TradeAlertPrompt = lazyWithRetry(() => import('./notifications/TradeAlertPrompt')
     .then((module) => ({ default: module.TradeAlertPrompt })));
-// Copilot removed per Gavin feedback
+const AgentPanel = lazyWithRetry(() => import('../features/agent/components/AgentPanel')
+    .then(module => ({ default: module.AgentPanel })));
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -38,12 +41,28 @@ export const Layout: React.FC<LayoutProps> = ({
     onPrimaryAction
 }) => {
     const { user } = useAuth();
+    const { status, abilities } = useAbilities();
+    const access = getAgentAccess(status, abilities.get('use_agent'));
+    const agentButton = useRef<HTMLButtonElement>(null);
+    const [openedForUserOrgKey, setOpenedForUserOrgKey] = useState<string | null>(null);
     const navigate = useNavigate();
     const { context, exit } = useMarketSupport();
     const { t } = useTranslation('common');
     const [exitError, setExitError] = useState<string | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+    const userOrgKey = user && access && !context ? JSON.stringify([user.id, user.organization_id]) : null;
+    const panelOpen = userOrgKey !== null && openedForUserOrgKey === userOrgKey;
+    React.useEffect(() => { if (!userOrgKey) setOpenedForUserOrgKey(null); }, [userOrgKey]);
+    function closeAgent() {
+        setOpenedForUserOrgKey(null);
+        agentButton.current?.focus();
+    }
+    function toggleAgent() {
+        if (panelOpen) closeAgent();
+        else setOpenedForUserOrgKey(userOrgKey);
+    }
 
     return (
         <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-900 transition-colors duration-200 overflow-hidden">
@@ -70,7 +89,8 @@ export const Layout: React.FC<LayoutProps> = ({
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-                <Header 
+                <Header
+                    agentButton={userOrgKey ? { ref: agentButton, open: panelOpen, toggle: toggleAgent } : undefined}
                     viewMode={viewMode}
                     onSwitchView={onSwitchView}
                     onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
@@ -91,6 +111,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
                 <KycDeadlineBanner eligibility={user?.execution_eligibility} />
 
+                <div className="relative flex min-h-0 flex-1 flex-col">
                 <main
                     data-dashboard-page={currentPage}
                     data-dashboard-view-mode={viewMode}
@@ -99,7 +120,8 @@ export const Layout: React.FC<LayoutProps> = ({
                     {children}
                 </main>
 
-                {/* Copilot removed per Gavin feedback */}
+                {panelOpen && <Suspense fallback={null}><AgentPanel key={userOrgKey} paused={access === 'paused'} onClose={closeAgent} /></Suspense>}
+                </div>
                 <FeedbackButton />
                 <Suspense fallback={null}><TradeAlertPrompt /></Suspense>
             </div>

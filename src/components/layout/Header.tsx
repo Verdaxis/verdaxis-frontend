@@ -1,5 +1,7 @@
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
+import type { AgentButtonProps } from '../../features/agent/components/AgentButton';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import {
     Menu,
     UserCircle,
@@ -16,14 +18,18 @@ import { NotificationBell } from '../notifications/NotificationBell';
 import LanguageSelector from '../LanguageSelector';
 import { StreamStatusIndicator } from './StreamStatusIndicator';
 
+const AgentButton = lazyWithRetry(() => import('../../features/agent/components/AgentButton')
+    .then(module => ({ default: module.AgentButton })));
+
 interface HeaderProps {
+    agentButton?: AgentButtonProps;
     viewMode: ViewMode;
     onSwitchView: (mode: ViewMode) => void;
     onOpenMobileSidebar: () => void;
     isMarketSupportActive?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar, isMarketSupportActive = false }) => {
+export const Header: React.FC<HeaderProps> = ({ agentButton, viewMode, onSwitchView, onOpenMobileSidebar, isMarketSupportActive = false }) => {
     const { user, logout } = useAuth();
     const { start: startTutorial } = useTutorial();
     const { t } = useTranslation();
@@ -46,6 +52,12 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
             <div className="flex items-center space-x-3 md:space-x-6 ml-4">
                 {/* Live-connection state of the SSE streams */}
                 <StreamStatusIndicator />
+
+                {agentButton && (
+                    <Suspense fallback={null}>
+                        <AgentButton {...agentButton} />
+                    </Suspense>
+                )}
 
                 {/* Language Selector */}
                 <LanguageSelector />
