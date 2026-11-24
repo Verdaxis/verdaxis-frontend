@@ -6,6 +6,7 @@ import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 
 import i18n from '../i18n';
 import { AppRoutes } from '../App';
+import { Layout } from '../components/Layout';
 import { NotificationList } from '../components/notifications/NotificationList';
 
 type Role = 'BUYER' | 'SUPPLIER' | 'ADMIN';
@@ -302,6 +303,25 @@ describe('app routing', () => {
     expect(await screen.findByRole('dialog', { name: 'Place order' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close order' }));
     expect(screen.queryByRole('dialog', { name: 'Place order' })).toBeNull();
+  });
+
+  it('offers a skip link before dashboard navigation and focuses main content', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <Layout viewMode="BUYER" currentPage="DASHBOARD" onNavigate={vi.fn()} onSwitchView={vi.fn()}>
+          <h1>Dashboard</h1>
+        </Layout>
+      </MemoryRouter>,
+    );
+    const skipLink = screen.getByRole('link', { name: 'Skip to main content' });
+    const main = screen.getByRole('main');
+    expect(container.querySelector('a[href], button, [tabindex="0"]')).toBe(skipLink);
+    expect(skipLink.getAttribute('href')).toBe(`#${main.id}`);
+    expect(main.tabIndex).toBe(-1);
+
+    skipLink.focus();
+    fireEvent.click(skipLink);
+    expect(document.activeElement).toBe(main);
   });
 
   describe('route → component per viewMode', () => {

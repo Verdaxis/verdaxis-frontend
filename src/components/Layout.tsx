@@ -66,6 +66,16 @@ export const Layout: React.FC<LayoutProps> = ({
 
     return (
         <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-900 transition-colors duration-200 overflow-hidden">
+            <a
+                href="#dashboard-main"
+                className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-slate-900"
+                onClick={(event) => {
+                  event.preventDefault();
+                  document.getElementById('dashboard-main')?.focus();
+                }}
+            >
+                {t('accessibility.skipToMain')}
+            </a>
             {/* Mobile Sidebar Overlay */}
             {isMobileSidebarOpen && (
                 <div 
@@ -113,6 +123,8 @@ export const Layout: React.FC<LayoutProps> = ({
 
                 <div className="relative flex min-h-0 flex-1 flex-col">
                 <main
+                    id="dashboard-main"
+                    tabIndex={-1}
                     data-dashboard-page={currentPage}
                     data-dashboard-view-mode={viewMode}
                     className="flex-1 overflow-y-auto p-0 relative z-0 bg-slate-50 dark:bg-slate-900 transition-colors duration-200"
