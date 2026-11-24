@@ -1,3 +1,4 @@
+import { act } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { renderWithProviders, screen, waitFor } from './test-utils';
@@ -19,18 +20,10 @@ vi.mock('../services/api', () => ({
   },
 }));
 
-vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'user-1',
-      email: 'ops@example.com',
-      first_name: 'Ops',
-      last_name: 'User',
-      role: 'BUYER',
-      status: 'APPROVED',
-    },
-  }),
-}));
+vi.mock('../context/AuthContext', () => {
+  const user = { id: 'user-1' };
+  return { useAuth: () => ({ user }) };
+});
 
 function NotificationProbe() {
   const { notifications, unreadCount } = useNotifications();
@@ -50,7 +43,38 @@ describe('NotificationProvider', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it('waits for a visible tab and queues one resume read behind a pending poll', async () => {
+    vi.useFakeTimers();
+    let visibility: DocumentVisibilityState = 'hidden';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+    const show = (state: DocumentVisibilityState) => act(() => {
+      visibility = state;
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    let finish!: (items: []) => void;
+    listMock.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    listMock.mockResolvedValue([]);
+    unreadCountMock.mockResolvedValue(0);
+
+    renderWithProviders(<NotificationProvider><NotificationProbe /></NotificationProvider>);
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(listMock).not.toHaveBeenCalled();
+    expect(unreadCountMock).not.toHaveBeenCalled();
+
+    show('visible');
+    expect(listMock).toHaveBeenCalledTimes(1);
+    show('hidden');
+    show('visible');
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(listMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish([]));
+    expect(listMock).toHaveBeenCalledTimes(2);
+    expect(unreadCountMock).toHaveBeenCalledTimes(2);
   });
 
   it('keeps notification list updates even if unread-count fetch fails', async () => {

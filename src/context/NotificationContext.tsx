@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { Notification } from '../types';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -21,25 +21,34 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    const fetchNotifications = async () => {
-        if (!user || isMarketSupportActive) return;
-        const [listResult, countResult] = await Promise.allSettled([
+    const userId = user?.id;
+    const pendingRead = useRef<Promise<void> | null>(null);
+    const readScope = useRef<object | null>(null);
+    const fetchNotifications = useCallback(() => {
+        const scope = readScope.current;
+        if (!scope || document.visibilityState !== 'visible') return Promise.resolve();
+        if (pendingRead.current) return pendingRead.current;
+
+        const read = Promise.allSettled([
             api.notifications.list(),
             api.notifications.getUnreadCount(),
-        ]);
+        ]).then(([listResult, countResult]) => {
+            if (readScope.current !== scope) return;
+            if (listResult.status === 'fulfilled') {
+                setNotifications(listResult.value);
+            } else {
+                console.error("Failed to fetch notifications", listResult.reason);
+            }
 
-        if (listResult.status === 'fulfilled') {
-            setNotifications(listResult.value);
-        } else {
-            console.error("Failed to fetch notifications", listResult.reason);
-        }
-
-        if (countResult.status === 'fulfilled') {
-            setUnreadCount(countResult.value);
-        } else {
-            console.error("Failed to fetch unread notification count", countResult.reason);
-        }
-    };
+            if (countResult.status === 'fulfilled') {
+                setUnreadCount(countResult.value);
+            } else {
+                console.error("Failed to fetch unread notification count", countResult.reason);
+            }
+        }).finally(() => { pendingRead.current = null; });
+        pendingRead.current = read;
+        return read;
+    }, []);
 
     const markAsRead = async (id: string) => {
         if (isMarketSupportActive) return;
@@ -70,14 +79,34 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
     }, []);
 
-    // Polling every 30 seconds
     useEffect(() => {
-        if (user && !isMarketSupportActive) {
-            fetchNotifications();
-            const interval = setInterval(fetchNotifications, 30000);
-            return () => clearInterval(interval);
-        }
-    }, [isMarketSupportActive, user]);
+        if (!userId || isMarketSupportActive) return;
+        const scope = {};
+        readScope.current = scope;
+        let resumeQueued = false;
+        const refreshWhenVisible = () => {
+            if (document.visibilityState !== 'visible' || resumeQueued) return;
+            const pending = pendingRead.current;
+            if (!pending) {
+                void fetchNotifications();
+                return;
+            }
+            resumeQueued = true;
+            void pending.then(() => {
+                resumeQueued = false;
+                if (readScope.current === scope) void fetchNotifications();
+            });
+        };
+
+        refreshWhenVisible();
+        const interval = window.setInterval(fetchNotifications, 30_000);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            readScope.current = null;
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [userId, isMarketSupportActive, fetchNotifications]);
 
     return (
         <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification }}>
