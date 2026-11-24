@@ -10,7 +10,10 @@ export function getAgentAccess(status: AbilitiesStatus, ability?: Ability) {
     return ability.reasonCode === 'AGENT_PAUSED' ? 'paused' : null;
 }
 
-export type AgentRow = { role: 'user'; text: string } | { role: 'assistant'; turn: AgentTurn; input?: AgentMessageInput };
+export type AgentRow =
+    | { role: 'user'; text: string }
+    | { role: 'assistant'; turn: AgentTurn; input?: AgentMessageInput };
+
 function historyRows(history: AgentHistory) {
     const rows: AgentRow[] = [];
     for (const row of [...history.messages].sort((a, b) => a.seq - b.seq)) {
@@ -30,6 +33,7 @@ export function useAgentConversation() {
     const [ready, setReady] = useState(false);
     const [pending, setPending] = useState(false);
     const [error, setError] = useState<AgentError | null>(null);
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const active = useRef(false);
     const sending = useRef(false);
     const conversationId = useRef<string | null>(null);
@@ -48,29 +52,48 @@ export function useAgentConversation() {
             }
             setReady(true);
         }
-        void resume().catch(cause => { if (current) setError(asAgentError(cause)); });
-        return () => { current = false; active.current = false; };
-    }, []);
+        void resume().catch(cause => {
+            if (current) setError(asAgentError(cause));
+        });
+        return () => {
+            current = false;
+            active.current = false;
+        };
+    }, [loadAttempt]);
+
+    function retryLoad() {
+        setError(null);
+        setLoadAttempt(previous => previous + 1);
+    }
 
     async function send(input: AgentMessageInput) {
         if (!active.current || !ready || sending.current) return false;
         sending.current = true;
+        const buyerRow: AgentRow = { role: 'user', text: input.text };
+        setRows(previous => [...previous, buyerRow]);
         setPending(true);
         setError(null);
         try {
-            if (!conversationId.current) conversationId.current = (await api.agent.createConversation()).id;
+            if (!conversationId.current) {
+                const conversation = await api.agent.createConversation();
+                conversationId.current = conversation.id;
+            }
             if (!active.current) return false;
             const turn = await api.agent.sendMessage(conversationId.current, input);
             if (!active.current) return false;
-            setRows(previous => [...previous, { role: 'user', text: input.text }, { role: 'assistant', turn, input: turn.stopped ? input : undefined }]);
+            const retryInput = turn.stopped ? input : undefined;
+            setRows(previous => [...previous, { role: 'assistant', turn, input: retryInput }]);
             return true;
         } catch (cause) {
-            if (active.current) setError(asAgentError(cause));
+            if (active.current) {
+                setRows(previous => previous.filter(row => row !== buyerRow));
+                setError(asAgentError(cause));
+            }
             return false;
         } finally {
             sending.current = false;
             if (active.current) setPending(false);
         }
     }
-    return { rows, error, ready, pending, send };
+    return { rows, error, ready, pending, send, retryLoad };
 }

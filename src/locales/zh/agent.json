@@ -1,4 +1,6 @@
 {
+  "buyerRow": "你",
+  "assistantRow": "助手",
   "title": "买方助手",
   "close": "关闭助手",
   "notice": "助手只准备草稿。草稿不是订单。",

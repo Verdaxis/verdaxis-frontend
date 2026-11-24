@@ -1,4 +1,6 @@
 {
+  "buyerRow": "You",
+  "assistantRow": "Assistant",
   "title": "Buyer assistant",
   "close": "Close assistant",
   "notice": "The assistant prepares drafts. A draft is not an order.",

@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({
     const { status, abilities } = useAbilities();
     const access = getAgentAccess(status, abilities.get('use_agent'));
     const agentButton = useRef<HTMLButtonElement>(null);
-    const [openFor, setOpenFor] = useState<string | null>(null);
+    const [openedForUserOrgKey, setOpenedForUserOrgKey] = useState<string | null>(null);
     const navigate = useNavigate();
     const { context, exit } = useMarketSupport();
     const { t } = useTranslation('common');
@@ -52,10 +52,17 @@ export const Layout: React.FC<LayoutProps> = ({
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-    const subject = user && access && !context ? JSON.stringify([user.id, user.organization_id]) : null;
-    const panelOpen = subject !== null && openFor === subject;
-    React.useEffect(() => { if (!subject) setOpenFor(null); }, [subject]);
-    function closeAgent() { setOpenFor(null); agentButton.current?.focus(); }
+    const userOrgKey = user && access && !context ? JSON.stringify([user.id, user.organization_id]) : null;
+    const panelOpen = userOrgKey !== null && openedForUserOrgKey === userOrgKey;
+    React.useEffect(() => { if (!userOrgKey) setOpenedForUserOrgKey(null); }, [userOrgKey]);
+    function closeAgent() {
+        setOpenedForUserOrgKey(null);
+        agentButton.current?.focus();
+    }
+    function toggleAgent() {
+        if (panelOpen) closeAgent();
+        else setOpenedForUserOrgKey(userOrgKey);
+    }
 
     return (
         <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-900 transition-colors duration-200 overflow-hidden">
@@ -83,7 +90,7 @@ export const Layout: React.FC<LayoutProps> = ({
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 <Header
-                    agentButton={subject ? { ref: agentButton, open: panelOpen, toggle: () => panelOpen ? closeAgent() : setOpenFor(subject) } : undefined}
+                    agentButton={userOrgKey ? { ref: agentButton, open: panelOpen, toggle: toggleAgent } : undefined}
                     viewMode={viewMode}
                     onSwitchView={onSwitchView}
                     onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
@@ -113,7 +120,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     {children}
                 </main>
 
-                {panelOpen && <Suspense fallback={null}><AgentPanel key={subject} paused={access === 'paused'} onClose={closeAgent} /></Suspense>}
+                {panelOpen && <Suspense fallback={null}><AgentPanel key={userOrgKey} paused={access === 'paused'} onClose={closeAgent} /></Suspense>}
                 </div>
                 <FeedbackButton />
                 <Suspense fallback={null}><TradeAlertPrompt /></Suspense>
