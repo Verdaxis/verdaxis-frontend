@@ -46,6 +46,20 @@ beforeEach(async () => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('Marketplace Query lifecycle', () => {
+    it('offers a retry after the first My Listings read fails and shows the invitation only after success', async () => {
+        mocks.my.mockRejectedValueOnce(new Error('Could not load your listings.'));
+        renderWithProviders(<Marketplace viewMode="BUYER" />);
+        fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+
+        expect((await screen.findByRole('alert')).textContent).toContain('Could not load your listings.');
+        expect(screen.queryByText('No active listings')).toBeNull();
+        expect(screen.queryByText(/place a bid to show your own resting demand/i)).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+        expect(await screen.findByText('No active listings')).toBeTruthy();
+        expect(screen.queryByRole('alert')).toBeNull();
+    });
+
     it('hands every migrated read to Query and keeps counts shared across product changes', async () => {
         const view = renderWithProviders(<Marketplace viewMode="BUYER" />);
         await waitFor(() => expect(document.querySelector('[data-order-id="current-ask"]')).not.toBeNull());
