@@ -51,6 +51,13 @@ describe('DeploymentUpdateNotice', () => {
     expect(screen.getByRole('button', { name: /refresh/i })).toBeTruthy();
   });
 
+  it('uses dark ink for the refresh button on the brand fill', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(newShell)));
+    renderNotice();
+    const refresh = await screen.findByRole('button', { name: /refresh/i });
+    expect([...refresh.classList]).toEqual(expect.arrayContaining(['bg-verdaxis', 'text-slate-900']));
+  });
+
   it('offers a refresh when the deployed entry bundle changes', async () => {
     document.head.innerHTML = '<script type="module" src="/assets/index-old.js"></script>';
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

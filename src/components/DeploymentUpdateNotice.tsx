@@ -94,7 +94,7 @@ export const DeploymentUpdateNotice: React.FC = () => {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="flex shrink-0 items-center gap-2 rounded-lg bg-verdaxis px-3 py-2 text-sm font-bold text-white hover:bg-verdaxis/90"
+        className="flex shrink-0 items-center gap-2 rounded-lg bg-verdaxis px-3 py-2 text-sm font-bold text-slate-900 hover:bg-verdaxis/90"
       >
         <RefreshCw size={15} aria-hidden="true" />
         {t('deploymentUpdate.refresh')}
