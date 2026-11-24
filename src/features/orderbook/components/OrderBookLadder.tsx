@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, TrendingUp, TrendingDown, RefreshCw, Zap } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { OrderBookOrder } from '../../../types';
+import { formatUsd } from '../../../utils/numberFormat';
 import { formatMarketProduct } from '../../../utils/marketProduct';
 import { formatAvailabilityWindow } from '../../../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../../../utils/marketActivity';
@@ -33,8 +34,9 @@ interface OrderBookLadderProps {
     t: TFunction<'trading'>;
 }
 
-function formatPrice(price: number, locale = 'en'): string {
-    return Number.isFinite(price) ? `$${price.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
+function formatPrice(price: number): string {
+    const amount = formatUsd(price);
+    return amount ? `$${amount}` : '—';
 }
 
 function formatQty(qty: number, locale = 'en'): string {
@@ -143,7 +145,7 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                                         }}
                                         role={bidInteractive ? 'button' : 'group'}
                                         tabIndex={0}
-                                        aria-label={t(bidInteractive ? 'orderBook.openBid' : 'orderBook.inspectBid', { price: formatPrice(bid.price_per_mt_usd, locale), quantity: formatQty(bid.remaining_quantity_mt, locale) })}
+                                        aria-label={t(bidInteractive ? 'orderBook.openBid' : 'orderBook.inspectBid', { price: formatPrice(bid.price_per_mt_usd), quantity: formatQty(bid.remaining_quantity_mt, locale) })}
                                         aria-describedby={hoverTooltip?.order.id === bid.id ? tooltipId : undefined}
                                         className={`relative flex items-center justify-between min-h-11 px-4 py-3 border-b border-slate-100 dark:border-slate-800 group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${bidInteractive ? 'cursor-pointer' : 'cursor-default'} ${
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
@@ -182,7 +184,7 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                                                     <Zap size={8} className="mr-0.5" />{t(bid.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
                                                 </span>
                                             )}
-                                            {formatPrice(bid.price_per_mt_usd, locale)}
+                                            {formatPrice(bid.price_per_mt_usd)}
                                         </span>
                                     </div>
                                 ) : (
@@ -208,7 +210,7 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                                         }}
                                         role={askInteractive ? 'button' : 'group'}
                                         tabIndex={0}
-                                        aria-label={t(askInteractive ? 'orderBook.openAsk' : 'orderBook.inspectAsk', { price: formatPrice(ask.price_per_mt_usd, locale), quantity: formatQty(ask.remaining_quantity_mt, locale) })}
+                                        aria-label={t(askInteractive ? 'orderBook.openAsk' : 'orderBook.inspectAsk', { price: formatPrice(ask.price_per_mt_usd), quantity: formatQty(ask.remaining_quantity_mt, locale) })}
                                         aria-describedby={hoverTooltip?.order.id === ask.id ? tooltipId : undefined}
                                         className={`relative flex items-center justify-between min-h-11 px-4 py-3 border-b border-slate-100 dark:border-slate-800 group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70 ${askInteractive ? 'cursor-pointer' : 'cursor-default'} ${
                                             askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
@@ -231,7 +233,7 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                                         <span className={`relative z-10 text-sm tabular-nums font-mono font-bold ${
                                             askCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
                                         }`}>
-                                            {formatPrice(ask.price_per_mt_usd, locale)}
+                                            {formatPrice(ask.price_per_mt_usd)}
                                             {askCrossed && (
                                                 <span className="ml-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
                                                     <Zap size={8} className="mr-0.5" />{t(ask.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
@@ -292,7 +294,7 @@ export const OrderBookLadder = ({ bids, asks, marketProduct, region, availabilit
                 <span className="font-medium text-slate-600 dark:text-slate-300">
                     {t('orderBook.liveSpread')}{' '}
                     <span className="font-mono font-bold tabular-nums">
-                        {liveSpread == null ? '—' : liveSpread <= 0 ? t(b100Visible ? 'orderBook.priceOverlap' : 'orderBook.crossed') : `${formatPrice(liveSpread, locale)} / MT`}
+                        {liveSpread == null ? '—' : liveSpread <= 0 ? t(b100Visible ? 'orderBook.priceOverlap' : 'orderBook.crossed') : `${formatPrice(liveSpread)} / MT`}
                     </span>
                 </span>
                 {b100Visible && <p className="w-full text-slate-500 dark:text-slate-400">{t('orderBook.b100Compatibility')}</p>}

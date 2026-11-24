@@ -148,7 +148,7 @@ describe('orderbook inspection', () => {
     }], []));
 
     renderWithProviders(<OrderBook {...MARKET} />);
-    const level = await screen.findByRole('group', { name: /Bid \$600 for 12\.34 MT/ });
+    const level = await screen.findByRole('group', { name: /Bid \$600\.00 for 12\.34 MT/ });
     fireEvent.focus(level);
     expect(screen.getByRole('tooltip').textContent).toContain('Demo listing seeded for platform preview');
   });
@@ -224,7 +224,8 @@ describe('orderbook inspection', () => {
       remaining_quantity_mt: 1500.25, availability_window: 'SPOT', region: 'Singapore', certifications: [],
     }], []));
     renderWithProviders(<OrderBook {...MARKET} />);
-    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500.25 MT/ })).toBeTruthy();
+    const level = await screen.findByRole('group', { name: /Bid \$1,260\.20 for 1,500\.25 MT/ });
+    expect(level.textContent).toContain('$1,260.20');
   });
 
   it('discards a stale response after the market product changes', async () => {
