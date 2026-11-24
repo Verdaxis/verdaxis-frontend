@@ -113,6 +113,15 @@ describe('IntelligencePanel localization', () => {
     expect(onPortSelect).toHaveBeenCalledWith(PORTS[0]);
   });
 
+  it('keeps mounted panel controls inert until reopened', () => {
+    const { rerender } = renderWithProviders(<IntelligencePanel {...panelProps} />);
+    const close = screen.getByRole('button', { name: '关闭情报面板' });
+    rerender(<IntelligencePanel {...panelProps} isOpen={false} />);
+    expect(close.closest('[inert]')).not.toBeNull();
+    rerender(<IntelligencePanel {...panelProps} />);
+    expect(close.closest('[inert]')).toBeNull();
+  });
+
   it('loads News only while the panel is open and active, without loading curves', () => {
     const { rerender } = renderWithProviders(<IntelligencePanel {...panelProps} isOpen={false} />);
     expect(screen.getByTestId('news-feed').getAttribute('data-active')).toBe('false');

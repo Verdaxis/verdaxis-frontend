@@ -65,9 +65,9 @@ vi.mock('../components/map/MarketWatchTicker', () => ({
 }));
 
 vi.mock('../components/map/IntelligencePanel', () => ({
-  IntelligencePanel: (props: { portOptions?: unknown[]; selectedProduct?: string }) => {
+  IntelligencePanel: (props: { onClose: () => void; isOpen: boolean; portOptions?: unknown[]; selectedProduct?: string }) => {
     intelligencePropsMock(props);
-    return <div data-testid="fallback-port-count" data-product={props.selectedProduct}>{props.portOptions?.length ?? 0}</div>;
+    return <>{props.isOpen && <button onClick={props.onClose}>关闭情报面板</button>}<div data-testid="fallback-port-count" data-product={props.selectedProduct}>{props.portOptions?.length ?? 0}</div></>;
   },
 }));
 
@@ -161,6 +161,12 @@ describe('BuyerMap failure localization', () => {
     await act(async () => {
       await i18n.changeLanguage('en');
     });
+  });
+
+  it('returns focus to Show Insights when the panel is dismissed', async () => {
+    renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: '关闭情报面板' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '显示洞察' }));
   });
 
   it.each(['light', 'dark'])('uses the %s Mapbox style and keeps localized fallback ports', async (theme) => {

@@ -353,7 +353,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     );
 
     return (
-        <div className={`
+        <div inert={!isOpen} className={`
             absolute right-0 top-0 h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-l border-slate-200 dark:border-slate-700 shadow-xl z-10 flex flex-col transition-transform duration-300
             ${isOpen ? 'translate-x-0' : 'translate-x-full'}
             w-full md:w-80

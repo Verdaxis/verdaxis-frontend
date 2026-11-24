@@ -138,6 +138,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [loadError, setLoadError] = useState(false);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
+    const showInsightsButton = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        if (!isPanelOpen) showInsightsButton.current?.focus();
+    }, [isPanelOpen]);
     const [showMarketWatch, setShowMarketWatch] = useState(true);
     const [showMarketWidgets, setShowMarketWidgets] = useState(true);
     const [showSecaZones, setShowSecaZones] = useState(true);
@@ -1290,6 +1294,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             {!isPanelOpen && (
                 <button
                     onClick={() => setIsPanelOpen(true)}
+                    ref={showInsightsButton}
                     aria-label={t('buyerMap.showInsights')}
                     className="absolute top-4 right-4 z-[20] bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm p-2 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-emerald-500 transition-colors"
                 >
