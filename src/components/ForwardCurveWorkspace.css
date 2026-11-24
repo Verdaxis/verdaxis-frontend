@@ -47,6 +47,50 @@
   background: var(--curve-bg);
 }
 
+/* Fit the page to the window on desktop. The header, the chart row and the
+   disclaimer keep their natural height. The lower row (latest signals beside
+   the market matrix) takes the rest, and each of its lists scrolls inside
+   itself. When the window is too short, the page keeps a minimum height and
+   the main area scrolls instead.
+   The matrix scroll area is `position: relative` so that its absolutely
+   positioned screen-reader labels stay inside it. Otherwise they keep the
+   page as tall as the whole matrix and the page scrolls into blank space. */
+.forward-curve-console__matrix-scroll {
+  max-height: 70vh;
+}
+
+@media (min-width: 1280px) {
+  .forward-curve-console--fit {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    /* Below this height the matrix shows fewer than about five rows. */
+    min-height: 760px;
+  }
+
+  .forward-curve-console--fit > * {
+    flex-shrink: 0;
+  }
+
+  .forward-curve-console--fit > .forward-curve-console__lower {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .forward-curve-console__lower > section {
+    min-height: 0;
+  }
+
+  .forward-curve-console__matrix-scroll,
+  .forward-curve-console__signal-list {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+}
+
 /* One page gutter for every section, so text edges line up down the page. */
 .forward-curve-console__gutter {
   padding-left: clamp(1.25rem, 3vw, 3rem);
@@ -145,10 +189,11 @@
   color: var(--curve-ink);
 }
 
-/* Chart: grows with the window height so it stays the hero on tall screens
-   and still leaves the matrix in view on a 730 px laptop viewport. */
+/* Chart: grows with the window height, but leaves about 600 px for the page
+   header, the selected-period row and the market matrix below it, so the
+   matrix keeps several rows in view on a laptop window. */
 .forward-curve-console__chart-scroll {
-  height: clamp(220px, calc(100vh - 426px), 460px);
+  height: clamp(220px, calc(100vh - 600px), 400px);
   overflow: hidden;
 }
 
@@ -264,140 +309,7 @@
   }
 }
 
-/* ============================================
-   Desktop-only Platform Gate
-   ============================================ */
-.mobile-desktop-gate {
-  display: none;
-}
-
-.desktop-only-content {
-  display: contents;
-}
-
-@media (max-width: 767px) {
-  .desktop-only-content {
-    display: none;
-  }
-
-  .mobile-desktop-gate {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: linear-gradient(160deg, #f8fafc 0%, #eff6ff 42%, #f0fdf4 100%);
-    color: #0f172a;
-  }
-
-  .mobile-desktop-gate__orb {
-    position: absolute;
-    border-radius: 999px;
-    pointer-events: none;
-  }
-
-  .mobile-desktop-gate__orb--blue {
-    width: 300px;
-    height: 300px;
-    top: -80px;
-    right: -60px;
-    background: radial-gradient(circle, rgba(93, 173, 226, 0.10) 0%, transparent 70%);
-  }
-
-  .mobile-desktop-gate__orb--green {
-    width: 250px;
-    height: 250px;
-    bottom: -60px;
-    left: -40px;
-    background: radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, transparent 65%);
-  }
-
-  .mobile-desktop-gate__wave {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 80px;
-    pointer-events: none;
-  }
-
-  .mobile-desktop-gate__content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    width: 100%;
-    max-width: 340px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0 2rem;
-    text-align: center;
-  }
-
-  .mobile-desktop-gate__logo {
-    width: 180px;
-    height: auto;
-    object-fit: contain;
-    opacity: 0.88;
-  }
-
-  .mobile-desktop-gate__divider {
-    width: 32px;
-    height: 1px;
-    margin: 1.5rem 0;
-    background: linear-gradient(90deg, transparent, rgba(93, 173, 226, 0.35), transparent);
-  }
-
-  .mobile-desktop-gate__icon {
-    width: 56px;
-    height: 56px;
-    margin-bottom: 1.25rem;
-    color: rgba(93, 173, 226, 0.7);
-    stroke-width: 1.4;
-  }
-
-  .mobile-desktop-gate__heading {
-    margin: 0 0 0.75rem;
-    font-size: 1.375rem;
-    font-weight: 650;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
-  }
-
-  .mobile-desktop-gate__body {
-    max-width: 285px;
-    margin: 0;
-    color: #64748b;
-    font-size: 0.875rem;
-    line-height: 1.7;
-  }
-
-  .mobile-desktop-gate__pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 1.75rem;
-    padding: 6px 14px;
-    border: 1px solid rgba(93, 173, 226, 0.22);
-    border-radius: 999px;
-    background: rgba(93, 173, 226, 0.07);
-    color: #0284c7;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  .mobile-desktop-gate__pill-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: #4caf50;
-  }
-}
-
-/* Forward curve: thin grey scrollbars instead of the wide default ones. */
+/* Thin scrollbars inside the page. */
 .forward-curve-console,
 .forward-curve-console * {
   scrollbar-width: thin;
