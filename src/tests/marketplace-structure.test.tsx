@@ -59,11 +59,11 @@ const contracts: Record<string, string> = {
     'cancellation': 'f956f743fc6db9bbf728f75e4242295472b179cdae00596c7d71a95881b69a7f',
     'lng-paired-rows': '124617c3f798ccb0505e1c341ba2f3066efe88c69647c69f772a68210126e15a',
     'refresh-warning': '93cd23b426ff3a87cc71b47d4be0f6fb621d6e9ee1890d77ce43d633f33f27cc',
-    'take-confirming': '02cd9d82a8fb3296f7b18f525bbad895580b3645425e2711aaa2cb4bc8fcaa3c',
-    'take-reviewing': '259a659260f652630ac9ff67b90d93ee960746ef7ac9f424aae7d1c24d30961f',
-    'take-success': '7079608d4113a348a443f2853d87e55287408346c17169062e75f8a23a9787f6',
-    'take-error': '5bac1db8979bfe129dfdbd46262f3bf020a627eedc61ac2130fe19eb37660978',
-    'take-unknown': '1f7afc1358214399e05efb9db6dd20b4bac0f90e437cce09088c907ef7b1433d',
+    'take-confirming': '4262dfdb116a5df4cd69998e784dfb7a5e3e374019aac1fedbd76b7fa70e1225',
+    'take-reviewing': '7218f3fc4322d75da7df35d38d91f8305bbdd8480fe7870e0bef392d716c560b',
+    'take-success': '76be880cb0881a0d10fb6454513054a7b53b934e0997d5474ee584189d3f0730',
+    'take-error': 'e3547af14111349689dbdd1e04e25883cd4292aba34235374daada603fbca7a2',
+    'take-unknown': 'fe299cf3b2f7b7e7fb5805935fc1a13f3a2ccf50767dfce5a4d005a402f91235',
 };
 
 beforeEach(async () => {

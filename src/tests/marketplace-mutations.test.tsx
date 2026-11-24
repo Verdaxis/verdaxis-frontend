@@ -121,6 +121,66 @@ async function confirmCancellation(reason = 'Stop this listing') {
 }
 
 describe('Marketplace take execution', () => {
+    it('names the trade review, contains Tab and restores focus on Escape', async () => {
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        const trigger = await screen.findByRole('button', { name: 'Lift Ask' });
+        trigger.focus();
+        fireEvent.click(trigger);
+        const dialog = screen.getByRole('dialog', { name: 'Lift Ask' });
+        expect(dialog.getAttribute('aria-modal')).toBe('true');
+        const heading = within(dialog).getByRole('heading', { name: 'Lift Ask' });
+        expect(document.activeElement).toBe(heading);
+
+        const close = within(dialog).getByRole('button', { name: 'Close trade modal' });
+        const submit = within(dialog).getByRole('button', { name: 'Submit Trade' });
+        fireEvent.keyDown(heading, { key: 'Tab', shiftKey: true });
+        expect(document.activeElement).toBe(submit);
+        fireEvent.keyDown(submit, { key: 'Tab' });
+        expect(document.activeElement).toBe(close);
+
+        fireEvent.keyDown(close, { key: 'Escape' });
+        expect(screen.queryByRole('dialog', { name: 'Lift Ask' })).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('restores focus to Listings if the opening quote disappeared', async () => {
+        const view = renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        const trigger = await screen.findByRole('button', { name: 'Lift Ask' });
+        const listings = screen.getByRole('button', { name: 'Listings', pressed: true });
+        trigger.focus();
+        fireEvent.click(trigger);
+
+        act(() => view.queryClient.setQueriesData(
+            { queryKey: ['public', 'orderbook', 'listings'] },
+            () => ({ items: [], total: 0, skip: 0, limit: 8 }),
+        ));
+        await waitFor(() => expect(trigger.isConnected).toBe(false));
+        const dialog = screen.getByRole('dialog', { name: 'Lift Ask' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        expect(document.activeElement).toBe(listings);
+    });
+
+    it('ignores Escape during submission and restores focus after success closes', async () => {
+        let resolveTrade!: (value: typeof tradeResult) => void;
+        mocks.initiate.mockImplementationOnce(() => new Promise(resolve => { resolveTrade = resolve; }));
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        const trigger = await screen.findByRole('button', { name: 'Lift Ask' });
+        trigger.focus();
+        await openTradeAndConfirm();
+        const submitting = await screen.findByRole('button', { name: /submitting trade/i });
+        const dialog = screen.getByRole('dialog', { name: 'Lift Ask' });
+        expect((submitting as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+        expect(screen.getByRole('dialog', { name: 'Lift Ask' })).toBe(dialog);
+
+        vi.useFakeTimers();
+        await act(async () => { resolveTrade(tradeResult); });
+        expect(screen.getByRole('dialog', { name: 'Trade Request Sent' })).toBe(dialog);
+        await act(async () => { vi.advanceTimersByTime(2000); });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+    });
+
     it('sends one trade POST when the final confirm is clicked twice', async () => {
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
         fireEvent.click(await screen.findByRole('button', { name: 'Lift Ask' }));
