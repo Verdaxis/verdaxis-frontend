@@ -2,6 +2,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
+import { readFileSync } from 'node:fs';
 import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
 import i18n, { loadNamespace } from '../i18n';
 import type { ForwardCurveMarketCell, ForwardCurveSliceResponse, ForwardCurveTableResponse, MarketProduct } from '../types';
@@ -258,6 +259,24 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace />);
     expect(await screen.findByText('1,109.10 / 1,109.40')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Spot $1,109.25' })).toBeTruthy();
+  });
+
+  it('lets the full terminal identifier wrap within a sticky row header', async () => {
+    const table = makeTable();
+    const terminal = 'RotterdamEuropoortNorthTerminalBerthTwo';
+    table.rows[1].region = terminal;
+    tableMock.mockResolvedValue(table);
+    renderWithProviders(<ForwardCurveWorkspace />);
+    const header = await screen.findByRole('rowheader', { name: new RegExp(terminal) });
+    expect(header.querySelector('.truncate')).toBeNull();
+    const stylesheet = document.createElement('style');
+    stylesheet.textContent = readFileSync('src/components/ForwardCurveWorkspace.css', 'utf8');
+    document.head.append(stylesheet);
+    try {
+      expect(getComputedStyle(header).overflowWrap).toBe('anywhere');
+    } finally {
+      stylesheet.remove();
+    }
   });
 
   it('associates each matrix action with its market and period', async () => {

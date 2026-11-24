@@ -269,6 +269,7 @@
 }
 
 .forward-curve-console__matrix-label {
+  overflow-wrap: anywhere;
   background: var(--curve-bg);
   border-color: var(--curve-rule);
 }

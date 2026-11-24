@@ -1269,8 +1269,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             return (
                                                 <tr key={row.row_key}>
                                                     <th scope="row" className={`text-left font-normal forward-curve-console__matrix-label sticky left-0 z-10 min-w-0 border-t py-1.5 pr-3 ${selectedRow ? 'forward-curve-console__matrix-label--selected' : ''}`}>
-                                                        <div className="forward-curve-console__ink truncate text-[13px] font-bold">{formatMarketProduct(row.market_product)}</div>
-                                                        <div className="forward-curve-console__dim truncate"><span>{row.delivery_point_name}</span> · <span>{row.region}</span></div>
+                                                        <div className="forward-curve-console__ink text-[13px] font-bold">{formatMarketProduct(row.market_product)}</div>
+                                                        <div className="forward-curve-console__dim"><span>{row.delivery_point_name}</span> · <span>{row.region}</span></div>
                                                     </th>
                                                     {visibleColumns.map(column => {
                                                         const cell = row.cells[column.availability_window];
