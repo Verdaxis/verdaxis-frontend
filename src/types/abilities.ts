@@ -34,6 +34,7 @@ export const ABILITY_IDS = [
   'manage_commissions',
   'market_support_access',
   'market_support_assisted_orders',
+  'use_agent',
 ] as const;
 
 export type AbilityId = (typeof ABILITY_IDS)[number];

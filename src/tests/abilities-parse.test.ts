@@ -42,7 +42,7 @@ describe('parseAbilitiesResponse', () => {
 
     // The valid cancel_order row from the base payload survives; the bad duplicate is ignored.
     expect(parsed?.get('cancel_order')?.allowed).toBe(true);
-    expect(parsed?.size).toBe(23);
+    expect(parsed?.size).toBe(24);
   });
 });
 
