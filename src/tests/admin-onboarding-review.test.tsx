@@ -123,6 +123,31 @@ describe('admin onboarding review', () => {
     await act(async () => { await i18n.changeLanguage('en'); });
   });
 
+  it('pages through pending accounts and starts a new status filter on page one', async () => {
+    mocks.users.mockImplementation(async (query: string) => {
+      const params = new URLSearchParams(query);
+      const approved = params.get('status') === 'APPROVED';
+      const number = Number(params.get('offset')) + 1;
+      return {
+        total: approved ? 1 : 101,
+        items: [{ id: `user-${number}`, email: `${approved ? 'approved' : 'pending'}${number}@example.com`,
+          status: params.get('status'), role: 'BUYER', created_at: reviewCase.created_at }],
+      };
+    });
+    render(<MemoryRouter initialEntries={['/app/admin/users']}><AdminDashboard /></MemoryRouter>);
+    await screen.findByText('pending1@example.com');
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    await screen.findByText('pending101@example.com');
+    expect(screen.getByText('101–101 of 101')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    await screen.findByText('Awaiting verification');
+    expect(mocks.reviewCase).toHaveBeenCalledWith('user-101');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approved' }));
+    await screen.findByText('approved1@example.com');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
+
   it('shows the requested organization and blocks approval on email verification', async () => {
     render(
       <MemoryRouter initialEntries={['/app/admin/users']}>

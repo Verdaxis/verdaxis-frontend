@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -32,6 +32,7 @@ import { useAbilityGate } from '../../hooks/useAbilityDenial';
 import type { AbilityId } from '../../types/abilities';
 import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization } from '../../types/marketSupport';
 import { defaultMarketSupportView } from '../../types/marketSupport';
+import { Pagination } from '../ui/Pagination';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { getAvailableCountries } from '../../utils/countries';
 import { safeAdminError } from './adminErrors';
@@ -300,10 +301,13 @@ const FeedbackTab: React.FC = () => {
   );
 };
 
+const USERS_PAGE_SIZE = 100;
+
 const UsersTab: React.FC = () => {
   const { t, i18n } = useTranslation('admin');
   const language = i18n.resolvedLanguage ?? i18n.language;
   const [filter, setFilter] = useState<UserStatusFilter>('PENDING');
+  const [offset, setOffset] = useState(0);
   const [users, setUsers]   = useState<AdminUserEntry[]>([]);
   const [total, setTotal]   = useState(0);
   const [loading, setLoading]     = useState(true);
@@ -335,11 +339,13 @@ const UsersTab: React.FC = () => {
   const { start, resume } = useMarketSupport();
   const enterOrganizationDenial = useAbilityGate()('market_support_assisted_orders');
 
+  const latestLoad = useRef(0);
   const load = useCallback(async (): Promise<AdminUserEntry[] | null> => {
+    const request = ++latestLoad.current;
     setLoading(true);
     setUserError(null);
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: String(USERS_PAGE_SIZE), offset: String(offset) });
       if (filter !== 'ALL') params.set('status', filter);
       const [data, queue] = await Promise.all([
         api.admin.users(params.toString()),
@@ -347,6 +353,11 @@ const UsersTab: React.FC = () => {
           ? api.admin.reviewQueue(100)
           : Promise.resolve({ items: [] }),
       ]);
+      if (request !== latestLoad.current) return null;
+      if (offset > 0 && offset >= data.total) {
+        setOffset(Math.max(0, Math.ceil(data.total / USERS_PAGE_SIZE) - 1) * USERS_PAGE_SIZE);
+        return data.items ?? [];
+      }
       setUsers(data.items ?? []);
       setTotal(data.total ?? 0);
       setReviewByUser(Object.fromEntries(
@@ -354,12 +365,12 @@ const UsersTab: React.FC = () => {
       ));
       return data.items ?? [];
     } catch (error) {
-      setUserError(safeAdminError(error, t, language, 'users.error.load'));
+      if (request === latestLoad.current) setUserError(safeAdminError(error, t, language, 'users.error.load'));
       return null;
     } finally {
-      setLoading(false);
+      if (request === latestLoad.current) setLoading(false);
     }
-  }, [filter, language, t]);
+  }, [filter, offset, language, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -635,7 +646,11 @@ const UsersTab: React.FC = () => {
         {STATUS_FILTERS.map((value) => (
           <button
             key={value}
-            onClick={() => setFilter(value)}
+            onClick={() => {
+              if (value === filter) return;
+              setOffset(0);
+              setFilter(value);
+            }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
               filter === value
                 ? 'bg-verdaxis text-white'
@@ -813,6 +828,7 @@ const UsersTab: React.FC = () => {
           </table>
         </div>
       )}
+      {!loading && <Pagination total={total} skip={offset} limit={USERS_PAGE_SIZE} onPageChange={setOffset} />}
       {userError && <p role="alert" className="text-sm text-red-400">{userError}</p>}
       {entryError && <p role="alert" className="text-sm text-red-400">{entryError}</p>}
       {entryOrganization && (
