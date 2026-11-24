@@ -72,6 +72,19 @@ describe('IntelligencePanel market references', () => {
     await i18n.changeLanguage('en');
   });
 
+  it('wraps long port and product names without shrinking Close', async () => {
+    const portName = 'TerminalMarítimoInternacionalSãoSebastião';
+    openPanel({ ...singapore, name: portName }, 'UCOME_B100');
+    const heading = screen.getByRole('heading', { name: portName });
+    const close = screen.getByRole('button', { name: i18n.t('intelligencePanel.close', { ns: 'dashboard' }) });
+    const product = await screen.findByText('UCOME B100');
+    expect(heading.parentElement?.classList.contains('min-w-0')).toBe(true);
+    expect(heading.classList.contains('[overflow-wrap:anywhere]')).toBe(true);
+    expect(close.classList.contains('shrink-0')).toBe(true);
+    expect(product.classList.contains('truncate')).toBe(false);
+    expect(product.classList.contains('[overflow-wrap:anywhere]')).toBe(true);
+  });
+
   it('includes all orderbook fuels and keeps B100 visible when it has no data', async () => {
     openPanel();
 

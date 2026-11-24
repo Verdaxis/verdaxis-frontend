@@ -197,7 +197,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         className="grid grid-cols-[1fr_auto] gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0 dark:border-slate-800"
                     >
                         <div className="min-w-0">
-                            <div className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{item.label}</div>
+                            <div className="[overflow-wrap:anywhere] text-xs font-bold text-slate-700 dark:text-slate-200">{item.label}</div>
                             <div className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
                                 {curvePriceLabel(item)}
                             </div>
@@ -359,21 +359,21 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             w-full md:w-80
         `}>
             <div className="flex items-start justify-between border-b border-slate-100 p-5 dark:border-slate-800">
-                <div>
+                <div className="min-w-0">
                     <div className="mb-1 flex items-center space-x-2 text-[#5DADE2]">
                         <TrendingUp size={18} />
                         <span className="text-xs font-bold tracking-widest uppercase">
                             {selectedPort ? t('intelligencePanel.portIntelligence') : t('intelligencePanel.globalInsights')}
                         </span>
                     </div>
-                    <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-slate-100">
+                    <h2 className="[overflow-wrap:anywhere] font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-slate-100">
                         {selectedPort ? selectedPort.name : t('intelligencePanel.globalOverview')}
                     </h2>
                 </div>
                 <button 
                     onClick={onClose}
                     aria-label={t('intelligencePanel.close')}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="shrink-0 text-slate-400 hover:text-slate-600"
                 >
                     <PanelRightClose size={20} />
                 </button>
