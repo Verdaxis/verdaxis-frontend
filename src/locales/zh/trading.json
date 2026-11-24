@@ -236,7 +236,7 @@
   "myTrades.tab.all": "全部",
   "myTrades.tab.active": "进行中",
   "myTrades.tab.completed": "已完成",
-  "myTrades.col.date": "日期",
+  "myTrades.col.date": "日期（UTC）",
   "myTrades.col.fuel": "燃料",
   "myTrades.col.region": "地区",
   "myTrades.col.side": "方向",

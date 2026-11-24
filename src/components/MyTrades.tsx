@@ -561,7 +561,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                         <React.Fragment key={trade.id}>
                                         <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                                {new Date(trade.created_at).toLocaleDateString(locale)}
+                                                {new Date(trade.created_at).toLocaleDateString(locale, { timeZone: 'UTC' })}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
                                                 <span className="inline-block px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold rounded border border-blue-100 dark:border-blue-800">

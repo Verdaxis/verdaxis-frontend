@@ -131,6 +131,24 @@ describe('MyTrades lifecycle', () => {
     });
   });
 
+  it('shows the UTC trade date even when the local date is in the previous month', async () => {
+    const page = makeTradePage('month-boundary', 'Boundary buyer', 'CONFIRMED');
+    myTradesPagedMock.mockResolvedValue({ ...page, items: [{
+      ...page.items[0], created_at: '2026-11-01T00:15:00Z', confirmed_at: '2026-11-01T00:15:00Z',
+    }] });
+    const toLocaleDateString = Date.prototype.toLocaleDateString;
+    const localDate = vi.spyOn(Date.prototype, 'toLocaleDateString').mockImplementation(function (this: Date, locales, options) {
+      return toLocaleDateString.call(this, locales, { timeZone: 'America/Los_Angeles', ...options });
+    });
+
+    try {
+      renderWithProviders(<MyTrades />);
+      expect(await screen.findByRole('cell', { name: '11/1/2026' })).toBeTruthy();
+    } finally {
+      localDate.mockRestore();
+    }
+  });
+
   it.each(['PENDING_CONFIRMATION', 'CONFIRMED'])('shows frozen B100 requirements and declarations for %s trades', async (status) => {
     const page = makeTradePage('b100-trade', 'Frozen buyer', status);
     myTradesPagedMock.mockResolvedValue({ ...page, items: [{
