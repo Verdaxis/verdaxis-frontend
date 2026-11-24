@@ -464,3 +464,22 @@ a[href*="github.io/tradingview"] {
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
 }
+
+/* ============================================
+   Desktop-only Platform Gate (used on every page)
+   ============================================ */
+.mobile-desktop-gate {
+  display: none;
+}
+
+.desktop-only-content {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  .desktop-only-content {
+    display: none;
+  }
+}
+
+/* Forward curve: thin grey scrollbars instead of the wide default ones. */
