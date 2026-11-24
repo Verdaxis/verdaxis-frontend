@@ -142,7 +142,7 @@ export const OnboardingPage: React.FC = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-8"
+                        className="v-btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed mt-8"
                     >
                         {isLoading ? t('onboarding.submitting') : t('onboarding.submit')}
                     </button>
