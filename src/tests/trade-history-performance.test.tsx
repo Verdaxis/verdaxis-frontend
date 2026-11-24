@@ -12,6 +12,21 @@ vi.mock('../services/api', () => ({ api: {
 vi.mock('../components/MyTrades', () => ({ MyTrades: () => null }));
 
 describe('trade performance references', () => {
+  it('does not report zero activity unless the trade read succeeds', async () => {
+    apiMock.myTrades.mockRejectedValueOnce(new Error('Offline')).mockResolvedValueOnce([]);
+    renderWithProviders(<TradeHistoryPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Performance' }));
+
+    await waitFor(() => expect(screen.queryByText('Loading performance data...')).toBeNull());
+    expect(screen.queryByText('Total Trades')).toBeNull();
+    expect(screen.getByRole('alert').textContent).toMatch(/unable to load/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(await screen.findByText('Total Trades')).toBeTruthy();
+    expect(screen.getByText('0 MT')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('requests each exact window and ignores reference rows for a different slice', async () => {
     const trade = {
       product_id: 'methanol', delivery_point_id: 'singapore', product_name: 'Methanol',
