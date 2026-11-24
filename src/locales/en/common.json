@@ -260,6 +260,7 @@
   "serverStatus.maintenance.title": "Platform maintenance",
   "serverStatus.maintenance.fallback": "The platform is under maintenance. Some actions may be unavailable.",
   "serverStatus.dismiss": "Dismiss server status notice",
+  "toast.dismiss": "Dismiss notification",
   "toast.rateLimit.title": "Slow down",
   "toast.rateLimit.message": "Requests are being rate-limited. Data may be briefly stale — retrying shortly.",
   "abilities.reason.unknown": "This action is not available to your account right now.",

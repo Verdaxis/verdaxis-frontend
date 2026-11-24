@@ -58,9 +58,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (
         <ToastContext.Provider value={{ addToast }}>
             {children}
+            {/* Announce additions without rereading earlier toasts or announcing removals. */}
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="false" aria-relevant="additions">
+                {toasts.map(({ id, title, message }) => (
+                    <div key={id}>{message ? `${title}. ${message}` : title}</div>
+                ))}
+            </div>
             <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
                 {toasts.map(toast => (
-                    <ToastItem key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
+                    <ToastItem key={toast.id} toast={toast} dismissLabel={t('toast.dismiss')} onDismiss={() => removeToast(toast.id)} />
                 ))}
             </div>
         </ToastContext.Provider>
@@ -73,7 +79,7 @@ export const useToast = () => {
     return ctx;
 };
 
-const ToastItem: React.FC<{ toast: Toast; onDismiss: () => void }> = ({ toast, onDismiss }) => {
+const ToastItem: React.FC<{ toast: Toast; dismissLabel: string; onDismiss: () => void }> = ({ toast, dismissLabel, onDismiss }) => {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
@@ -96,12 +102,17 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: () => void }> = ({ toast, o
 
     return (
         <div
-            className={`pointer-events-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-l-4 ${borders[toast.type]} rounded-lg shadow-lg p-3 pr-8 max-w-sm transition-all duration-300 ${
+            className={`relative pointer-events-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-l-4 ${borders[toast.type]} rounded-lg shadow-lg p-3 pr-8 max-w-sm transition-all duration-300 ${
                 visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
             }`}
         >
-            <button onClick={onDismiss} className="absolute top-2 right-2 text-slate-400 hover:text-slate-600">
-                <X size={14} />
+            <button
+                type="button"
+                aria-label={dismissLabel}
+                onClick={onDismiss}
+                className="absolute top-[3px] right-[3px] grid h-[24px] w-[24px] place-items-center text-slate-400 hover:text-slate-600"
+            >
+                <X size={14} aria-hidden="true" />
             </button>
             <div className="flex items-start gap-2.5">
                 {icons[toast.type]}
