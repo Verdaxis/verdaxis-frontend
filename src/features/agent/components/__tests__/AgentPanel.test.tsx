@@ -4,7 +4,7 @@ import { AgentPanel } from '../AgentPanel';
 import { api } from '../../../../services/api';
 import { AgentError, type AgentTurn } from '../../api/agentTypes';
 import { loadNamespace } from '../../../../i18n';
-import { getAgentAccess } from '../../hooks/useAgentConversation';
+import { getAgentAccess } from '../../agentAccess';
 
 const conversation = { id: 'c', status: 'open' as const, createdAt: '2026-01-01', updatedAt: '2026-01-01' };
 const turn: AgentTurn = { reply: '<b>12.00</b>', assistantSeq: 2, stopped: null, question: null, draftIds: [] };

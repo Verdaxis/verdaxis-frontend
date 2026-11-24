@@ -1,5 +1,5 @@
 import { useAbilities } from '../context/AbilitiesContext';
-import { getAgentAccess } from '../features/agent/hooks/useAgentConversation';
+import { getAgentAccess } from '../features/agent/agentAccess';
 
 import React, { Suspense, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';

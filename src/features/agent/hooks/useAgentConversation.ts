@@ -1,14 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../../services/api';
-import type { AbilitiesStatus } from '../../../context/AbilitiesContext';
-import type { Ability } from '../../../types/abilities';
 import { AgentError, type AgentHistory, type AgentMessageInput, type AgentTurn } from '../api/agentTypes';
-
-export function getAgentAccess(status: AbilitiesStatus, ability?: Ability) {
-    if (status !== 'ready' || !ability) return null;
-    if (ability.allowed) return 'allowed';
-    return ability.reasonCode === 'AGENT_PAUSED' ? 'paused' : null;
-}
 
 export type AgentRow =
     | { role: 'user'; text: string }
