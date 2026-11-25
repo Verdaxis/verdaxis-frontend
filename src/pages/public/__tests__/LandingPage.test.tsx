@@ -1,7 +1,8 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
+import gsap from 'gsap';
 import publicZh from '../../../locales/zh/public.json';
 
 // Mock GSAP and ScrollTrigger
@@ -14,7 +15,9 @@ vi.mock('gsap', () => ({
     registerPlugin: vi.fn(),
     context: vi.fn(() => ({ revert: vi.fn(), kill: vi.fn() })),
     matchMedia: vi.fn(() => ({
-      add: vi.fn(),
+      add: (query: string, setup: () => void) => {
+        if (window.matchMedia(query).matches) setup();
+      },
       revert: vi.fn(),
       kill: vi.fn(),
     })),
@@ -53,7 +56,12 @@ vi.mock('motion/react', () => ({
     get: (_target: any, prop: string) => {
       return React.forwardRef((props: any, ref: any) => {
         const { initial, animate, exit, whileInView, whileHover, whileTap, variants, transition, viewport, ...rest } = props;
-        return React.createElement(prop, { ...rest, ref });
+        return React.createElement(prop, {
+          ...rest,
+          ref,
+          style: initial?.opacity === undefined ? rest.style : { ...rest.style, opacity: initial.opacity },
+          'data-tap-scale': whileTap?.scale,
+        });
       });
     },
   }),
@@ -114,6 +122,57 @@ describe('LandingPage', () => {
     expect(screen.getByText('Supported Delivery Points').previousElementSibling?.textContent).toBe('8');
     expect(screen.getAllByRole('link', { name: /see full process/i })[0].getAttribute('href')).toBe('/en/how-it-works');
     expect(screen.getAllByRole('link', { name: /learn more/i })[0].getAttribute('href')).toBe('/en/for-producers');
+  });
+
+  it('shows static steps and visible sections when reduced motion is enabled', () => {
+    const preference = new EventTarget();
+    let reduced = false;
+    const matchMedia = window.matchMedia;
+    window.matchMedia = (query) => ({
+      get matches() {
+        if (query === '(prefers-reduced-motion: reduce)') return reduced;
+        return query.includes('min-width') && (!query.includes('no-preference') || !reduced);
+      },
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: preference.addEventListener.bind(preference),
+      removeEventListener: preference.removeEventListener.bind(preference),
+      dispatchEvent: preference.dispatchEvent.bind(preference),
+    });
+    const setReduced = (enabled: boolean) => {
+      reduced = enabled;
+      act(() => { preference.dispatchEvent(new Event('change')); });
+    };
+    const expectStaticContent = () => {
+      for (const name of ['List & Document', 'Discover & Trade', 'Manage & Optimise']) {
+        expect(screen.getByRole('heading', { name })).toBeTruthy();
+      }
+      const roles = screen.getByRole('heading', { name: 'Built for Every Participant' });
+      expect(roles.closest('[style*="opacity: 0"]')).toBeNull();
+      const cta = screen.getByRole('link', { name: 'Register Interest' });
+      expect(cta.closest('[data-tap-scale]')).toBeNull();
+    };
+
+    try {
+      const view = renderWithRouter(<LandingPage />);
+      expect(gsap.to).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({
+        scrollTrigger: expect.objectContaining({ pin: true }),
+      }));
+      setReduced(true);
+      expectStaticContent();
+      view.unmount();
+
+      vi.mocked(gsap.to).mockClear();
+      renderWithRouter(<LandingPage />);
+      expectStaticContent();
+      expect(gsap.to).not.toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({
+        scrollTrigger: expect.objectContaining({ pin: true }),
+      }));
+    } finally {
+      window.matchMedia = matchMedia;
+    }
   });
 
   it('renders CTA buttons', () => {

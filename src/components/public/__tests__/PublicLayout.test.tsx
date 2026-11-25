@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { PublicLayout } from '../PublicLayout';
 
@@ -17,6 +17,19 @@ const renderWithRouter = (route = '/') => {
 };
 
 describe('PublicLayout', () => {
+  it('offers a skip link before navigation and focuses main content on activation', () => {
+    const { container } = renderWithRouter();
+    const skipLink = screen.getByRole('link', { name: 'Skip to main content' });
+    const main = screen.getByRole('main');
+    expect(container.querySelector('a[href], button, [tabindex="0"]')).toBe(skipLink);
+    expect(skipLink.getAttribute('href')).toBe(`#${main.id}`);
+    expect(main.tabIndex).toBe(-1);
+
+    skipLink.focus();
+    fireEvent.click(skipLink);
+    expect(document.activeElement).toBe(main);
+  });
+
   it('renders navigation with Verdaxis brand logo', () => {
     renderWithRouter('/');
     const logos = screen.getAllByRole('img', { name: 'Verdaxis' });
@@ -31,6 +44,51 @@ describe('PublicLayout', () => {
     expect(screen.getAllByText('Compliance').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Education').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Roadmap').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it.each([
+    ['Solutions', 'For Producers'],
+    ['Fuels', 'Maritime'],
+    ['Tools', 'Energy Calculator'],
+  ])('opens %s on activation and restores trigger focus on Escape', (name, firstLink) => {
+    const { container } = renderWithRouter();
+    const nav = within(container.querySelector('nav')!);
+    const trigger = nav.getAllByRole('button', { name })[0];
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(nav.queryByRole('link', { name: firstLink })).toBeNull();
+
+    trigger.focus();
+    // Native buttons dispatch click for Enter and Space as well as pointer activation.
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    const link = nav.getByRole('link', { name: firstLink });
+    const panel = document.getElementById(trigger.getAttribute('aria-controls')!);
+    expect(panel?.contains(link)).toBe(true);
+    expect(trigger.nextElementSibling).toBe(panel);
+
+    link.focus();
+    fireEvent.keyDown(link, { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(nav.queryByRole('link', { name: firstLink })).toBeNull();
+  });
+
+  it('keeps hovered links open while they have keyboard focus', () => {
+    const { container } = renderWithRouter();
+    const nav = within(container.querySelector('nav')!);
+    const trigger = nav.getAllByRole('button', { name: 'Solutions' })[0];
+    fireEvent.mouseEnter(trigger);
+    const link = nav.getByRole('link', { name: 'For Producers' });
+    link.focus();
+    fireEvent.mouseLeave(link);
+    expect(document.activeElement).toBe(link);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+
+    const fuels = nav.getAllByRole('button', { name: 'Fuels' })[0];
+    fireEvent.mouseEnter(fuels);
+    expect(document.activeElement).toBe(link);
+    fireEvent.focusOut(link, { relatedTarget: fuels });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('renders footer with copyright', () => {

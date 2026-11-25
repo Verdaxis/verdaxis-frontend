@@ -22,8 +22,10 @@ interface NavItem {
   dropdown?: DropdownItem[];
 }
 
-const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string; onClose: () => void }> = ({ items, pathname, onClose }) => (
+const DropdownMenu: React.FC<{ id: string; open: boolean; items: DropdownItem[]; pathname: string; onClose: () => void }> = ({ id, open, items, pathname, onClose }) => (
   <div
+    id={id}
+    hidden={!open}
     style={{
       position: 'absolute',
       top: '100%',
@@ -72,6 +74,7 @@ export const PublicNav: React.FC = () => {
   const lp = useLocalePath();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [desktopDropdown, setDesktopDropdown] = useState<{ key: string; hovered: boolean } | null>(null);
   const appLoginUrl = `https://app.verdaxis.exchange/login?lang=${lang || 'en'}`;
   const analyticsLanguage = lang === 'zh' ? 'zh' : 'en';
 
@@ -168,74 +171,104 @@ export const PublicNav: React.FC = () => {
           }}
           className="public-nav-desktop"
         >
-          {NAV_ITEMS.map((item) => (
-            <div
-              key={item.labelKey}
-              style={{ position: 'relative' }}
-              onMouseEnter={() => item.dropdown && setOpenDropdown(item.labelKey)}
-              onMouseLeave={() => item.dropdown && setOpenDropdown(null)}
-            >
-              {item.to ? (
-                <Link
-                  to={item.to}
-                  style={{
-                    padding: '8px 14px',
-                    fontSize: 14,
-                    fontWeight: isActive(item) ? 600 : 500,
-                    color: isActive(item) ? BLUE : '#475569',
-                    textDecoration: 'none',
-                    borderRadius: 6,
-                    transition: 'color 0.15s, background 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive(item)) (e.currentTarget as HTMLElement).style.color = DARK;
-                    (e.currentTarget as HTMLElement).style.background = '#F1F5F9';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = isActive(item) ? BLUE : '#475569';
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                  }}
-                >
-                  {t(item.labelKey)}
-                </Link>
-              ) : (
-                <button
-                  style={{
-                    padding: '8px 14px',
-                    fontSize: 14,
-                    fontWeight: isActive(item) ? 600 : 500,
-                    color: isActive(item) ? BLUE : '#475569',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    borderRadius: 6,
-                    transition: 'color 0.15s, background 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    fontFamily: 'inherit',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive(item)) (e.currentTarget as HTMLElement).style.color = DARK;
-                    (e.currentTarget as HTMLElement).style.background = '#F1F5F9';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = isActive(item) ? BLUE : '#475569';
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                  }}
-                >
-                  {t(item.labelKey)}
-                  <ChevronDown size={14} />
-                </button>
-              )}
-              {item.dropdown && openDropdown === item.labelKey && (
-                <DropdownMenu items={item.dropdown} pathname={pathname} onClose={() => setOpenDropdown(null)} />
-              )}
-            </div>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const panelId = `public-desktop-${item.labelKey.slice(4)}`;
+            const expanded = desktopDropdown?.key === item.labelKey;
+            return (
+              <div
+                key={item.labelKey}
+                style={{ position: 'relative' }}
+                onMouseEnter={item.dropdown ? () => {
+                  const focused = document.activeElement;
+                  if (desktopDropdown && document.getElementById(
+                    `public-desktop-${desktopDropdown.key.slice(4)}`,
+                  )?.parentElement?.contains(focused)) return;
+                  if (!expanded) setDesktopDropdown({ key: item.labelKey, hovered: true });
+                } : undefined}
+                onMouseLeave={(event) => {
+                  if (expanded && desktopDropdown.hovered && !event.currentTarget.contains(document.activeElement)) {
+                    setDesktopDropdown(null);
+                  }
+                }}
+                onBlur={(event) => {
+                  if (expanded && !event.currentTarget.contains(event.relatedTarget)) setDesktopDropdown(null);
+                }}
+                onKeyDown={(event) => {
+                  if (expanded && event.key === 'Escape') {
+                    event.preventDefault();
+                    event.currentTarget.querySelector('button')?.focus();
+                    setDesktopDropdown(null);
+                  }
+                }}
+              >
+                {item.to ? (
+                  <Link
+                    to={item.to}
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 14,
+                      fontWeight: isActive(item) ? 600 : 500,
+                      color: isActive(item) ? BLUE : '#475569',
+                      textDecoration: 'none',
+                      borderRadius: 6,
+                      transition: 'color 0.15s, background 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive(item)) (e.currentTarget as HTMLElement).style.color = DARK;
+                      (e.currentTarget as HTMLElement).style.background = '#F1F5F9';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = isActive(item) ? BLUE : '#475569';
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    }}
+                  >
+                    {t(item.labelKey)}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    aria-controls={panelId}
+                    aria-expanded={expanded}
+                    onClick={() => setDesktopDropdown(expanded && !desktopDropdown.hovered
+                      ? null
+                      : { key: item.labelKey, hovered: false })}
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 14,
+                      fontWeight: isActive(item) ? 600 : 500,
+                      color: isActive(item) ? BLUE : '#475569',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      borderRadius: 6,
+                      transition: 'color 0.15s, background 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive(item)) (e.currentTarget as HTMLElement).style.color = DARK;
+                      (e.currentTarget as HTMLElement).style.background = '#F1F5F9';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = isActive(item) ? BLUE : '#475569';
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    }}
+                  >
+                    {t(item.labelKey)}
+                    <ChevronDown size={14} />
+                  </button>
+                )}
+                {item.dropdown && (
+                  <DropdownMenu id={panelId} open={expanded} items={item.dropdown} pathname={pathname} onClose={() => setDesktopDropdown(null)} />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Desktop CTAs */}
