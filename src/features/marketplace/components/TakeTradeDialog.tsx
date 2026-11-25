@@ -1,6 +1,6 @@
 import { getBiofuelSpecification } from '../../../utils/biofuelSpecification';
 import { formatQuantity, formatUsd } from '../../../utils/numberFormat';
-import React from 'react';
+import React, { useId, useLayoutEffect, useRef } from 'react';
 import { Loader2, AlertCircle, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { OrderBookOrder, ViewMode, Trade, TradeCreateInput } from '../../../types';
 import { KycRequiredNotice } from '../../../components/kyc/KycRequiredNotice';
@@ -43,17 +43,87 @@ interface TakeTradeDialogProps {
 }
 
 export function TakeTradeDialog({ selectedOrder, tradeState, tradeResult, t, locale, role, tradeError, confirmTrade, closeTradeModal, tradeKycBlocked, tradeNeedsRefresh, refreshReview, configBase, tradeQuantity, setTradeQuantity, tradeTermsForm, tradeLngTermsForm, reviewTrade, initialBuyerTerms, initialLngTaker, tradeFameInput, tradeLngInput, setTradeState }: TakeTradeDialogProps) {
+    const open = selectedOrder !== null && tradeState !== 'idle';
+    const titleId = useId();
+    const headingRef = useRef<HTMLHeadingElement>(null);
+    const overlayRef = useRef<HTMLDivElement>(null);
+    const dialogRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        const overlay = overlayRef.current;
+        const dialog = dialogRef.current;
+        if (!open || !overlay || !dialog) return;
+        const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const workspace = overlay.parentElement;
+        const ladderHeading = trigger?.closest('[data-tour="orderbook-panel"]')
+            ?.querySelector<HTMLElement>('[data-orderbook-heading]');
+
+        const background: HTMLElement[] = [];
+        for (let branch: HTMLElement | null = overlay; branch && branch !== document.body; branch = branch.parentElement) {
+            for (const sibling of branch.parentElement?.children ?? []) {
+                if (sibling !== branch && sibling instanceof HTMLElement && !sibling.inert) {
+                    sibling.inert = true;
+                    background.push(sibling);
+                }
+            }
+        }
+
+        const containFocus = (event: FocusEvent) => {
+            if (event.target instanceof Node && !dialog.contains(event.target)) {
+                headingRef.current?.focus({ preventScroll: true });
+            }
+        };
+        document.addEventListener('focusin', containFocus);
+        return () => {
+            document.removeEventListener('focusin', containFocus);
+            for (const element of background) element.inert = false;
+            const activeTab = workspace?.querySelector<HTMLElement>('[data-tour^="marketplace-tab-"][aria-pressed="true"]');
+            for (const target of [trigger, ladderHeading, activeTab]) {
+                if (!target?.isConnected || target === document.body) continue;
+                target.focus({ preventScroll: true });
+                if (document.activeElement === target) break;
+            }
+        };
+    }, [open]);
+
+    useLayoutEffect(() => {
+        if (open) headingRef.current?.focus({ preventScroll: true });
+    }, [open, tradeState]);
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.defaultPrevented) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeTradeModal();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+
+        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+            'a[href], button, input, select, textarea, [tabindex]',
+        )).filter(element => element.tabIndex >= 0 && !element.matches(':disabled, input[type="hidden"]')
+            && !element.closest('[hidden], [inert], [aria-hidden="true"]'));
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        const atBoundary = event.shiftKey ? active === first : active === last;
+        if (atBoundary || !focusable.some(element => element === active)) {
+            event.preventDefault();
+            (event.shiftKey ? last ?? headingRef.current : first ?? headingRef.current)?.focus();
+        }
+    };
+
     return <>
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
             {selectedOrder && tradeState !== 'idle' && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' || selectedOrder.market_product === 'BIO_LNG' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
+                <div ref={overlayRef} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={handleKeyDown} className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' || selectedOrder.market_product === 'BIO_LNG' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
                                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
                                     <CheckCircle2 size={24} />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                                <h3 id={titleId} ref={headingRef} tabIndex={-1} className="text-xl font-bold text-slate-900 dark:text-white mb-1">
                                     {tradeResult?.status === 'PENDING_CONFIRMATION'
                                         ? t('marketplace.modal.tradeInitiated')
                                         : t('marketplace.modal.tradeRecorded')}
@@ -104,7 +174,7 @@ export function TakeTradeDialog({ selectedOrder, tradeState, tradeResult, t, loc
                                 <div className="p-4 bg-amber-500/10 rounded-full mb-4">
                                     <AlertTriangle size={28} className="text-amber-500" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.outcomeUnknown.title')}</h3>
+                                <h3 id={titleId} ref={headingRef} tabIndex={-1} className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.outcomeUnknown.title')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
                                 <button
                                     type="button"
@@ -122,7 +192,7 @@ export function TakeTradeDialog({ selectedOrder, tradeState, tradeResult, t, loc
                                 <div className="p-4 bg-red-500/10 rounded-full mb-4">
                                     <AlertCircle size={28} className="text-red-500" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
+                                <h3 id={titleId} ref={headingRef} tabIndex={-1} className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
                                 {tradeError && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>}
                                 {tradeKycBlocked && <KycRequiredNotice className="mb-4 w-full" />}
                                 {tradeNeedsRefresh && (
@@ -147,7 +217,7 @@ export function TakeTradeDialog({ selectedOrder, tradeState, tradeResult, t, loc
                                 {/* Header */}
                                 <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                                     <div>
-                                        <h3 className="text-xl font-bold text-[#334155] dark:text-white">
+                                        <h3 id={titleId} ref={headingRef} tabIndex={-1} className="text-xl font-bold text-[#334155] dark:text-white">
                                             {t(configBase.counterAction.labelKey)}
                                         </h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">

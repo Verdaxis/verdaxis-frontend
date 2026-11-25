@@ -88,7 +88,7 @@ describe('orderbook pre-Query re-entry contract', () => {
         if (scenario === 'failed refresh') {
           snapshot.mockRejectedValueOnce(new Error('refresh unavailable'));
           fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
-          await screen.findByRole('alert');
+          await screen.findByText('Orderbook refresh failed.');
           expect(screen.getByRole('group', { name: /Ask.*915/ })).toBeTruthy();
         }
       }
@@ -126,6 +126,39 @@ describe('orderbook inspection', () => {
       }], []));
   });
 
+  it.each(['BID', 'ASK'] as const)('keeps focus on the same %s through insertion and reordering', async side => {
+    const order = (id: string, price: number) => ({ id, side, market_product: 'BIO_METHANOL',
+      price_per_mt_usd: price, remaining_quantity_mt: 100, availability_window: 'SPOT', certifications: [] });
+    const original = order('original', 600);
+    const better = order('new', side === 'BID' ? 620 : 580);
+    const depth = (...orders: ReturnType<typeof order>[]) => side === 'BID' ? makeSnapshot(orders) : makeSnapshot([], orders);
+    const openTrade = vi.fn();
+    snapshot.mockResolvedValue(depth(original));
+    renderWithProviders(<OrderBook {...MARKET} actionableSide={side} onLevelClick={openTrade} />);
+    const quote = await screen.findByRole('button', { name: /600/ });
+    act(() => quote.focus());
+    const refresh = () => fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+
+    snapshot.mockResolvedValue(depth(original, better));
+    refresh();
+    await screen.findByRole('button', { name: /620|580/ });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /600/ }));
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    expect(openTrade).toHaveBeenLastCalledWith(expect.objectContaining({ id: original.id }));
+
+    snapshot.mockResolvedValue(depth({ ...original, price_per_mt_usd: side === 'BID' ? 640 : 560 }, better));
+    refresh();
+    const reordered = await screen.findByRole('button', { name: /640|560/ });
+    expect(document.activeElement).toBe(reordered);
+    fireEvent.keyDown(reordered, { key: 'Enter' });
+    expect(openTrade).toHaveBeenLastCalledWith(expect.objectContaining({ id: original.id }));
+
+    snapshot.mockResolvedValue(depth(better));
+    refresh();
+    await screen.findByText('The focused order is no longer in the orderbook.');
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: /Bio Methanol/ }));
+  });
+
   it('allows keyboard inspection without making the other side executable', async () => {
     const openTrade = vi.fn();
     renderWithProviders(<OrderBook {...MARKET} actionableSide="ASK" onLevelClick={openTrade} />);
@@ -148,7 +181,7 @@ describe('orderbook inspection', () => {
     }], []));
 
     renderWithProviders(<OrderBook {...MARKET} />);
-    const level = await screen.findByRole('group', { name: /Bid \$600 for 12\.34 MT/ });
+    const level = await screen.findByRole('group', { name: /Bid \$600\.00 for 12\.34 MT/ });
     fireEvent.focus(level);
     expect(screen.getByRole('tooltip').textContent).toContain('Demo listing seeded for platform preview');
   });
@@ -224,7 +257,8 @@ describe('orderbook inspection', () => {
       remaining_quantity_mt: 1500.25, availability_window: 'SPOT', region: 'Singapore', certifications: [],
     }], []));
     renderWithProviders(<OrderBook {...MARKET} />);
-    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500.25 MT/ })).toBeTruthy();
+    const level = await screen.findByRole('group', { name: /Bid \$1,260\.20 for 1,500\.25 MT/ });
+    expect(level.textContent).toContain('$1,260.20');
   });
 
   it('discards a stale response after the market product changes', async () => {
@@ -273,7 +307,7 @@ describe('orderbook inspection', () => {
     snapshot.mockRejectedValueOnce(new Error('network unavailable'));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('refresh failed'));
+    await screen.findByText('Orderbook refresh failed.');
     expect(screen.getByRole('group', { name: /Bid.*600/ })).toBeTruthy();
     expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { cacheOwner: 'query', signal: expect.any(AbortSignal) });
   });

@@ -361,6 +361,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             .filter((element) => !element.hidden && !element.closest('[hidden]'));
         getFocusable()[0]?.focus();
         const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.defaultPrevented && event.key === 'Escape') return;
             if (event.key === 'Escape' && !submissionInFlightRef.current) {
                 event.preventDefault();
                 handleClose();

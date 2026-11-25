@@ -889,6 +889,21 @@ describe('OrderPlaceModal', () => {
     expect(createOrderMock).not.toHaveBeenCalled();
   });
 
+  it('closes the open selector before Escape closes the order form', async () => {
+    const close = vi.fn();
+    renderWithProviders(<OrderPlaceModal isOpen onClose={close} side="BID" />);
+    const selector = await screen.findByRole('combobox', { name: 'Order product' });
+    fireEvent.click(selector);
+    expect(screen.getByRole('listbox')).toBeTruthy();
+
+    fireEvent.keyDown(selector, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(close).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(selector, { key: 'Escape' });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('does not bind Escape before the trading namespace is ready', async () => {
     i18n.removeResourceBundle('en', 'trading');
     const onClose = vi.fn();
