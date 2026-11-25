@@ -27,6 +27,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import type { TFunction } from 'i18next';
+import { formatUsd } from '../utils/numberFormat';
 import i18n from '../i18n';
 
 interface ForwardCurveWorkspaceProps {
@@ -76,6 +77,11 @@ const getForwardCurveTableWindows = () => getAvailabilityWindowOptions().map(opt
 const currency = (value: number | null | undefined) => {
     if (value == null || !Number.isFinite(value)) return '--';
     return `$${value.toFixed(0)}`;
+};
+
+const quoteCurrency = (value: number | null | undefined, locale: string) => {
+    const amount = formatUsd(value, locale);
+    return amount ? '$' + amount : '--';
 };
 
 const preciseCurrency = (value: number | null | undefined, locale = 'en') => {
@@ -597,7 +603,7 @@ const ForwardCurveChart: React.FC<{
                                     role="button"
                                     tabIndex={0}
                                     aria-pressed={selected}
-                                    aria-label={`${formatAvailabilityWindow(point.cell.availability_window, locale)} ${currency(point.value)}`}
+                                    aria-label={`${formatAvailabilityWindow(point.cell.availability_window, locale)} ${quoteCurrency(point.value, locale)}`}
                                     aria-describedby={tooltip?.key === pointKey ? tooltipId : undefined}
                                     aria-description={t('forwardCurve.chart.pointHint')}
                                     data-tooltip-active={tooltip?.key === pointKey || undefined}
@@ -1229,93 +1235,100 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 </div>
                             </div>
                             <div className="forward-curve-console__matrix-scroll relative overflow-auto">
-                                <div
-                                    className="grid"
-                                    style={{
-                                        gridTemplateColumns: `${MATRIX_LABEL_WIDTH}px repeat(${visibleColumns.length}, minmax(${MATRIX_PERIOD_MIN_WIDTH}px, 1fr))`,
-                                        minWidth: `${MATRIX_LABEL_WIDTH + visibleColumns.length * MATRIX_PERIOD_MIN_WIDTH}px`,
-                                    }}
-                                >
-                                    <div className="forward-curve-console__matrix-head forward-curve-console__muted sticky left-0 top-0 z-20 py-2 pr-3">
-                                        {t('forwardCurve.matrix.productPort')}
-                                    </div>
-                                    {visibleColumns.map(column => (
-                                        <div
-                                            key={column.availability_window}
-                                            title={t(`forwardCurve.group.${column.group.toLowerCase()}`, { defaultValue: t('forwardCurve.group.other') })}
-                                            className={`forward-curve-console__matrix-head forward-curve-console__body sticky top-0 z-10 px-3 py-2 text-right font-bold ${
-                                                column.availability_window === selected?.availabilityWindow ? 'forward-curve-console__ink' : 'forward-curve-console__muted'
-                                            }`}
-                                        >
-                                            {formatAvailabilityWindowPeriod(column.availability_window, locale)}
-                                            <div className="forward-curve-console__dim text-[11px] font-normal">
-                                                {t(`forwardCurve.group.${column.group.toLowerCase()}`, { defaultValue: t('forwardCurve.group.other') })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {table.rows.map(row => {
-                                        const selectedRow = row.market_product === selected?.marketProduct
-                                            && row.delivery_point_id === selected?.deliveryPointId;
-                                        return (
-                                            <React.Fragment key={row.row_key}>
-                                                <div className={`forward-curve-console__matrix-label sticky left-0 z-10 min-w-0 border-t py-1.5 pr-3 ${selectedRow ? 'forward-curve-console__matrix-label--selected' : ''}`}>
-                                                    <div className="forward-curve-console__ink truncate text-[13px] font-bold">{formatMarketProduct(row.market_product)}</div>
-                                                    <div className="forward-curve-console__dim truncate"><span>{row.delivery_point_name}</span> · <span>{row.region}</span></div>
-                                                </div>
-                                                {visibleColumns.map(column => {
-                                                    const cell = row.cells[column.availability_window];
-                                                    const selectedCellKey = sliceKey(cell ? cellToSlice(cell) : null);
-                                                    const selectedState = Boolean(cell && selectedCellKey === selectedKey);
-                                                    const tone = cell ? sourceTone(cell, t) : null;
-                                                    const empty = !cell || !cellHasSignal(cell);
-                                                    const stale = cell?.staleness_status === 'STALE';
-                                                    const bid = numericValue(cell?.best_bid);
-                                                    const ask = numericValue(cell?.best_ask);
-                                                    return (
-                                                        <button
-                                                            key={`${row.row_key}-${column.availability_window}`}
-                                                            type="button"
-                                                            onClick={() => cell && selectCell(cell)}
-                                                            onDoubleClick={() => cell && openMarketplaceForCell(cell)}
-                                                            disabled={!cell}
-                                                            aria-pressed={selectedState}
-                                                            title={cell
-                                                                ? `${markSourceLabel(cell.public_source_label, t)}${!empty && cell.observed_at ? ` · ${ageLabel(cell.observed_at, t)}` : ''}\n${t('forwardCurve.matrix.cellTitle')}`
-                                                                : undefined}
-                                                            className={`forward-curve-console__matrix-cell min-h-[44px] border-t px-3 py-1.5 text-right disabled:cursor-not-allowed ${
-                                                                selectedState ? 'forward-curve-console__selected' : ''
-                                                            }`}
-                                                        >
-                                                            <div className="flex items-center justify-end gap-1.5">
-                                                                {tone && tone.tone !== 'empty' && (
-                                                                    <span className={`inline-flex items-center ${marketActivityTextClass(tone.tone)}`}>
-                                                                        {/* Mixed sources: show the label as text, so it never depends on colour alone. */}
-                                                                        <span className={showCellSourceDots ? 'text-[10px] font-bold uppercase tracking-wide' : 'sr-only'}>{tone.shortLabel}</span>
-                                                                    </span>
-                                                                )}
-                                                                <span className={`text-sm font-bold tabular-nums ${empty ? 'forward-curve-console__dim' : 'forward-curve-console__ink'}`}>
-                                                                    {currency(cell?.primary_value)}
-                                                                </span>
-                                                            </div>
-                                                            <div className="forward-curve-console__dim tabular-nums">
-                                                                {empty && bid == null && ask == null ? (
-                                                                    <span>{cell ? markSourceLabel(cell.public_source_label, t) : t('marketActivity.empty.label')}</span>
-                                                                ) : (
-                                                                    <span aria-label={`${t('forwardCurve.layer.bid')} ${currency(cell?.best_bid)}, ${t('forwardCurve.layer.ask')} ${currency(cell?.best_ask)}`}>
-                                                                        {bid?.toFixed(0) ?? '--'} / {ask?.toFixed(0) ?? '--'}
-                                                                    </span>
-                                                                )}
-                                                                {stale && !empty && cell?.observed_at && (
-                                                                    <span className="ml-1.5 font-bold text-amber-700 dark:text-amber-400">{ageLabel(cell.observed_at, t)}</span>
-                                                                )}
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </div>
+                                <table className="w-full table-fixed border-separate border-spacing-0" style={{ minWidth: MATRIX_LABEL_WIDTH + visibleColumns.length * MATRIX_PERIOD_MIN_WIDTH }}>
+                                    <caption className="sr-only">{t('forwardCurve.matrix.title')}</caption>
+                                    <colgroup>
+                                        <col style={{ width: MATRIX_LABEL_WIDTH }} />
+                                        {visibleColumns.map(column => <col key={column.availability_window} />)}
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" className="text-left font-normal forward-curve-console__matrix-head forward-curve-console__muted sticky left-0 top-0 z-20 py-2 pr-3">
+                                                {t('forwardCurve.matrix.productPort')}
+                                            </th>
+                                            {visibleColumns.map(column => (
+                                                <th scope="col"
+                                                    key={column.availability_window}
+                                                    title={t(`forwardCurve.group.${column.group.toLowerCase()}`, { defaultValue: t('forwardCurve.group.other') })}
+                                                    className={`forward-curve-console__matrix-head forward-curve-console__body sticky top-0 z-10 px-3 py-2 text-right font-bold ${
+                                                        column.availability_window === selected?.availabilityWindow ? 'forward-curve-console__ink' : 'forward-curve-console__muted'
+                                                    }`}
+                                                >
+                                                    {formatAvailabilityWindowPeriod(column.availability_window, locale)}
+                                                    <div className="forward-curve-console__dim text-[11px] font-normal">
+                                                        {t(`forwardCurve.group.${column.group.toLowerCase()}`, { defaultValue: t('forwardCurve.group.other') })}
+                                                    </div>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {table.rows.map(row => {
+                                            const selectedRow = row.market_product === selected?.marketProduct
+                                                && row.delivery_point_id === selected?.deliveryPointId;
+                                            return (
+                                                <tr key={row.row_key}>
+                                                    <th scope="row" className={`text-left font-normal forward-curve-console__matrix-label sticky left-0 z-10 min-w-0 border-t py-1.5 pr-3 ${selectedRow ? 'forward-curve-console__matrix-label--selected' : ''}`}>
+                                                        <div className="forward-curve-console__ink text-[13px] font-bold">{formatMarketProduct(row.market_product)}</div>
+                                                        <div className="forward-curve-console__dim"><span>{row.delivery_point_name}</span> · <span>{row.region}</span></div>
+                                                    </th>
+                                                    {visibleColumns.map(column => {
+                                                        const cell = row.cells[column.availability_window];
+                                                        const selectedCellKey = sliceKey(cell ? cellToSlice(cell) : null);
+                                                        const selectedState = Boolean(cell && selectedCellKey === selectedKey);
+                                                        const tone = cell ? sourceTone(cell, t) : null;
+                                                        const empty = !cell || !cellHasSignal(cell);
+                                                        const stale = cell?.staleness_status === 'STALE';
+                                                        const bid = numericValue(cell?.best_bid);
+                                                        const ask = numericValue(cell?.best_ask);
+                                                        return (
+                                                            <td key={column.availability_window} className="h-px p-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => cell && selectCell(cell)}
+                                                                    onDoubleClick={() => cell && openMarketplaceForCell(cell)}
+                                                                    disabled={!cell}
+                                                                    aria-pressed={selectedState}
+                                                                    title={cell
+                                                                        ? `${markSourceLabel(cell.public_source_label, t)}${!empty && cell.observed_at ? ` · ${ageLabel(cell.observed_at, t)}` : ''}\n${t('forwardCurve.matrix.cellTitle')}`
+                                                                        : undefined}
+                                                                    className={`forward-curve-console__matrix-cell h-full w-full min-h-[44px] border-t px-3 py-1.5 text-right disabled:cursor-not-allowed ${
+                                                                        selectedState ? 'forward-curve-console__selected' : ''
+                                                                    }`}
+                                                                >
+                                                                    <span className="sr-only">{formatMarketProduct(row.market_product)} · {row.delivery_point_name} · {formatAvailabilityWindowPeriod(column.availability_window, locale)}</span>
+                                                                    <div className="flex items-center justify-end gap-1.5">
+                                                                        {tone && tone.tone !== 'empty' && (
+                                                                            <span className={`inline-flex items-center ${marketActivityTextClass(tone.tone)}`}>
+                                                                                {/* Mixed sources: show the label as text, so it never depends on colour alone. */}
+                                                                                <span className={showCellSourceDots ? 'text-[10px] font-bold uppercase tracking-wide' : 'sr-only'}>{tone.shortLabel}</span>
+                                                                            </span>
+                                                                        )}
+                                                                        <span className={`text-sm font-bold tabular-nums ${empty ? 'forward-curve-console__dim' : 'forward-curve-console__ink'}`}>
+                                                                            {quoteCurrency(cell?.primary_value, locale)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="forward-curve-console__dim tabular-nums">
+                                                                        {empty && bid == null && ask == null ? (
+                                                                            <span>{cell ? markSourceLabel(cell.public_source_label, t) : t('marketActivity.empty.label')}</span>
+                                                                        ) : (
+                                                                            <span aria-label={`${t('forwardCurve.layer.bid')} ${quoteCurrency(bid, locale)}, ${t('forwardCurve.layer.ask')} ${quoteCurrency(ask, locale)}`}>
+                                                                                {formatUsd(bid, locale) || '--'} / {formatUsd(ask, locale) || '--'}
+                                                                            </span>
+                                                                        )}
+                                                                        {stale && !empty && cell?.observed_at && (
+                                                                            <span className="ml-1.5 font-bold text-amber-700 dark:text-amber-400">{ageLabel(cell.observed_at, t)}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </button>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                             <p className="forward-curve-console__dim pt-2">
                                 {t('forwardCurve.chart.midPrimary')} · {t('forwardCurve.layer.bid')} / {t('forwardCurve.layer.ask')} · USD/MT

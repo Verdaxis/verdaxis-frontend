@@ -17,9 +17,9 @@
  * Money and unit prices: the listing price column's format — grouped, exactly
  * two decimals. `1109` renders as `1,109.00`.
  */
-export function formatUsd(value: number | null | undefined): string {
+export function formatUsd(value: number | null | undefined, locale?: Intl.LocalesArgument): string {
     if (value == null || !Number.isFinite(value)) return '';
-    return value.toLocaleString(undefined, {
+    return value.toLocaleString(locale, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });

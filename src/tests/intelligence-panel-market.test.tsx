@@ -72,6 +72,19 @@ describe('IntelligencePanel market references', () => {
     await i18n.changeLanguage('en');
   });
 
+  it('wraps long port and product names without shrinking Close', async () => {
+    const portName = 'TerminalMarítimoInternacionalSãoSebastião';
+    openPanel({ ...singapore, name: portName }, 'UCOME_B100');
+    const heading = screen.getByRole('heading', { name: portName });
+    const close = screen.getByRole('button', { name: i18n.t('intelligencePanel.close', { ns: 'dashboard' }) });
+    const product = await screen.findByText('UCOME B100');
+    expect(heading.parentElement?.classList.contains('min-w-0')).toBe(true);
+    expect(heading.classList.contains('[overflow-wrap:anywhere]')).toBe(true);
+    expect(close.classList.contains('shrink-0')).toBe(true);
+    expect(product.classList.contains('truncate')).toBe(false);
+    expect(product.classList.contains('[overflow-wrap:anywhere]')).toBe(true);
+  });
+
   it('includes all orderbook fuels and keeps B100 visible when it has no data', async () => {
     openPanel();
 
@@ -84,10 +97,11 @@ describe('IntelligencePanel market references', () => {
   });
 
   it('uses the exact selected port and the canonical B100 product', async () => {
-    vi.mocked(api.curves.forward).mockResolvedValue(curve(ucomeProduct, [point('SPOT', 1000), point('Q4_2026', 1100)]));
-    openPanel(singapore, 'UCOME_B100');
+    vi.mocked(api.curves.forward).mockResolvedValue(curve(ucomeProduct, [point('SPOT', 1000.1), point('Q4_2026', 1100)]));
+    openPanel({ ...singapore, priceMethanol: 1109.4 }, 'UCOME_B100');
 
-    expect(await screen.findByText('Spot ref $1000/MT')).toBeTruthy();
+    expect(await screen.findByText('Spot ref $1,000.10/MT')).toBeTruthy();
+    expect(screen.getByText('$1,109.40')).toBeTruthy();
     expect(screen.getByText('+10.0%')).toBeTruthy();
     expect(screen.getByText('Filtered to Singapore')).toBeTruthy();
     expect(screen.getByText('Selected port reference')).toBeTruthy();
@@ -117,7 +131,7 @@ describe('IntelligencePanel market references', () => {
     vi.mocked(api.curves.forward).mockResolvedValue(curve(ucomeProduct, [point('SPOT', 1000)]));
     openPanel({ ...singapore, catalogDeliveryPointId: undefined }, 'UCOME_B100');
 
-    expect(await screen.findByText('Spot ref $1000/MT')).toBeTruthy();
+    expect(await screen.findByText('Spot ref $1,000.00/MT')).toBeTruthy();
     expect(screen.getByText('Product-level reference')).toBeTruthy();
     expect(screen.queryByText('Selected port reference')).toBeNull();
     expect(screen.queryByText(/\+0.0%|Contango/)).toBeNull();
@@ -168,7 +182,7 @@ describe('IntelligencePanel market references', () => {
     await waitFor(() => expect(api.curves.forward).toHaveBeenCalledWith({ product_id: products[0].id }));
 
     rerender(<IntelligencePanel {...props} selectedProduct="UCOME_B100" />);
-    expect(await screen.findByText('Spot ref $1000/MT')).toBeTruthy();
+    expect(await screen.findByText('Spot ref $1,000.00/MT')).toBeTruthy();
     await act(async () => { resolveOldCurve(curve(products[0], [point('SPOT', 400)])); });
 
     expect(screen.getByText('UCOME B100')).toBeTruthy();
