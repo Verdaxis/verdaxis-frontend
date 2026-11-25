@@ -16,6 +16,8 @@ const ResetPasswordPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const passwordMismatch = Boolean(confirmPassword && confirmPassword !== password);
+
   if (!ready) return null;
 
   const PASSWORD_RULES = [
@@ -122,7 +124,7 @@ const ResetPasswordPage: React.FC = () => {
           ) : (
             <>
               {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
+                <div role="alert" className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
                   <AlertCircle size={20} />
                   <span className="text-sm">{error}</span>
                 </div>
@@ -130,9 +132,11 @@ const ResetPasswordPage: React.FC = () => {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('resetPassword.newPassword')}</label>
+                  <label htmlFor="reset-password" className="block text-sm font-medium text-slate-400 mb-1.5">{t('resetPassword.newPassword')}</label>
                   <div className="relative">
                     <input
+                      id="reset-password"
+                      aria-describedby={password ? 'reset-password-rules' : undefined}
                       type="password"
                       required
                       value={password}
@@ -143,7 +147,7 @@ const ResetPasswordPage: React.FC = () => {
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
                   {password && (
-                    <div className="mt-2 space-y-1">
+                    <div id="reset-password-rules" aria-live="polite" className="mt-2 space-y-1">
                       {PASSWORD_RULES.map(rule => {
                         const passes = rule.test(password);
                         return (
@@ -158,9 +162,12 @@ const ResetPasswordPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('resetPassword.confirmPassword')}</label>
+                  <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-slate-400 mb-1.5">{t('resetPassword.confirmPassword')}</label>
                   <div className="relative">
                     <input
+                      id="reset-confirm-password"
+                      aria-invalid={passwordMismatch}
+                      aria-describedby={passwordMismatch ? 'reset-password-mismatch' : undefined}
                       type="password"
                       required
                       value={confirmPassword}
@@ -170,8 +177,8 @@ const ResetPasswordPage: React.FC = () => {
                     />
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
-                  {confirmPassword && confirmPassword !== password && (
-                    <p className="mt-1.5 text-xs text-red-400">{t('resetPassword.passwordMismatch')}</p>
+                  {passwordMismatch && (
+                    <p id="reset-password-mismatch" className="mt-1.5 text-xs text-red-400">{t('resetPassword.passwordMismatch')}</p>
                   )}
                 </div>
 

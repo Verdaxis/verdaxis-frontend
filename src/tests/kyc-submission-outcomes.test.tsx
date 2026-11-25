@@ -40,3 +40,17 @@ it.each([200, 503, 504])('does not claim approval or rollback for KYC HTTP %s', 
   if (status === 504) expect(await screen.findByText(/may have been saved/i)).toBeTruthy();
   expect(container.textContent).not.toMatch(/nothing was saved|no documents were saved/i);
 });
+
+it('keeps both native document pickers named after a file is selected', async () => {
+  await loadNamespace('auth');
+  renderWithProviders(<KycPage />);
+  for (const name of ['Passport or Government ID', 'Company Registration Document']) {
+    const picker = screen.getByLabelText(name) as HTMLInputElement;
+    expect(picker.type).toBe('file');
+    expect(picker.classList.contains('hidden')).toBe(false);
+    picker.focus();
+    expect(document.activeElement).toBe(picker);
+    fireEvent.change(picker, { target: { files: [new File(['pdf'], 'document.pdf')] } });
+    expect(screen.getByLabelText(name)).toBe(picker);
+  }
+});

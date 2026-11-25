@@ -81,7 +81,7 @@ const ForgotPasswordPage: React.FC = () => {
               </p>
 
               {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
+                <div role="alert" className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
                   <AlertCircle size={20} />
                   <span className="text-sm">{error}</span>
                 </div>
@@ -89,9 +89,10 @@ const ForgotPasswordPage: React.FC = () => {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('forgotPassword.emailLabel')}</label>
+                  <label htmlFor="forgot-email" className="block text-sm font-medium text-slate-400 mb-1.5">{t('forgotPassword.emailLabel')}</label>
                   <div className="relative">
                     <input
+                      id="forgot-email"
                       type="email"
                       required
                       value={email}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Flame, Wind, DollarSign } from 'lucide-react';
 import {
@@ -123,6 +123,7 @@ function fmtEur(n: number): string {
 /* ------------------------------------------------------------------ */
 
 interface SliderInputProps {
+  fuelLabelId?: string;
   label: string;
   value: number;
   onChange: (v: number) => void;
@@ -133,11 +134,17 @@ interface SliderInputProps {
   accentColor?: string;
 }
 
-const SliderInput: React.FC<SliderInputProps> = ({ label, value, onChange, min, max, step, unit, accentColor }) => {
+const SliderInput: React.FC<SliderInputProps> = ({ label, value, onChange, min, max, step, unit, accentColor, fuelLabelId }) => {
+  const id = useId();
+  const labelId = `${id}-label`;
+  const labelledBy = fuelLabelId ? `${fuelLabelId} ${labelId}` : labelId;
+  const unitId = unit ? `${id}-unit` : undefined;
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <label
+          id={labelId}
+          htmlFor={id}
           style={{
             fontSize: 13,
             fontWeight: 600,
@@ -150,6 +157,9 @@ const SliderInput: React.FC<SliderInputProps> = ({ label, value, onChange, min, 
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input
+            id={id}
+            aria-labelledby={labelledBy}
+            aria-describedby={unitId}
             type="number"
             value={value}
             onChange={(e) => {
@@ -169,16 +179,17 @@ const SliderInput: React.FC<SliderInputProps> = ({ label, value, onChange, min, 
               color: '#0F172A',
               textAlign: 'right',
               background: '#F8FAFC',
-              outline: 'none',
               fontFamily: "'Montserrat', sans-serif",
             }}
           />
           {unit && (
-            <span style={{ fontSize: 12, color: '#64748B', minWidth: 44, fontFamily: "'Lato', sans-serif" }}>{unit}</span>
+            <span id={unitId} style={{ fontSize: 12, color: '#64748B', minWidth: 44, fontFamily: "'Lato', sans-serif" }}>{unit}</span>
           )}
         </div>
       </div>
       <input
+        aria-labelledby={labelledBy}
+        aria-describedby={unitId}
         type="range"
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
@@ -203,9 +214,10 @@ interface DropdownInputProps {
 }
 
 const DropdownInput: React.FC<DropdownInputProps> = ({ label, value, onChange, options }) => {
+  const id = useId();
   return (
     <div style={{ marginBottom: 20 }}>
-      <label
+      <label htmlFor={id}
         style={{
           display: 'block',
           fontSize: 13,
@@ -219,6 +231,7 @@ const DropdownInput: React.FC<DropdownInputProps> = ({ label, value, onChange, o
         {label}
       </label>
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         style={{
@@ -230,7 +243,6 @@ const DropdownInput: React.FC<DropdownInputProps> = ({ label, value, onChange, o
           fontWeight: 600,
           color: '#0F172A',
           background: '#F8FAFC',
-          outline: 'none',
           cursor: 'pointer',
           fontFamily: "'Montserrat', sans-serif",
         }}
@@ -612,6 +624,8 @@ const DeltaCard: React.FC<DeltaCardProps> = ({ label, value, formatter, maxValue
 export const EnergyCalculatorPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
   const localePath = useLocalePath();
+  const fuelALabelId = useId();
+  const fuelBLabelId = useId();
   const [inputs, setInputs] = useState<CalculatorInputs>({ ...defaultInputs });
   const hasStarted = useRef(false);
   const hasCompleted = useRef(false);
@@ -731,7 +745,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             className="calc-input-card"
             style={{ ...card, borderTop: '3px solid #5DADE2', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)' }}
           >
-            <h3
+            <h3 id={fuelALabelId}
               style={{
                 fontSize: 14,
                 fontWeight: 700,
@@ -750,9 +764,9 @@ export const EnergyCalculatorPage: React.FC = () => {
               <DropletIcon color="#5DADE2" />
               {t('energyCalculator.fuelA')}
             </h3>
-            <SliderInput label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelA_energyDensity} onChange={(v) => update('fuelA_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#5DADE2" />
-            <SliderInput label={t('energyCalculator.labels.combustionFactor')} value={inputs.fuelA_emissionFactor} onChange={(v) => update('fuelA_emissionFactor', v)} min={0} max={5} step={0.001} unit="tCO₂/t" accentColor="#5DADE2" />
-            <SliderInput label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelA_price} onChange={(v) => update('fuelA_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#5DADE2" />
+            <SliderInput fuelLabelId={fuelALabelId} label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelA_energyDensity} onChange={(v) => update('fuelA_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#5DADE2" />
+            <SliderInput fuelLabelId={fuelALabelId} label={t('energyCalculator.labels.combustionFactor')} value={inputs.fuelA_emissionFactor} onChange={(v) => update('fuelA_emissionFactor', v)} min={0} max={5} step={0.001} unit="tCO₂/t" accentColor="#5DADE2" />
+            <SliderInput fuelLabelId={fuelALabelId} label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelA_price} onChange={(v) => update('fuelA_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#5DADE2" />
           </div>
 
           {/* Fuel B Parameters */}
@@ -760,7 +774,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             className="calc-input-card"
             style={{ ...card, borderTop: '3px solid #4CAF50', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)' }}
           >
-            <h3
+            <h3 id={fuelBLabelId}
               style={{
                 fontSize: 14,
                 fontWeight: 700,
@@ -779,9 +793,9 @@ export const EnergyCalculatorPage: React.FC = () => {
               <DropletIcon color="#4CAF50" />
               {t('energyCalculator.fuelB')}
             </h3>
-            <SliderInput label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelB_energyDensity} onChange={(v) => update('fuelB_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#4CAF50" />
-            <SliderInput label={t('energyCalculator.labels.combustionFactor')} value={inputs.fuelB_emissionFactor} onChange={(v) => update('fuelB_emissionFactor', v)} min={0} max={5} step={0.001} unit="tCO₂/t" accentColor="#4CAF50" />
-            <SliderInput label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelB_price} onChange={(v) => update('fuelB_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#4CAF50" />
+            <SliderInput fuelLabelId={fuelBLabelId} label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelB_energyDensity} onChange={(v) => update('fuelB_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#4CAF50" />
+            <SliderInput fuelLabelId={fuelBLabelId} label={t('energyCalculator.labels.combustionFactor')} value={inputs.fuelB_emissionFactor} onChange={(v) => update('fuelB_emissionFactor', v)} min={0} max={5} step={0.001} unit="tCO₂/t" accentColor="#4CAF50" />
+            <SliderInput fuelLabelId={fuelBLabelId} label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelB_price} onChange={(v) => update('fuelB_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#4CAF50" />
           </div>
 
           {/* Voyage & Regulatory Parameters */}

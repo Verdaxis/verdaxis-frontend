@@ -18,7 +18,11 @@ it.each([
   fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Test' } });
   fireEvent.change(screen.getByLabelText('Last Name'), { target: { value: 'Member' } });
   fireEvent.click(screen.getByRole('button', { name: /buyer/i }));
+  const submit = screen.getByRole('button', { name: 'Complete Setup' });
+  expect(submit.classList.contains('v-btn-primary')).toBe(true);
   fireEvent.submit(container.querySelector('form')!);
+  expect(screen.getByRole('button', { name: 'Creating Profile...' })).toBe(submit);
+  expect((submit as HTMLButtonElement).disabled).toBe(true);
   expect((await screen.findByRole('alert')).textContent).toBe('Choose a valid profile');
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const [url, options] = fetchMock.mock.calls[0];
@@ -26,4 +30,14 @@ it.each([
   expect(options?.method).toBe('PUT');
   expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer synthetic-session');
   expect(JSON.parse(String(options?.body))).toEqual({ first_name: 'Test', last_name: 'Member', role: 'BUYER' });
+});
+
+it('uses themed surfaces for both name fields and the profile card', async () => {
+  await loadNamespace('auth');
+  renderWithProviders(<OnboardingPage />);
+  for (const name of ['First Name', 'Last Name']) {
+    const field = screen.getByRole('textbox', { name });
+    expect(field.classList.contains('v-input')).toBe(true);
+    expect(field.closest('.bg-verdaxis-card')).not.toBeNull();
+  }
 });

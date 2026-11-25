@@ -176,11 +176,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={onMobileClose}
                         className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                             currentPage === 'SETTINGS'
-                                ? 'bg-verdaxis text-white shadow-lg'
+                                ? 'bg-verdaxis text-slate-900 shadow-lg'
                                 : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                         } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                     >
-                        <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                        <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-current' : 'text-slate-400 group-hover:text-white'}`} />
                         {!isCollapsed && <span className="truncate">{t('sidebar.settings')}</span>}
                     </NavLink>
                 </Tooltip>}

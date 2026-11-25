@@ -129,3 +129,16 @@ describe('calculateVoyage', () => {
     expect(resultExpensive.co2T).toBeGreaterThan(resultCheap.co2T);
   });
 });
+
+it('names each fuel price control by fuel and metric and describes its unit', () => {
+  renderWithRouter(<EnergyCalculatorPage />);
+  for (const fuel of ['Fuel A', 'Fuel B']) {
+    for (const role of ['spinbutton', 'slider']) {
+      const price = screen.getByRole(role, { name: new RegExp(`${fuel} assumed fuel price`, 'i') });
+      expect(document.getElementById(price.getAttribute('aria-describedby')!)?.textContent).toBe('$/mt');
+      expect(price.style.outline).not.toBe('none');
+    }
+  }
+  const coverage = screen.getByRole('combobox', { name: /voyage co₂ share in scope/i });
+  expect(coverage.style.outline).not.toBe('none');
+});

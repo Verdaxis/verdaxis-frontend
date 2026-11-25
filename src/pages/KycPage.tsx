@@ -162,10 +162,10 @@ const KycPage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Passport / Government ID */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                  <label htmlFor="kyc-passport" id="kyc-passport-label" className="block text-sm font-medium text-slate-400 mb-1.5">
                     {t('kyc.passportLabel')}
                   </label>
-                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer focus-within:ring-2 focus-within:ring-verdaxis bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
                     {passportFile ? (
                       <div className="flex items-center gap-2 text-emerald-400 px-4">
                         <FileText size={20} />
@@ -179,7 +179,9 @@ const KycPage: React.FC = () => {
                     )}
                     <input
                       type="file"
-                      className="hidden"
+                      id="kyc-passport"
+                      aria-labelledby="kyc-passport-label"
+                      className="sr-only"
                       accept="image/*,application/pdf"
                       onChange={(e) => setPassportFile(e.target.files?.[0] ?? null)}
                     />
@@ -188,10 +190,10 @@ const KycPage: React.FC = () => {
 
                 {/* Company Registration Document */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                  <label htmlFor="kyc-company-document" id="kyc-company-document-label" className="block text-sm font-medium text-slate-400 mb-1.5">
                     {t('kyc.companyDocLabel')}
                   </label>
-                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer focus-within:ring-2 focus-within:ring-verdaxis bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
                     {companyDocFile ? (
                       <div className="flex items-center gap-2 text-emerald-400 px-4">
                         <FileText size={20} />
@@ -205,7 +207,9 @@ const KycPage: React.FC = () => {
                     )}
                     <input
                       type="file"
-                      className="hidden"
+                      id="kyc-company-document"
+                      aria-labelledby="kyc-company-document-label"
+                      className="sr-only"
                       accept="image/*,application/pdf"
                       onChange={(e) => setCompanyDocFile(e.target.files?.[0] ?? null)}
                     />
