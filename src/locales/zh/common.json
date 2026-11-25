@@ -260,6 +260,7 @@
   "serverStatus.maintenance.title": "平台维护中",
   "serverStatus.maintenance.fallback": "平台正在维护，部分操作可能暂不可用。",
   "serverStatus.dismiss": "关闭服务器状态通知",
+  "toast.dismiss": "关闭提示",
   "toast.rateLimit.title": "请求过于频繁",
   "toast.rateLimit.message": "请求受到速率限制，数据可能暂时不是最新；系统将很快自动重试。",
   "abilities.reason.unknown": "您的账户目前无法执行此操作。",

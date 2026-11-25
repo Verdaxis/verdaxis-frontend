@@ -240,7 +240,7 @@
   "myTrades.tab.all": "All",
   "myTrades.tab.active": "Active",
   "myTrades.tab.completed": "Completed",
-  "myTrades.col.date": "Date",
+  "myTrades.col.date": "Date (UTC)",
   "myTrades.col.fuel": "Fuel",
   "myTrades.col.region": "Region",
   "myTrades.col.side": "Side",

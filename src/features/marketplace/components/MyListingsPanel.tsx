@@ -1,4 +1,4 @@
-import { formatQuantity } from '../../../utils/numberFormat';
+import { formatQuantity, formatUsd } from '../../../utils/numberFormat';
 import { Loader2, RefreshCw, ClipboardList, Trash2 } from 'lucide-react';
 import { OrderBookOrder, ViewMode } from '../../../types';
 import { getStatusConfig, formatDeliveryWindow } from '../../../utils/fuel';
@@ -13,6 +13,7 @@ interface MyListingsPanelProps {
     marketTab: 'market' | 'orderbook' | 'my_orders';
     myOrdersError: string | null;
     myOrdersLoading: boolean;
+    hasLoadedMyOrders: boolean;
     outstandingMyOrders: OrderBookOrder[];
     filteredMyOrders: OrderBookOrder[];
     role: ViewMode;
@@ -31,7 +32,7 @@ interface MyListingsPanelProps {
     fetchMyOrders: (force?: boolean) => Promise<void>;
 }
 
-export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, outstandingMyOrders, filteredMyOrders, role, setOrderModalSide, primaryActionDenial, cancelOrderDenial, sliceSummary, hasActiveSliceFilters, clearMarketFilters, locale, t, isMarketSupportActive, handleCancelOrder, fetchMyOrders }: MyListingsPanelProps) {
+export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, hasLoadedMyOrders, outstandingMyOrders, filteredMyOrders, role, setOrderModalSide, primaryActionDenial, cancelOrderDenial, sliceSummary, hasActiveSliceFilters, clearMarketFilters, locale, t, isMarketSupportActive, handleCancelOrder, fetchMyOrders }: MyListingsPanelProps) {
     return <>
             {/* My Listings tab: user's outstanding orders */}
             {marketTab === 'my_orders' && (
@@ -42,6 +43,16 @@ export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, out
                             <div className="flex items-center justify-center py-20 text-slate-400">
                                 <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
                             </div>
+                        ) : !hasLoadedMyOrders ? (
+                            myOrdersError && (
+                                <button
+                                    type="button"
+                                    onClick={() => { void fetchMyOrders(true); }}
+                                    className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                                >
+                                    {t('marketplace.btn.tryAgain')}
+                                </button>
+                            )
                         ) : outstandingMyOrders.length === 0 ? (
                             <div className="text-center py-20">
                                 <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
@@ -119,7 +130,7 @@ export function MyListingsPanel({ marketTab, myOrdersError, myOrdersLoading, out
                                                         {order.delivery_point_name || order.region}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                                        ${order.price_per_mt_usd.toLocaleString(locale)}
+                                                        ${formatUsd(order.price_per_mt_usd)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
                                                         {formatQuantity(order.quantity_mt, locale)}

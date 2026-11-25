@@ -44,13 +44,15 @@ const PerformanceTab: React.FC = () => {
     const [referenceBySlice, setReferenceBySlice] = useState<Record<string, number>>({});
     const [referenceDates, setReferenceDates] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [tradeReadFailed, setTradeReadFailed] = useState(false);
+    const [readAttempt, setReadAttempt] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
 
         (async () => {
             try {
-                const data = await api.trades.myTrades();
+                const data = await api.trades.myTrades(readAttempt > 0 ? { force: true } : undefined);
                 if (cancelled) return;
                 setTrades(data);
 
@@ -94,9 +96,7 @@ const PerformanceTab: React.FC = () => {
                 }
             } catch {
                 if (!cancelled) {
-                    setTrades([]);
-                    setReferenceBySlice({});
-                    setReferenceDates([]);
+                    setTradeReadFailed(true);
                 }
             } finally {
                 if (!cancelled) {
@@ -108,7 +108,7 @@ const PerformanceTab: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [readAttempt]);
 
     const model = useMemo(
         () => buildTradePerformanceModel(trades, referenceBySlice, {
@@ -132,6 +132,30 @@ const PerformanceTab: React.FC = () => {
             <div className="flex items-center justify-center py-24">
                 <Loader2 className="animate-spin text-slate-400" size={32} />
                 <span className="ml-3 text-slate-500 dark:text-slate-400">{t('tradeHistory.performance.loading')}</span>
+            </div>
+        );
+    }
+
+    if (tradeReadFailed) {
+        return (
+            <div className="v-card p-12 text-center">
+                <div role="alert">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+                        <AlertTriangle size={28} className="text-red-500" aria-hidden="true" />
+                    </div>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-white mb-2">{t('myTrades.error.title')}</h2>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setTradeReadFailed(false);
+                        setLoading(true);
+                        setReadAttempt(attempt => attempt + 1);
+                    }}
+                    className="mt-4 px-4 py-2 bg-verdaxis text-slate-900 font-bold text-sm rounded-lg transition-colors hover:bg-verdaxis/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verdaxis focus-visible:ring-offset-2"
+                >
+                    {t('myTrades.btn.tryAgain')}
+                </button>
             </div>
         );
     }

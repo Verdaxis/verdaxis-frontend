@@ -304,6 +304,14 @@ describe('Marketplace take execution', () => {
 describe('Marketplace cancellation execution', () => {
     beforeEach(() => { mocks.myOrders.mockResolvedValue([ownOrder]); });
 
+    it('shows a My Listings unit price with two decimal places', async () => {
+        mocks.myOrders.mockResolvedValue([{ ...ownOrder, price_per_mt_usd: 1109.1 }]);
+        renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
+        fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+
+        expect(await screen.findByText('$1,109.10')).toBeTruthy();
+    });
+
     it('sends one cancel POST when the final confirm is clicked twice', async () => {
         renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=B30' });
         await openMyListingsRow();

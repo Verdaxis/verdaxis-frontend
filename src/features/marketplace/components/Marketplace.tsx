@@ -110,7 +110,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const {
         listings, totalCount, acceptedSkip, loading, refreshing, error, hasLoadedListings,
         complianceOverlays, overlayAssumptions, marketProductCounts,
-        myOrders, myOrdersLoading, myOrdersReadError,
+        myOrders, myOrdersLoading, hasLoadedMyOrders, myOrdersReadError,
         fetchListings, fetchProductCounts, fetchMyOrders,
     } = useMarketplaceQueries({
         ready, marketTab, isCatalogScopeResolving, hasUser: Boolean(user),
@@ -377,6 +377,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 marketTab={marketTab}
                 myOrdersError={myOrdersError}
                 myOrdersLoading={myOrdersLoading}
+                hasLoadedMyOrders={hasLoadedMyOrders}
                 outstandingMyOrders={outstandingMyOrders}
                 filteredMyOrders={filteredMyOrders}
                 role={role}

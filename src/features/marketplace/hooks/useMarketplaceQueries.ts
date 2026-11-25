@@ -109,6 +109,7 @@ export function useMarketplaceQueries({ ready, marketTab, isCatalogScopeResolvin
         error: listingsQuery.isFetchedAfterMount && listingsQuery.isError ? (listingsQuery.error instanceof Error ? listingsQuery.error.message : '') : null,
         marketProductCounts: countsQuery.data?.counts ?? EMPTY_COUNTS,
         myOrders: myQuery.data ?? EMPTY_ORDERS, myOrdersLoading: myQuery.isFetching && !backgroundReload.current,
+        hasLoadedMyOrders: myQuery.data !== undefined,
         myOrdersReadError: myQuery.isError ? myQuery.error : null,
         complianceOverlays: overlay.isError ? {} : overlay.data?.overlays ?? {},
         overlayAssumptions: overlay.isError ? null : overlay.data?.assumptions ?? null,
