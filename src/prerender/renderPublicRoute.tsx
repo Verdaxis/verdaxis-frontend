@@ -101,7 +101,7 @@ function PublicRouteTree() {
 
 export async function renderPublicRoute(pathname: string): Promise<string> {
   const language: PublicLanguage = pathname.split('/')[1] === 'zh' ? 'zh' : 'en';
-  await Promise.all([loadNamespace('public'), loadNamespace('education')]);
+  await Promise.all([loadNamespace('public', language), loadNamespace('education', language)]);
   await i18n.changeLanguage(language);
 
   return renderToString(

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
+import { replaceEqualDeep } from '@tanstack/react-query';
 import { Notification } from '../types';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -18,69 +19,124 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
     const { isActive: isMarketSupportActive } = useMarketSupport();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const userId = user?.id;
+    const [account, setAccount] = useState(() => ({ userId }));
+    const [state, setState] = useState(() => ({ account, notifications: [] as Notification[], unreadCount: 0 }));
+    if (account.userId !== userId) {
+        const nextAccount = { userId };
+        setAccount(nextAccount);
+        setState({ account: nextAccount, notifications: [], unreadCount: 0 });
+    }
+    const { notifications, unreadCount } = state;
 
-    const fetchNotifications = async () => {
-        if (!user || isMarketSupportActive) return;
-        const [listResult, countResult] = await Promise.allSettled([
+    const pendingRead = useRef<{ userId: string; promise: Promise<void> } | null>(null);
+    const readScope = useRef<typeof account | null>(null);
+    const fetchNotifications = useCallback(() => {
+        const scope = readScope.current;
+        if (!scope?.userId || document.visibilityState !== 'visible') return Promise.resolve();
+        if (pendingRead.current?.userId === scope.userId) return pendingRead.current.promise;
+
+        const read = Promise.allSettled([
             api.notifications.list(),
             api.notifications.getUnreadCount(),
-        ]);
+        ]).then(([listResult, countResult]) => {
+            if (readScope.current !== scope) return;
+            if (listResult.status === 'rejected') {
+                console.error("Failed to fetch notifications", listResult.reason);
+            }
+            if (countResult.status === 'rejected') {
+                console.error("Failed to fetch unread notification count", countResult.reason);
+            }
+            setState(previous => {
+                if (previous.account !== scope) return previous;
+                const notifications = listResult.status === 'fulfilled'
+                    ? replaceEqualDeep(previous.notifications, listResult.value) : previous.notifications;
+                const unreadCount = countResult.status === 'fulfilled' ? countResult.value : previous.unreadCount;
+                return notifications === previous.notifications && unreadCount === previous.unreadCount
+                    ? previous : { ...previous, notifications, unreadCount };
+            });
+        }).finally(() => {
+            if (pendingRead.current?.promise === read) pendingRead.current = null;
+        });
+        pendingRead.current = { userId: scope.userId, promise: read };
+        return read;
+    }, []);
 
-        if (listResult.status === 'fulfilled') {
-            setNotifications(listResult.value);
-        } else {
-            console.error("Failed to fetch notifications", listResult.reason);
-        }
-
-        if (countResult.status === 'fulfilled') {
-            setUnreadCount(countResult.value);
-        } else {
-            console.error("Failed to fetch unread notification count", countResult.reason);
-        }
-    };
-
-    const markAsRead = async (id: string) => {
-        if (isMarketSupportActive) return;
+    const markAsRead = useCallback(async (id: string) => {
+        const scope = readScope.current;
+        if (!scope) return;
         try {
             await api.notifications.markRead(id);
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            if (readScope.current !== scope) return;
+            setState(previous => previous.account !== scope ? previous : {
+                ...previous,
+                notifications: previous.notifications.map(n => n.id === id ? { ...n, is_read: true } : n),
+                unreadCount: Math.max(0, previous.unreadCount - 1),
+            });
         } catch (error) {
             console.error("Failed to mark notification as read", error);
         }
-    };
+    }, []);
 
-    const markAllAsRead = async () => {
-        if (isMarketSupportActive) return;
+    const markAllAsRead = useCallback(async () => {
+        const scope = readScope.current;
+        if (!scope) return;
         try {
             await api.notifications.markAllRead();
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-            setUnreadCount(0);
+            if (readScope.current !== scope) return;
+            setState(previous => previous.account !== scope ? previous : {
+                ...previous,
+                notifications: previous.notifications.map(n => ({ ...n, is_read: true })),
+                unreadCount: 0,
+            });
         } catch (error) {
             console.error("Failed to mark all as read", error);
         }
-    };
-
-    const addNotification = useCallback((notification: Notification) => {
-        setNotifications(prev => [notification, ...prev].slice(0, 100));
-        if (!notification.is_read) {
-            setUnreadCount(prev => prev + 1);
-        }
     }, []);
 
-    // Polling every 30 seconds
+    const addNotification = useCallback((notification: Notification) => {
+        setState(previous => previous.account !== account ? previous : {
+            ...previous,
+            notifications: [notification, ...previous.notifications].slice(0, 100),
+            unreadCount: previous.unreadCount + (notification.is_read ? 0 : 1),
+        });
+    }, [account]);
+
     useEffect(() => {
-        if (user && !isMarketSupportActive) {
-            fetchNotifications();
-            const interval = setInterval(fetchNotifications, 30000);
-            return () => clearInterval(interval);
-        }
-    }, [isMarketSupportActive, user]);
+        if (!userId || isMarketSupportActive) return;
+        const scope = account;
+        readScope.current = scope;
+        let resumeQueued = false;
+        const refreshWhenVisible = () => {
+            if (document.visibilityState !== 'visible' || resumeQueued) return;
+            const pending = pendingRead.current;
+            if (pending?.userId !== userId) {
+                void fetchNotifications();
+                return;
+            }
+            resumeQueued = true;
+            void pending.promise.then(() => {
+                resumeQueued = false;
+                if (readScope.current === scope) void fetchNotifications();
+            });
+        };
+
+        refreshWhenVisible();
+        const interval = window.setInterval(fetchNotifications, 30_000);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            readScope.current = null;
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [account, userId, isMarketSupportActive, fetchNotifications]);
+
+    const value = useMemo(() => ({
+        notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification,
+    }), [notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification]);
 
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification }}>
+        <NotificationContext.Provider value={value}>
             {children}
         </NotificationContext.Provider>
     );

@@ -107,15 +107,15 @@ const LOCAL_API_PATTERNS = [
 // re-baselined to 350,000. No other ceiling moves.
 export const ROUTE_FIRST_LOAD_BUDGETS = [
   // public landing page, /en/ (prerendered shell)
-  { name: 'landing', prefixes: ['LandingPage-', 'public-'], ceilingGzipBytes: 350000 },
+  { name: 'landing', prefixes: ['LandingPage-', 'lenis-'], locale: { prefix: 'public-', marker: '"Why Verdaxis"' }, ceilingGzipBytes: 350000 },
   // authenticated marketplace workspace
-  { name: 'marketplace', prefixes: ['Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 325000 },
+  { name: 'marketplace', prefixes: ['Layout-', 'Marketplace-', 'trading-', 'rfq-'], ceilingGzipBytes: 325000 },
   // intelligence map, first visit (Mapbox GL plus the ECA overlay)
-  { name: 'intelligence-map', prefixes: ['BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
+  { name: 'intelligence-map', prefixes: ['Layout-', 'BuyerMap-', 'addEcaLayers-', 'dashboard-'], ceilingGzipBytes: 807100 },
   // authenticated command center (includes the customizable home grid and its strings)
-  { name: 'command-center', prefixes: ['CommandCenter-', 'dashboard-'], ceilingGzipBytes: 262500 },
+  { name: 'command-center', prefixes: ['Layout-', 'CommandCenter-', 'dashboard-'], ceilingGzipBytes: 262500 },
   // compliance workspace (the shared shell grew with abilities and stream status)
-  { name: 'compliance', prefixes: ['Compliance-', 'compliance-'], ceilingGzipBytes: 238700 },
+  { name: 'compliance', prefixes: ['Layout-', 'Compliance-', 'compliance-'], ceilingGzipBytes: 238700 },
 ];
 
 const GZIP_OPTIONS = { level: zlibConstants.Z_BEST_COMPRESSION };
@@ -264,7 +264,7 @@ export function assertRouteStaticChunkExclusions({ assetsDirectory, files }) {
   }
 }
 
-export function measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, prefixes }) {
+function routeFirstLoadFiles({ assetsDirectory, files, shellHtml, prefixes, locale }) {
   const seed = files.filter(
     (file) => file.endsWith('.js') && prefixes.some((prefix) => file.startsWith(prefix)),
   );
@@ -273,56 +273,38 @@ export function measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, p
     `No route chunk found for prefix(es) ${prefixes.join(', ')} — the route, or its chunk naming, changed`,
   );
 
-  const closure = staticImportClosure({ assetsDirectory, files, seed });
+  if (locale) {
+    // Rollup gives both JSON imports the same base name. Identify the English
+    // bundle by its copy, not by the optional numeric suffix or the hash.
+    const localeChunks = files.filter((file) => file.endsWith('.js') && file.startsWith(locale.prefix)
+      && readFileSync(path.join(assetsDirectory, file), 'utf8').includes(locale.marker));
+    assert(localeChunks.length === 1, `Expected one English locale chunk for '${locale.prefix}'`);
+    seed.push(...localeChunks);
+  }
 
   const shell = parseShellHtml(shellHtml);
+  const closure = staticImportClosure({ assetsDirectory, files, seed: [shell.entry, ...shell.preloads, ...seed] });
   const stems = new Set(Array.from(closure, chunkStem));
-  const routeStylesheets = files.filter(
-    (file) => file.endsWith('.css') && stems.has(chunkStem(file)),
-  );
+  const stylesheets = files.filter((file) => file.endsWith('.css') && stems.has(chunkStem(file)));
+  return [...new Set([...closure, ...shell.stylesheets, ...stylesheets])]
+    .map((file) => path.join(assetsDirectory, file))
+    .filter(existsSync);
+}
 
-  const firstLoad = new Set([
-    shell.entry,
-    ...shell.preloads,
-    ...shell.stylesheets,
-    ...closure,
-    ...routeStylesheets,
-  ]);
-
-  let total = 0;
-  for (const file of firstLoad) {
-    const filePath = path.join(assetsDirectory, file);
-    if (!existsSync(filePath)) continue;
-    total += gzipBytes(readFileSync(filePath));
-  }
-  return total;
+export function measureRouteFirstLoadGzip(options) {
+  return routeFirstLoadFiles(options).reduce((total, file) => total + gzipBytes(readFileSync(file)), 0);
 }
 
 /** The same first-load measurement, plus the brotli total a CDN would serve. */
-export function measureRouteFirstLoadSizes({ assetsDirectory, files, shellHtml, prefixes }) {
-  const gzipBytes = measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, prefixes });
-
-  const seed = files.filter(
-    (file) => file.endsWith('.js') && prefixes.some((prefix) => file.startsWith(prefix)),
-  );
-  const closure = staticImportClosure({ assetsDirectory, files, seed });
-  const shell = parseShellHtml(shellHtml);
-  const stems = new Set(Array.from(closure, chunkStem));
-  const firstLoad = new Set([
-    shell.entry,
-    ...shell.preloads,
-    ...shell.stylesheets,
-    ...closure,
-    ...files.filter((file) => file.endsWith('.css') && stems.has(chunkStem(file))),
-  ]);
-
+export function measureRouteFirstLoadSizes(options) {
+  let gzipTotal = 0;
   let brotliBytes = 0;
-  for (const file of firstLoad) {
-    const filePath = path.join(assetsDirectory, file);
-    if (!existsSync(filePath)) continue;
-    brotliBytes += brotliCompressSync(readFileSync(filePath)).length;
+  for (const file of routeFirstLoadFiles(options)) {
+    const source = readFileSync(file);
+    gzipTotal += gzipBytes(source);
+    brotliBytes += brotliCompressSync(source).length;
   }
-  return { gzipBytes, brotliBytes };
+  return { gzipBytes: gzipTotal, brotliBytes };
 }
 
 export function assertRouteFirstLoadBudgets({
@@ -337,6 +319,7 @@ export function assertRouteFirstLoadBudgets({
       files,
       shellHtml,
       prefixes: budget.prefixes,
+      locale: budget.locale,
     });
     assert(
       measured <= budget.ceilingGzipBytes,
@@ -458,6 +441,7 @@ function reportRouteBudgets({ root }) {
       files: assets,
       shellHtml,
       prefixes: budget.prefixes,
+      locale: budget.locale,
     });
     console.log(
       `${budget.name}: ${gzipTotal} gzip bytes (${(gzipTotal / 1024).toFixed(0)} KB), `

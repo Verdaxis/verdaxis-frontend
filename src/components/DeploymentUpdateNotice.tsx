@@ -44,23 +44,36 @@ export const DeploymentUpdateNotice: React.FC = () => {
     if (import.meta.env.DEV) return undefined;
 
     let controller: AbortController | null = null;
+    let resumeQueued = false;
+    let disposed = false;
     const check = () => {
-      controller?.abort();
-      controller = new AbortController();
-      void deployedEntryAssetChanged(document, controller.signal)
+      if (disposed || controller || document.visibilityState !== 'visible') return;
+      const request = new AbortController();
+      controller = request;
+      void deployedEntryAssetChanged(document, request.signal)
         .then((changed) => {
-          if (changed) setUpdateAvailable(true);
+          if (changed && !disposed) setUpdateAvailable(true);
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          controller = null;
+          if (resumeQueued) {
+            resumeQueued = false;
+            check();
+          }
+        });
     };
     const checkWhenVisible = () => {
-      if (document.visibilityState === 'visible') check();
+      if (document.visibilityState !== 'visible') return;
+      if (controller) resumeQueued = true;
+      else check();
     };
 
     check();
     const interval = window.setInterval(check, CHECK_INTERVAL_MS);
     document.addEventListener('visibilitychange', checkWhenVisible);
     return () => {
+      disposed = true;
       controller?.abort();
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', checkWhenVisible);
@@ -81,7 +94,7 @@ export const DeploymentUpdateNotice: React.FC = () => {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="flex shrink-0 items-center gap-2 rounded-lg bg-verdaxis px-3 py-2 text-sm font-bold text-white hover:bg-verdaxis/90"
+        className="flex shrink-0 items-center gap-2 rounded-lg bg-verdaxis px-3 py-2 text-sm font-bold text-slate-900 hover:bg-verdaxis/90"
       >
         <RefreshCw size={15} aria-hidden="true" />
         {t('deploymentUpdate.refresh')}

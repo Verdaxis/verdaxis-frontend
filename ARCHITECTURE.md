@@ -27,7 +27,7 @@ index.html
            -> auth and onboarding routes
            -> /app guard chain
               -> ProtectedRoute -> RequireOrganization -> RequireProfile
-              -> MobileDesktopGate -> DashboardLayout
+              -> MobileDesktopGate -> DashboardLayout (lazy shell)
                  -> Layout -> Sidebar + Header
                  -> retained BuyerMap or nested Outlet workspace
                  -> Marketplace / ForwardCurveWorkspace / other views
@@ -40,7 +40,7 @@ index.html
 ## Route and workspace rules
 
 - Public pages use `/:lang/*` and `PublicLayout`. Legacy unprefixed public paths redirect to a language route.
-- `/app` is protected and organization/profile gated. The desktop workspace is available at widths of 768 px or more; `MobileDesktopGate` blocks narrower viewports. Platform admins can bypass organization onboarding.
+- `/app` is protected and organization/profile gated. The authenticated shell loads at that boundary. Its sidebar order form loads and mounts only after a BID or ASK action, under a separate Suspense boundary. The desktop workspace is available at widths of 768 px or more; `MobileDesktopGate` blocks narrower viewports. Platform admins can bypass organization onboarding.
 - Bare `/app` restores the last accepted page. Nested routes are the source of truth; the `Page` type remains for sidebar state, session restore, analytics, and smoke selectors.
 - Marketplace slices use `/app/m/:product/:port/:window`. Invalid slices return to `/app/marketplace`.
 - The sidebar lists Command Center, Intelligence Map, Marketplace, Forward Curve, Watchlist, Analytics, and Trade History. Settings and Admin are separate footer/admin entries.
@@ -306,6 +306,10 @@ See [README.md](README.md) for the full routine CI sequence and the separation b
 and `prerender/renderPublicRoute.tsx`. Vite emits localized public HTML. The browser
 preloads the matching page and translations before React mounts; this preserves
 the production approach (createRoot replacement, not React hydrateRoot).
+English loads only its own copy. Chinese loads its own copy and the English
+fallback. A language switch waits for requested namespaces before publishing
+the new language. The public shell loads Lenis only after mount and only when
+reduced motion is off.
 Production public wording and the producer dataset notice are retained. Authenticated
 compliance components keep staging's null/unpriced monetary contract.
 

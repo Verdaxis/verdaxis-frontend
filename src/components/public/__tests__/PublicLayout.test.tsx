@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { PublicLayout } from '../PublicLayout';
 
@@ -60,11 +60,12 @@ describe('PublicLayout', () => {
     expect(screen.getByText('My Custom Page Content')).toBeTruthy();
   });
 
-  it('cancels its smooth-scroll animation frame on cleanup', () => {
+  it('cancels its smooth-scroll animation frame on cleanup', async () => {
     const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(42);
     const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
 
     const view = renderWithRouter('/');
+    await act(() => vi.dynamicImportSettled());
     expect(requestFrame).toHaveBeenCalled();
     view.unmount();
     expect(cancelFrame).toHaveBeenCalledWith(42);

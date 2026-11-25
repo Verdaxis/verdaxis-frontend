@@ -106,7 +106,16 @@ vi.mock('../components/MobileDesktopGate', () => ({
 }));
 vi.mock('../components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
-vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: ({ isOpen, prefillMarketProduct, side }: { isOpen: boolean; prefillMarketProduct?: string; side: string }) => isOpen ? <div data-testid="order-place-dialog" data-product={prefillMarketProduct} data-side={side} /> : null }));
+const orderForm = vi.hoisted(() => ({ loaded: false, mounted: vi.fn() }));
+vi.mock('../components/OrderPlaceModal', () => {
+  orderForm.loaded = true;
+  return { OrderPlaceModal: ({ isOpen, prefillMarketProduct, side, onClose }: { isOpen: boolean; prefillMarketProduct?: string; side: string; onClose: () => void }) => {
+    React.useEffect(() => { orderForm.mounted(); }, []);
+    return isOpen ? <div role="dialog" aria-label="Place order" data-testid="order-place-dialog" data-product={prefillMarketProduct} data-side={side}>
+      <button onClick={onClose}>Close order</button>
+    </div> : null;
+  } };
+});
 vi.mock('../components/public/DataOcean', () => ({ DataOcean: () => null }));
 vi.mock('../components/ui/Pagination', () => ({ Pagination: () => null }));
 vi.mock('../pages/public/LandingPage', () => ({ LandingPage: () => null }));
@@ -281,6 +290,18 @@ describe('app routing', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('loads the sidebar order dialog on demand and leaves Settings visible', async () => {
+    renderApp('/app/settings');
+    expect(await screen.findByTestId('page-settings')).toBeTruthy();
+    expect(orderForm.loaded).toBe(false);
+    expect(orderForm.mounted).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Post a Bid' }));
+    expect(screen.getByTestId('page-settings')).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Place order' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close order' }));
+    expect(screen.queryByRole('dialog', { name: 'Place order' })).toBeNull();
   });
 
   describe('route → component per viewMode', () => {

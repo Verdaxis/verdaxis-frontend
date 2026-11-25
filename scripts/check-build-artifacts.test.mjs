@@ -24,6 +24,8 @@ const VENDORS = [
 // route chunks. Real Vite output names these files, so the fixture name matches.
 const ROUTE_CHUNKS = [
   'LandingPage',
+  'Layout',
+  'lenis',
   'public',
   'Marketplace',
   'trading',
@@ -49,7 +51,7 @@ function fixture(apiSource, { nested = false, chunks = {}, extraFiles = {} } = {
   writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/assets/index-test.js"></script>');
   writeFileSync(path.join(scripts, 'index-test.js'), entrySource(apiSource));
   for (const vendor of VENDORS) writeFileSync(path.join(assets, `${vendor}-test.js`), EMPTY_CHUNK);
-  for (const name of ROUTE_CHUNKS) writeFileSync(path.join(assets, `${name}-test.js`), chunks[name] ?? EMPTY_CHUNK);
+  for (const name of ROUTE_CHUNKS) writeFileSync(path.join(assets, `${name}-test.js`), chunks[name] ?? (name === 'public' ? 'export const title = "Why Verdaxis";' : EMPTY_CHUNK));
   for (const [name, source] of Object.entries(chunks)) {
     if (!ROUTE_CHUNKS.includes(name)) writeFileSync(path.join(assets, `${name}-test.js`), source);
   }
@@ -148,6 +150,24 @@ test('a bare side-effect import also pulls its chunk into the first load', () =>
     measure(root, ['Marketplace-']),
     gz('index-test.js') + gz('Marketplace-test.js') + gz('vendor-recharts-test.js'),
   );
+});
+
+test('the English landing budget counts English public copy but not Chinese public copy', () => {
+  const budget = ROUTE_FIRST_LOAD_BUDGETS.find(({ name }) => name === 'landing');
+  const english = 'export const title = "Why Verdaxis";';
+  const chinese = 'export const title = "为何选择 Verdaxis";';
+  const baseline = fixture(PROD, { chunks: { public: english } });
+  const bilingual = fixture(PROD, { chunks: { public: english, 'public-extra': chinese } });
+  const withoutCopy = measure(baseline, ['LandingPage-']);
+  const total = (root) => assertRouteFirstLoadBudgets({
+    assetsDirectory: path.join(root, 'assets'),
+    files: readdirSync(path.join(root, 'assets')),
+    shellHtml: readFileSync(path.join(root, 'index.html'), 'utf8'),
+    budgets: [budget],
+  })[0].measuredGzipBytes;
+
+  assert.ok(total(baseline) > withoutCopy);
+  assert.equal(total(bilingual), total(baseline));
 });
 
 test('a chunk added to the route chain raises the measured first load by its own size', () => {

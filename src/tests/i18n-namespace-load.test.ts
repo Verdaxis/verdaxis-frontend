@@ -30,27 +30,23 @@ vi.mock('../locales/zh/rfq.json', () => {
 });
 
 describe('loadNamespace', () => {
-  it('starts every language loader before either resolves', async () => {
-    const loading = loadNamespace('rfq');
-
-    // Both loaders must be in flight while neither promise has settled. A
-    // serial implementation would still show only `en` here.
-    await vi.waitFor(() => {
-      expect([...state.started].sort()).toEqual(['en', 'zh']);
-    });
-    expect(i18n.hasResourceBundle('en', 'rfq')).toBe(false);
-    expect(i18n.hasResourceBundle('zh', 'rfq')).toBe(false);
-
-    // Resolving one language must not wait for the other.
+  it('loads English alone and prepares Chinese before publishing a language switch', async () => {
+    await i18n.changeLanguage('en');
+    const english = loadNamespace('rfq');
+    await vi.waitFor(() => expect(state.started).toContain('en'));
     state.resolve.en();
-    await vi.waitFor(() => {
-      expect(i18n.hasResourceBundle('en', 'rfq')).toBe(true);
-    });
-    expect(i18n.hasResourceBundle('zh', 'rfq')).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(state.started).toEqual(['en']);
+    await english;
+    expect(i18n.t('probe', { ns: 'rfq' })).toBe('en');
 
+    const switching = i18n.changeLanguage('zh');
+    await vi.waitFor(() => expect(state.started).toContain('zh'));
+    expect(i18n.t('probe', { ns: 'rfq' })).toBe('en');
     state.resolve.zh();
-    await loading;
-
-    expect(i18n.hasResourceBundle('zh', 'rfq')).toBe(true);
+    await switching;
+    expect(i18n.t('probe', { ns: 'rfq' })).toBe('zh');
+    expect(i18n.t('probe', { ns: 'rfq', lng: 'en' })).toBe('en');
+    await i18n.changeLanguage('en');
   });
 });
