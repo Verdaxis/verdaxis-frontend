@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -121,6 +121,61 @@ describe('admin onboarding review', () => {
 
   afterEach(async () => {
     await act(async () => { await i18n.changeLanguage('en'); });
+  });
+
+  it('pages through pending accounts and starts a new status filter on page one', async () => {
+    mocks.users.mockImplementation(async (query: string) => {
+      const params = new URLSearchParams(query);
+      const approved = params.get('status') === 'APPROVED';
+      const number = Number(params.get('offset')) + 1;
+      return {
+        total: approved ? 1 : 101,
+        items: [{ id: `user-${number}`, email: `${approved ? 'approved' : 'pending'}${number}@example.com`,
+          status: params.get('status'), role: 'BUYER', created_at: reviewCase.created_at }],
+      };
+    });
+    render(<MemoryRouter initialEntries={['/app/admin/users']}><AdminDashboard /></MemoryRouter>);
+    await screen.findByText('pending1@example.com');
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    await screen.findByText('pending101@example.com');
+    expect(screen.getByText('101–101 of 101')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    await screen.findByText('Awaiting verification');
+    expect(mocks.reviewCase).toHaveBeenCalledWith('user-101');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approved' }));
+    await screen.findByText('approved1@example.com');
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+  });
+
+  it('retries a failed outreach read without hiding accounts and hides an empty queue', async () => {
+    mocks.onboardingAttention.mockRejectedValueOnce(new Error('unavailable'));
+    render(<MemoryRouter initialEntries={['/app/admin/users']}><AdminDashboard /></MemoryRouter>);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Could not load the outreach queue.');
+    expect(await screen.findByText('Hapag-Lloyd AG')).toBeTruthy();
+    await act(async () => { fireEvent.click(within(alert).getByRole('button', { name: 'Retry' })); });
+    expect(mocks.onboardingAttention).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/needs outreach/i)).toBeNull();
+  });
+
+  it('uses primary ink on the selected status and invitation mode', async () => {
+    render(<MemoryRouter initialEntries={['/app/admin/users']}><AdminDashboard /></MemoryRouter>);
+    const pending = await screen.findByRole('button', { name: 'Pending' });
+    const approved = screen.getByRole('button', { name: 'Approved' });
+    const primaryInk = 'text-[#07101E]';
+    expect(pending.classList.contains(primaryInk)).toBe(true);
+    fireEvent.click(approved);
+    expect(pending.classList.contains(primaryInk)).toBe(false);
+    expect(approved.classList.contains(primaryInk)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Invite user' }));
+    const existing = await screen.findByRole('button', { name: 'Existing organization' });
+    const create = screen.getByRole('button', { name: 'New organization' });
+    expect(existing.classList.contains(primaryInk)).toBe(true);
+    fireEvent.click(create);
+    expect(existing.classList.contains(primaryInk)).toBe(false);
+    expect(create.classList.contains(primaryInk)).toBe(true);
   });
 
   it('shows the requested organization and blocks approval on email verification', async () => {
